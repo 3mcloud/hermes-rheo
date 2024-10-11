@@ -8,82 +8,76 @@ pr:
 
 variables:
   isMainBranch: $[eq(variables['Build.SourceBranchName'], 'main')]
-  isDevelopBranch: $[eq(variables['Build.SourceBranchName'], 'develop')]
-  resourceGroupName: 3m-srddac03-whoa-rg
-  storageAccountName: srddac03whoagen1sa
-  serviceConnection: crl-platform-inherited
-  blobContainerName: cralconda
-  fileShareName: cralcondarepo
 
 pool:
   vmImage: 'windows-2019'
 
 jobs:
-  - job: BuildAndDeploy
-    condition: or(eq(variables.isMainBranch, 'True'), eq(variables.isDevelopBranch, 'True'))
+
+  - job: RunTests
+    strategy:
+      matrix:
+        Python39-windows-2022:
+          vmimage: 'windows-2022'
+          python.version: '3.9'
+        Python39-ubuntu-20.04:
+          vmimage: 'ubuntu-20.04'
+          python.version: '3.9'
+        Python39-ubuntu-22.04:
+          vmimage: 'ubuntu-22.04'
+          python.version: '3.9'
+        Python39-macOS-12:
+          vmimage: 'macOS-12'
+          python.version: '3.9'
+        Python310-windows-2022:
+          vmimage: 'windows-2022'
+          python.version: '3.10'
+        Python310-ubuntu-20.04:
+          vmimage: 'ubuntu-20.04'
+          python.version: '3.10'
+        Python310-ubuntu-22.04:
+          vmimage: 'ubuntu-22.04'
+          python.version: '3.10'
+        Python310-macOS-12:
+          vmimage: 'macOS-12'
+          python.version: '3.10'
+
+
+    pool:
+      vmImage: $(vmimage)
 
     steps:
-    - checkout: self
-      submodules: true
-      persistCredentials: true
-      clean: true
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(python.version)'
 
+    - script: |
+        python -m pip install --upgrade pip && pip install .[tests]
+      displayName: 'Install or upgrade packaging tools'
+
+    - script: |
+        python -m pytest ./tests
+      displayName: "Run pytest"
+
+  - job: BuildAndDeploy
+    dependsOn: RunTests
+    condition: eq(variables.isMainBranch, 'True')
+    steps:
     - task: UsePythonVersion@0
       inputs:
         versionSpec: '3.10'
 
     - script: |
-        python -m pip install --upgrade pip && pip install build wheel
-      displayName: Install build tools and submodules
+        python -m pip install --upgrade pip
+      displayName: 'Install or update pip.'
+
+    - script: |
+        python -m pip install build wheel twine
+      displayName: 'Install build, wheel and twine tools.'
 
     - script: python -m build --wheel
-      condition: eq(variables.isMainBranch, true)
-      displayName: 'Build stable python wheel from package source'
-
-    - script: python setup.py egg_info --tag-date --tag-build=dev bdist_wheel
-      condition: eq(variables.isDevelopBranch, true)
-      displayName: 'Build pre-release python wheel from package source'
-
-    - task: AzureCLI@2
-      displayName: CopyFiles
-      inputs:
-        azureSubscription: $(serviceConnection)
-        scriptType: pscore
-        scriptLocation: inlineScript
-        inlineScript: |
-          az storage file upload-batch --account-name $(storageAccountName) --account-key '$(AZURE_STORAGE_KEY)' --destination $(fileShareName)/pypi/hermes_rheo --source ./dist
-          az storage blob upload-batch --account-name $(storageAccountName) --account-key '$(AZURE_STORAGE_KEY)' --destination $(blobContainerName)/hermes_rheo --source ./dist
-
-    - task: AzureCLI@2
-      displayName: "Restart cralgalaxy WebApp"
-      inputs:
-        azureSubscription: $(serviceConnection)
-        scriptType: bash
-        scriptLocation: inlineScript
-        inlineScript:
-          az webapp restart --resource-group 3m-cral-conda-rg --name cralgalaxy
-
-  - job: BuildAndDeployDocs
-    condition: eq(variables.isDevelopBranch, 'True')
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.10'
+      displayName: 'Build stable python wheel from package source.'
 
     - script: |
-        python -m pip install --upgrade pip && pip install sphinx sphinx-rtd-theme
-      displayName: 'Update pip and then install sphinx package and theme'
-
-    - script: |
-        python -m pip install .
-      displayName: 'Install hermes_rheo'
-
-    - script: sphinx-apidoc -o docs/source src/hermes_rheo && cd docs && make html
-      displayName: 'Change to docs directory and run the make command for html'
-
-    - script: ls -r ./docs/build/html
-      displayName: 'List the contents of the html directory'
-
-    - script: |
-        az storage file upload-batch --account-name $(storageAccountName) --account-key '$(AZURE_STORAGE_KEY)' --destination "cralcondarepo/site/hermes" --source $(Build.SourcesDirectory)/docs/build/html
-      displayName: 'Copy generated hermes documentation from build server to Azure storage'
+        python -m twine upload --username "__token__" --password $(TWINE_TOKEN) --verbose --repository testpypi dist/*
+      displayName: 'Upload stable python wheel to test public pypi'
