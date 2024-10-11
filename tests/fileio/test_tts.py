@@ -1,4 +1,4 @@
-from cralds.dataio.fileio.read.specific.trios_rheo_txt import TriosRheoReader
+from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 from hermes_rheo.transforms.rheo_analysis import RheoAnalysis
 from hermes_rheo.transforms.automated_mastercurve import AutomatedMasterCurve
 

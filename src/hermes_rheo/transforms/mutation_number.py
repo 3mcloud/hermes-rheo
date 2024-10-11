@@ -1,6 +1,6 @@
-from cralds_base.transform.abc.measurement_set_transform import MeasurementSetTransform
-import cralds_base.data.datasets.abc.split_datasets.one_dimensional_dataset as one_dimensional_dataset
-from cralds.data import Measurement, MeasurementSet
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+import piblin.data.datasets.abc.split_datasets.one_dimensional_dataset as one_dimensional_dataset
+from piblin.data import Measurement, MeasurementSet
 import numpy as np
 import copy
 from collections import defaultdict
@@ -10,6 +10,12 @@ from matplotlib import pyplot as plt
 class MutationNumberMeasurementSet(MeasurementSet):
     """
     Custom MeasurementSet class for handling mutation number data and providing custom visualization.
+
+    Methods:
+    --------
+    visualize(self, show_all_frequencies=False, y_lim=None, **kwargs):
+        Visualizes the mutation number data, either showing all frequencies or averaging over time with standard
+        deviation.
     """
 
     def visualize(self, show_all_frequencies=False, y_lim=None, **kwargs):
@@ -19,10 +25,17 @@ class MutationNumberMeasurementSet(MeasurementSet):
         Parameters:
         -----------
         show_all_frequencies : bool
-            If True, plot Mutation number vs. Time for all frequencies. If False, only plot the average Mutation vs. Time with standard deviation.
+            If True, plot Mutation number vs. Time for all frequencies. If False, only plot the average Mutation
+            vs. Time with standard deviation.
         y_lim : tuple, optional
             A tuple specifying the y-axis limits (y_min, y_max). Default is None, which automatically sets the limits.
 
+        Returns:
+        --------
+        fig : matplotlib.figure.Figure
+            The figure object containing the plot(s).
+        ax : matplotlib.axes._subplots.AxesSubplot or tuple
+            The axes object(s) of the plot.
         """
         mutation_number_by_frequency = defaultdict(lambda: defaultdict(list))
 
@@ -97,6 +110,23 @@ class MutationNumberMeasurementSet(MeasurementSet):
 class MutationNumber(MeasurementSetTransform):
     """
     A transform class to calculate and visualize the mutation number from measurement sets.
+
+    Args:
+    -----
+    state : str
+        The state variable to be used (default is 'time').
+    state_sampling : str
+        The method to determine the state value ('average', 'first point', 'last point').
+    dependent_variable : str
+        The dependent variable to be used for mutation number calculation (default is 'complex modulus').
+
+    Methods:
+    --------
+    _state_to_condition(self, target):
+        Computes the specified state's value using the defined method and adds it as a condition in the dataset.
+
+    _apply(self, target, **kwargs):
+        Applies the mutation number calculation to the dataset and returns a MutationNumberMeasurementSet object.
     """
 
     def __init__(self, state='time', state_sampling='first point', dependent_variable='complex modulus', *args, **kwargs):
@@ -120,13 +150,18 @@ class MutationNumber(MeasurementSetTransform):
     def _state_to_condition(self, target):
         """
         Applies the transformation to compute the specified state's value and adds it as a condition. This is used when
-        a physical property is collected transiently and need to be converted to a condition at a specific time.
-        For example, the average temperature at which each measurement was taken. The state_sampling value allow to choose
+        a physical property is collected transiently and needs to be converted to a condition at a specific time.
+        For example, the average temperature at which each measurement was taken. The state_sampling value allows to choose
         between 'average', 'first point', or 'last point' of the state variable to be used as the condition.
+
         Parameters:
         -----------
         target : MeasurementSet
             The target dataset to which the transformation is applied.
+
+        Raises:
+        -------
+        ValueError: If the state name is not found in the dataset or if the state sampling method is invalid.
         """
         for measurement in target.measurements:
             state_found = False
@@ -149,22 +184,25 @@ class MutationNumber(MeasurementSetTransform):
 
     def _apply(self, target, **kwargs):
         """
-        Applies the mutation number calculation to the measurement set.
+        Applies the mutation number calculation to the target dataset and returns a MutationNumberMeasurementSet.
 
         Parameters:
         -----------
         target : MeasurementSet
-            The target measurement set.
+            The target dataset containing the measurements to be processed.
 
         Returns:
         --------
-        MutationNumberMeasurementSet
-            A custom measurement set with mutation number data.
+        MutationNumberMeasurementSet : The dataset containing mutation numbers for different frequencies.
+
+        Raises:
+        -------
+        ValueError: If state conditions or mutation data are missing or invalid.
         """
         self._state_to_condition(target)
         moduli = []
         frequencies = []
-        time_conditions = []
+        time_conditions = []  # This contains the wave start times
         waiting_times = []
         wave_durations = []
 
@@ -176,7 +214,7 @@ class MutationNumber(MeasurementSetTransform):
             frequency = copy.deepcopy(dataset_frequency.x_values)
             modulus = copy.deepcopy(dataset_frequency.y_values)
 
-            time_condition = measurement.conditions['time']
+            time_condition = measurement.conditions['time']  # This represents the wave start time
             waiting_time = measurement.details['waiting_time']
 
             dataset_time = measurement.datasets[1]
@@ -201,13 +239,15 @@ class MutationNumber(MeasurementSetTransform):
         measurements = []
         for i, freq_list in enumerate(frequencies):
             if i > 0:
+                # Use time_conditions to calculate time difference (delta_t)
+                time_diff = time_conditions[i] - time_conditions[i - 1]
+
                 T = T_values[i]
                 for j, freq in enumerate(freq_list):
                     if time_conditions[i] != time_conditions[i - 1]:
-                        time_diff = wave_durations[i]
                         ln_modulus_curr = np.log(moduli[i][j])
                         ln_modulus_prev = np.log(moduli[i - 1][j])
-                        derivative_ln_modulus = (ln_modulus_curr - ln_modulus_prev) / time_diff
+                        derivative_ln_modulus = (ln_modulus_curr - ln_modulus_prev) / time_diff  # Updated time difference
                         if derivative_ln_modulus != 0:
                             mutation_number = T / (1 / derivative_ln_modulus)
                             mutation_number_by_frequency[freq][time_conditions[i]].append(mutation_number)
@@ -228,7 +268,7 @@ class MutationNumber(MeasurementSetTransform):
                 independent_variable_data=[np.array(all_times)],
                 independent_variable_names=['time'],
                 independent_variable_units=['s'],
-                source='?')
+                source='datasets in time and frequency domain')
 
             # Create a Measurement object
             measurements.append(

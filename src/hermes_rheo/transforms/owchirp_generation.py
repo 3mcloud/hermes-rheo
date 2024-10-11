@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import math
 import numpy as np
-
+import os
 
 class OWChirpGeneration:
     """
@@ -158,8 +158,8 @@ class OWChirpGeneration:
                     self.w0_exp_waiting_time * math.exp(
                         self.exponential_growth_rate * time) - self.w0_divided_by_alpha + self.initial_phase_shift_radians)
 
-    def visualize(self, display_r0=False):
-        """Plot the chirp waveform with an optional comparison to a tapering parameter of r=0."""
+    def visualize(self, display_r0=False, filepath=None):
+        """Plot the chirp waveform and save data and plot to user-specified folder."""
 
         time_values = np.arange(0, self.signal_duration + self.waiting_time, 0.0001)
         strain_values = list(map(self._chirp_function, time_values))
@@ -171,12 +171,13 @@ class OWChirpGeneration:
         if valid_data:
             time_values_filtered, strain_values_filtered = zip(*valid_data)
 
-            # Save filtered time and strain values to a text file
-            np.savetxt('chirp_waveform_data.txt', np.column_stack((time_values_filtered, strain_values_filtered)),
+            # Save filtered time and strain values to the specified text file
+            txt_file_path = os.path.join(filepath, 'owchirp_waveform_xy.txt')
+            np.savetxt(txt_file_path, np.column_stack((time_values_filtered, strain_values_filtered)),
                        header="Time(s)\tStrain", fmt='%.5e', delimiter='\t')
 
-            plt.plot(time_values_filtered, strain_values_filtered,'b-', label='Chirp Signal')
-
+            # Plot the chirp signal
+            plt.plot(time_values_filtered, strain_values_filtered, 'b-', label='Chirp Signal')
 
         if display_r0:
             # Temporarily set tapering parameter to 0 to compute the r=0 chirp
@@ -193,9 +194,11 @@ class OWChirpGeneration:
         plt.ylabel('Strain')
         plt.axhline(0, linestyle='--', color='black')
         plt.axvline(self.waiting_time, linestyle='--', color='black')
-        plt.annotate(f'tw = {self.waiting_time} s',
-                     xy=(self.waiting_time + 0.5, -self.strain_amplitude))
-        plt.legend()
+        plt.legend(loc='best')
+
+        png_file_path = os.path.join(filepath, 'owchirp_waveform_xy.png')
+        plt.savefig(png_file_path, dpi=100)
+
         plt.show()
 
     def print_parameters(self):
@@ -217,9 +220,11 @@ class OWChirpGeneration:
         print(f'For the third segment duration = {round(self.segment_duration_3, 3)}s write: {self.zone4_equation}')
         print('--------------------------------------------------------------------------')
 
-    def to_txt(self):
-        """Save the parameters and equations to a text file."""
-        with open(self.output_file_name, 'w', encoding='utf-8') as file:
+    def to_txt(self, filepath):
+        """Save the parameters and equations to a text file in the specified folder."""
+        output_file = os.path.join(filepath, 'owchirp_parameters.txt')
+
+        with open(output_file, 'w', encoding='utf-8') as file:
             file.write(f'Shorter chirp signal: {self.shorter_chirp_signal} (s), TB = {self.time_bandwidth}\n')
             file.write(f'Total length of chirp signal: {self.signal_duration} (s)\n')
             file.write(f'Initial Frequency: {self.initial_frequency} (rad/s)\n')
@@ -239,6 +244,4 @@ class OWChirpGeneration:
             file.write(
                 f'For the third segment duration = {round(self.segment_duration_3, 3)}s write: {self.zone4_equation}\n')
             file.write('--------------------------------------------------------------------------\n')
-
-
 

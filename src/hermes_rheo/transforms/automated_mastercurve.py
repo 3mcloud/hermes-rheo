@@ -1,4 +1,4 @@
-from cralds_base.transform.abc.measurement_set_transform import MeasurementSetTransform
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
 from mastercurves import MasterCurve
 from mastercurves.transforms import Multiply
 import numpy as np
@@ -6,30 +6,33 @@ import numpy as np
 
 class AutomatedMasterCurve(MeasurementSetTransform):
     """
-    AutomatedMasterCurve is a class for constructing master curves using a data-driven  algorithm which
+    AutomatedMasterCurve is a class for constructing master curves using a data-driven algorithm which
     employs Gaussian process regression to learn statistical models that describe the data, and then uses maximum a
-    posteriori estimation to optimally superpose the data sets . It supports customization of the state and property
+    posteriori estimation to optimally superpose the data sets. It supports customization of the state and property
     for the master curve creation and allows for optional vertical shift if needed.
 
     The algorithm was developed by the Swan and McKinley lab at MIT. For more information, see:
     "A data-driven method for automated data superposition with applications in soft matter science"
-    Data-Centric Engineering , Volume 4 , 2023 , e13
+    Data-Centric Engineering, Volume 4, 2023, e13
     DOI: https://doi.org/10.1017/dce.2023.3
 
     The implementation in this class is based on an open-source Python package developed by Kyle Lennon. For
     source code, visit: https://github.com/krlennon/mastercurves. Documentation for the package can be found at:
     https://krlennon-mastercurves.readthedocs.io.
 
-    Note: The mastercurves package is released under the GNU General Public License v3.0. This class, developed
-    for use within 3M, complies with these licensing terms and is intended for internal use only.
+    Note: The mastercurves package is released under the GNU General Public License v3.0.
 
     Args:
-        state (str): The state based on which the master curve is constructed (e.g., 'time', 'temperature'). Defaults to 'temperature'.
-        method (str): The method to compute the state value ('average', 'first point', 'last point'). Only used if state is a dataset variable. Defaults to 'average'.
+        state (str): The state based on which the master curve is constructed (e.g., 'time', 'temperature').
+                     Defaults to 'temperature'.
+        state_mode (str): The method to compute the state value ('average', 'first point', 'last point'). Only used
+                          if the state is a dataset variable. Defaults to 'average'.
         x (str): The x-axis data for the master curve (e.g., 'angular frequency'). Defaults to 'angular frequency'.
         y (str): The y-axis data for the master curve (e.g., 'storage modulus'). Defaults to 'storage modulus'.
         vertical_shift (bool): Whether to apply a vertical shift. Defaults to False.
         reverse_data (bool): Whether to reverse the data order. Defaults to False.
+        measurements (list, optional): A list of specific measurement indices to use. If not provided, all measurements
+                                       in the target dataset will be used. Defaults to None.
         *args, **kwargs: Additional arguments and keyword arguments for superclass initialization.
 
     Methods:
@@ -37,7 +40,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
             Applies the algorithm to the target dataset to create a master curve. This method integrates the data
             processing, state conditioning, and master curve creation into a single automated process.
 
-        _states_to_condition(self, target):
+        _state_to_condition(self, target):
             Computes the specified state's value using the defined method ('average', 'first point', 'last point')
             and adds it as a condition to the target dataset. This method is used internally to condition the data
             before applying the master curve algorithm.
@@ -88,6 +91,19 @@ class AutomatedMasterCurve(MeasurementSetTransform):
                 raise ValueError(f"State name {self.state} not found in datasets for one of the measurements")
 
     def _apply(self, target, **kwargs):
+        """
+        Applies the algorithm to create a master curve from the target dataset.
+
+        Args:
+            target (object): The target dataset containing the data to be used for master curve construction.
+
+        Returns:
+            MasterCurve: The generated master curve based on the specified state and data.
+
+        Raises:
+            ValueError: If the state array's length does not match the number of measurements.
+                        If the specified state is not found in the dataset conditions.
+        """
         self._state_to_condition(target)
         states = []
         x_data = []
@@ -146,4 +162,3 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         master_curve.superpose()
 
         return master_curve
-
