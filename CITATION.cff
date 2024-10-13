@@ -1,0 +1,40 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: hermes-rheo
+message: >-
+  If you use this software, please cite it using the  
+  metadata from this file.
+type: software
+authors:
+  - given-names: 'Alessandro '
+    family-names: Perego
+    email: aperego@mmm.com
+    affiliation: 3M
+    orcid: 'https://orcid.org/0000-0002-0570-3210'
+  - given-names: Mathew J. L.
+    family-names: Mills
+    email: mmills2@mmm.com
+    affiliation: 3M
+repository-code: 'https://github.com/3mcloud/hermes-rheo'
+abstract: >
+  The rapid evolution of data science has opened new
+  possibilities for advanced analysis in measurement
+  science, particularly within the field of rheology.
+  However, the gap between generalized data processing
+  techniques and the specific needs of rheological data
+  analysis often leaves researchers in need of more
+  specialized tools. To meet this demand, we introduce the
+  hermes Python package. Building on the abstraction
+  provided by the piblin library, hermes delivers a suite of
+  specialized transforms and analytical tools designed
+  explicitly for rheological data. This package enhances
+  workflows by enabling precise reading, visualization,
+  processing, and export of rheological datasets, all within
+  a flexible and user-friendly framework.
+keywords:
+  - rheology
+  - data science
+  - python
+license: MIT

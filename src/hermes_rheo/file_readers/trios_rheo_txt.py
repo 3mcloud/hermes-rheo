@@ -18,7 +18,7 @@ class TriosRheoReader(file_reader.FileReader):
     By default, both the independent and dependent variables are set to "Temperature." This setting is chosen as
     temperature is the only rheological variable consistently present across the various measurements provided by
     TRIOS software. For users seeking to further analyze or manipulate the rheological measurements, the TriosRheoReader
-    class is compatible with a range of transformations available through the hermes package (https://github.mmm.com/MMM/hermes).
+    class is compatible with a range of transformations available through the hermes package (https://github.com/3mcloud/hermes-rheo).
     """
     supported_extensions = {'txt'}
 
