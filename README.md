@@ -1,6 +1,6 @@
 [pypi-image]: https://badge.fury.io/py/hermes-rheo.svg
 [pypi-url]: https://pypi.org/project/hermes-rheo/
-[pypi-download]: https://static.pepy.tech/personalized-badge/hermes-rheo?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=downloads
+[pypi-download]: https://static.pepy.tech/badge/hermes-rheo?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=downloads
 [docs-image]: https://img.shields.io/badge/docs-latest-blue
 
 # hermes-rheo
