@@ -43,7 +43,7 @@ from hermes_rheo.transforms.rheo_analysis import RheoAnalysis
 
 ## Examples
 
-The [tutorial_notebooks folder](https://github.com/3mcloud/hermes-rheo/tree/main/demos), 
+The [tutorial_notebooks folder](https://github.com/3mcloud/hermes-rheo/tree/main/tutorial_notebooks), 
 contains multiple examples that showcase the software’s functionality in detail.
 
 ## Style and Supporting Tools
