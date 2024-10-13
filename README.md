@@ -73,7 +73,7 @@ format for commit messages is suggested but not enforced.
 
 ## Contibuting
 
-Inquiries and suggestions can be directed to aperego[at]mmm.edu. 
+Inquiries and suggestions can be directed to aperego[at]mmm.com. 
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
