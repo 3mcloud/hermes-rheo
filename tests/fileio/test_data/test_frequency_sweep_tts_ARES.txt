@@ -1,44 +1,44 @@
 [Version]
-TA Instruments LIMS export format version	1
+TA Instruments LIMS export format version	0
 [Header]
-Document ID	b801b13d-d784-427d-bf92-1321c9a31898
-File path	C:\Users\A9VRAZZ\OneDrive - 3M\Documents\CRAL\NTI and Pre-NTI\Hermes Analysis of the Rheology of Transient Samples\Experimental data\ARES-G2 - W17\2023.06.26 -468MP\115 - Hermes -  468MP TTS 2023.06.26 split cycles.tri
-Instrument serial number	4010-0862
-Instrument name	TdbOn
-Logged-in user at run start	Not recorded
-Run date	6/26/2023 1:34:19 PM
+Document ID	xxx
+File path	xxx
+Instrument serial number	4010-xxxx
+Instrument name	4010-xxxx
+Logged-in user at run start	Anonymous
+Run date	MM/DD/YYYY
 [Sample]
-Name	115 - Hermes -  468MP TTS 2023.06.26
-Operator	DCV
-Project	
-Notes	
-File name	C:\Users\A9VRAZZ\OneDrive - 3M\Documents\CRAL\NTI and Pre-NTI\Hermes Analysis of the Rheology of Transient Samples\Experimental data\ARES-G2 - W17\2023.06.26 -468MP\115 - Hermes -  468MP TTS 2023.06.26 split cycles.tri
+Name	Anonymous
+Operator	Anonymous
+Project	Anonymous
+Notes	Anonymous
+File name	Anonymous
 [Sample: Advanced]
-Fluid density	1.00000
+Fluid density	0.00000
 [Geometry]
 [Geometry: Standard]
-Name	8.0mm parallel plate,  Stainless steel
-Diameter	8.0 mm
-Gap	1.0 mm
-Loading gap	10.0 mm
-Trim gap offset	0.05 mm
-Material	Stainless steel
-Notes	
+Name	Anonymous
+Diameter	0.0 mm
+Gap	0.000000 mm
+Loading gap	0.0 mm
+Trim gap offset	0.00 mm
+Material	Anonymous
+Notes	Anonymous
 [Geometry: Extended]
-Expansion coefficient	2.32019 µm/°C
-Move stage to maintain starting gap	Active
-Upper Compliance	0.705 mrad/N.m
-Lower Compliance	0.705 mrad/N.m
-Geometry Inertia	3.31 µN.m.s²
-Upper Geometry Mass	72.07 g
-Friction Enabled	1.065
-Stress constant	975.486 Pa/g.cm
-Strain constant	4.0 1/rad
-Stress constant (linear)	19894.4 Pa/N
-Strain constant (linear)	1000.0 1/m
-Normal Stress Constant	39788.7 Pa/N
+Expansion coefficient	0.0000 µm/°C
+Move stage to maintain starting gap	Anonymous
+Upper Compliance	0.00 mrad/N.m
+Lower Compliance	0.00 mrad/N.m
+Geometry Inertia	0.00 µN.m.s²
+Upper Geometry Mass	00.00 g
+Friction Enabled	0.000
+Stress constant	000.000 Pa/g.cm
+Strain constant	00.000 1/rad
+Stress constant (linear)	00000.0 Pa/N
+Strain constant (linear)	0000.00 1/m
+Normal Stress Constant	00000.0 Pa/N
 [Procedure]
-Procedure name	TTS - 2023.05.10
+Procedure name	TTS - 0000.00.00
 [Procedure: Steps]
 Step 1	Conditioning-Transducer : Transducer Mode Switching: On Configuration  OverrideNormal force transducer mode:  Spring is selectedTorque transducer mode:  FRT is selectedMotor State / Equilibration Delay : On Motor state LockedEquilibration time 10.0 s Transducer Zeroing / Range Switching: On Range  OverrideRange selection High rangeAuto range: On Transducer zero time StandardZero torque: On Zero normal force: Off
 Step 2	Conditioning-Sample : Temperature 150 °C Inherit Set Point: Off Soak Time 180.0 s Wait For Temperature: On Gas Source No changeMaintain LN2 Fill Enabled: On Perform preshear: Off Equilibration: Off
