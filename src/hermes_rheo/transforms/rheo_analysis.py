@@ -26,9 +26,6 @@ class RheoAnalysis(MeasurementTransform):
         data collected during chirp experiments.
         _apply: Applies transformations to the target dataset based on the specified method.
 
-    Note:
-        This code was developed as part of the HERMES NTI (CRAL 2022 - current)
-
     """
 
     def __init__(self, owchirp_waiting_time='before_signal', cutoff_points=0, *args, **kwargs):
