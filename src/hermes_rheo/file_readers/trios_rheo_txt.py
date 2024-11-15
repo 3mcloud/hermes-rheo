@@ -566,7 +566,6 @@ class TriosRheoReader(file_reader.FileReader):
 
                 # Resetting the repeat_count to default
                 repeat_count = 1
-
         return data
 
     @staticmethod

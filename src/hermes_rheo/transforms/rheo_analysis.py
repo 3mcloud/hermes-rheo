@@ -617,8 +617,20 @@ class RheoAnalysis(MeasurementTransform):
         method = target.conditions['method']
 
         if 'Arbitrary Wave' in method:
-            method_key = method.split('\t')[-1]
+            method_key = method.split('\t')[-1]  # Extract method key, e.g., 'Arbitrary Wave - 2'
+
+            # Check if the method key indicates a wave step > 1
+            if 'Arbitrary Wave' in method_key:
+                wave_number = int(method_key.split('-')[-1].strip())  # Extract the wave number
+
+                # Reset to 'Arbitrary Wave - 1' if wave number > 1
+                if wave_number > 1:
+                    method_key = 'Arbitrary Wave - 1'
+
+            # Access the details using the reset or original method key
             wave_data = target.details[method_key]
+
+            # Continue with existing logic
             strain_applied = wave_data['wave 2']['coef'][0]
             waiting_time, oscillation_period, taping_parameter, initial_frequency, final_frequency = \
                 self.calculate_wave_parameters(wave_data)
@@ -765,11 +777,8 @@ class RheoAnalysis(MeasurementTransform):
             original_dataset = target.datasets[0]
             original_dataset.switch_coordinates(independent_name='shear rate', dependent_name='viscosity')
 
-        elif 'Frequency sweep' in method:
-            original_dataset = target.datasets[0]
-            original_dataset.switch_coordinates(independent_name='angular frequency', dependent_name='storage modulus')
 
-        elif 'Multiwave' in method:
+        elif 'Frequency' in method:
             original_dataset = target.datasets[0]
             original_dataset.switch_coordinates(independent_name='angular frequency', dependent_name='storage modulus')
 
