@@ -6,8 +6,8 @@ Subpackages
 
 .. toctree::
    :maxdepth: 4
+   :caption: Subpackages:
 
-   hermes_rheo.functions
    hermes_rheo.transforms
 
 Module contents
