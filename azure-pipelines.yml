@@ -26,8 +26,8 @@ jobs:
         Python39-ubuntu-22.04:
           vmimage: 'ubuntu-22.04'
           python.version: '3.9'
-        Python39-macOS-12:
-          vmimage: 'macOS-12'
+        Python39-macOS-13:
+          vmimage: 'macOS-13'
           python.version: '3.9'
         Python310-windows-2022:
           vmimage: 'windows-2022'
@@ -38,9 +38,33 @@ jobs:
         Python310-ubuntu-22.04:
           vmimage: 'ubuntu-22.04'
           python.version: '3.10'
-        Python310-macOS-12:
-          vmimage: 'macOS-12'
+        Python310-macOS-13:
+          vmimage: 'macOS-13'
           python.version: '3.10'
+        Python311-windows-2022:
+          vmimage: 'windows-2022'
+          python.version: '3.11'
+        Python311-ubuntu-20.04:
+          vmimage: 'ubuntu-20.04'
+          python.version: '3.11'
+        Python311-ubuntu-22.04:
+          vmimage: 'ubuntu-22.04'
+          python.version: '3.11'
+        Python311-macOS-13:
+          vmimage: 'macOS-13'
+          python.version: '3.11'
+        Python312-windows-2022:
+          vmimage: 'windows-2022'
+          python.version: '3.12'
+        Python312-ubuntu-20.04:
+          vmimage: 'ubuntu-20.04'
+          python.version: '3.12'
+        Python312-ubuntu-22.04:
+          vmimage: 'ubuntu-22.04'
+          python.version: '3.12'
+        Python312-macOS-13:
+          vmimage: 'macOS-13'
+          python.version: '3.12'
 
 
     pool:

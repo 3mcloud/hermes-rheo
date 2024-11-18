@@ -1,22 +1,36 @@
-.. hermes documentation master file, created by
-   sphinx-quickstart on Wed Dec  6 15:17:56 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to hermes's documentation!
 ==================================
 
+**hermes** is a Python package developed at `3M <https://www.3m.com/3M/en_US/company-us/about-3m/research-development/>`_
+designed to complement and extend the `piblin <https://github.com/3mcloud/piblin>`_ library,
+offering a set of transforms tailored for analysis of rheological data.
+
+Check out the :doc:`quickstart` section for more information on getting started.
+
+.. note::
+
+   This project is under active development. Check back for updates!
+
+Contents
+--------
+
 .. toctree::
-   :maxdepth: 4
-   :caption: Contents:
+   :maxdepth: 2
+   :caption: Introduction
 
-   hermes_rheo
+   background
+   readers
+   quickstart
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
 
+   tutorials
 
-Indices and tables
-==================
+.. toctree::
+   :maxdepth: 2
+   :caption: API
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   file_readers
+   transforms
