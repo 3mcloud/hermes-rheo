@@ -31,8 +31,7 @@ abstract: >
   specialized transforms and analytical tools designed
   explicitly for rheological data. This package enhances
   workflows by enabling precise reading, visualization,
-  processing, and export of rheological datasets, all within
-  a flexible and user-friendly framework.
+  processing, and export of rheological datasets.
 keywords:
   - rheology
   - data science

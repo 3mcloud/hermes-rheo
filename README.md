@@ -6,11 +6,13 @@
 # hermes-rheo
 
 [![PyPI Version][pypi-image]][pypi-url] [![pypi download][pypi-download]][pypi-url] 
+[![DOI](https://zenodo.org/badge/851879885.svg)](https://doi.org/10.5281/zenodo.14182224)
+
 
 Python package designed to complement and extend the [piblin](https://github.com/3mcloud/piblin) library, 
 offering a set of transforms tailored for analysis of rheological data.
 Publication of this work is forthcoming. For now, if you use this software, please cite it using the metadata in the 
-[citation](https://github.com/3mcloud/hermes-rheo/blob/main/CITATION.cff) file.
+[citation](https://github.com/3mcloud/hermes-rheo/blob/main/CITATION.cff) file and the above DOI.
 
 ## Documentation
 
