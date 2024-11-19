@@ -8,7 +8,6 @@
 [![PyPI Version][pypi-image]][pypi-url] [![pypi download][pypi-download]][pypi-url] 
 [![DOI](https://zenodo.org/badge/851879885.svg)](https://doi.org/10.5281/zenodo.14182224)
 
-
 Python package designed to complement and extend the [piblin](https://github.com/3mcloud/piblin) library, 
 offering a set of transforms tailored for analysis of rheological data.
 Publication of this work is forthcoming. For now, if you use this software, please cite it using the metadata in the 
@@ -16,8 +15,10 @@ Publication of this work is forthcoming. For now, if you use this software, plea
 
 ## Documentation
 
-Documentation to learn more about the package and how to use its API will be available soon. In the meantime, tutorial 
-notebooks can be found in the tutorial_notebooks folder
+Documentation to learn more about the package and how to use its API is availble at: 
+
+[![Documentation Status](https://readthedocs.org/projects/hermes-rheo/badge/?version=latest)](https://hermes-rheo.readthedocs.io/en/latest/)
+
 
 ## Installation
 
@@ -56,7 +57,7 @@ for analysis. For assistance in developing a reader for your data format, please
 
 ## Examples
 
-The [tutorial_notebooks folder](https://github.com/3mcloud/hermes-rheo/tree/main/tutorial_notebooks), 
+The [tutorial_notebooks](https://github.com/3mcloud/hermes-rheo/tree/main/tutorial_notebooks) folder
 contains multiple examples that showcase the software’s functionality in detail.
 
 ## Style and Supporting Tools
