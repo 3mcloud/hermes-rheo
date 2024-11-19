@@ -16,9 +16,9 @@ sys.path.insert(0, pathlib.Path(__file__).parents[2].resolve().as_posix())
 print("*********")
 
 project = 'hermes-rheo'
-copyright = '3M - 2024'
-author = 'Alessandro Perego, Matthew Mills'
-release = '1.0.10'
+copyright = 'Alessandro Perego - 2024'
+authors = 'Alessandro Perego, Matthew Mills'
+release = '1.0.11'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
