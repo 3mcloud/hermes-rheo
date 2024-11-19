@@ -18,8 +18,6 @@ Check out the :doc:`quickstart` section for more information on getting started.
    :alt: DOI
 
 
-
-
 .. note::
 
    This project is under active development. Check back for updates!
