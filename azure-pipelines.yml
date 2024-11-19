@@ -53,18 +53,6 @@ jobs:
         Python311-macOS-13:
           vmimage: 'macOS-13'
           python.version: '3.11'
-        Python312-windows-2022:
-          vmimage: 'windows-2022'
-          python.version: '3.12'
-        Python312-ubuntu-20.04:
-          vmimage: 'ubuntu-20.04'
-          python.version: '3.12'
-        Python312-ubuntu-22.04:
-          vmimage: 'ubuntu-22.04'
-          python.version: '3.12'
-        Python312-macOS-13:
-          vmimage: 'macOS-13'
-          python.version: '3.12'
 
 
     pool:
