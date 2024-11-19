@@ -22,8 +22,10 @@ between data science and rheological measurement needs.
 Citing
 ------
 
-Publication of this work is forthcoming. For now, if you use this software, please cite it using the metadata in the
-`citation <https://github.com/3mcloud/hermes-rheo/blob/main/CITATION.cff>`_ file.
+Publication of this work is forthcoming. For now, if you use this software, please cite it using:
+    .. image:: https://zenodo.org/badge/851879885.svg
+       :target: https://doi.org/10.5281/zenodo.14182224
+       :alt: DOI
 
 Installation
 ------------
