@@ -627,10 +627,8 @@ class RheoAnalysis(MeasurementTransform):
                 if wave_number > 1:
                     method_key = 'Arbitrary Wave - 1'
 
-            # Access the details using the reset or original method key
             wave_data = target.details[method_key]
 
-            # Continue with existing logic
             strain_applied = wave_data['wave 2']['coef'][0]
             waiting_time, oscillation_period, taping_parameter, initial_frequency, final_frequency = \
                 self.calculate_wave_parameters(wave_data)
