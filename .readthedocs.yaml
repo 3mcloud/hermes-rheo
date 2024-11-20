@@ -11,8 +11,12 @@ build:
 sphinx:
   configuration: docs/source/conf.py  # Update the path to match your structure
 
-# Python dependency installation using setup.cfg
+# Python dependency installation
 python:
   install:
     - method: pip
       path: .
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
