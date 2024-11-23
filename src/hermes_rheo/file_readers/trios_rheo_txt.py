@@ -503,41 +503,54 @@ class TriosRheoReader(file_reader.FileReader):
     @staticmethod
     def __extract_wave_data_G2(file_content: List[str]) -> Dict:
         """
-        Extract wave data specific to TA Ares G2 instruments from the file content.
-
         This method processes the file content to extract the arbitrary wave information input by the user in the TRIOS
         software. It identifies and parses information about each wave, such as repeat count, rate, coefficients,
         and duration. The extracted data is structured into a dictionary, with each key representing a distinct wave step.
-
         Parameters
         ----------
         file_content : List[str]
             The content of the file as a list of strings, where each string represents a line from the file.
-
         Returns
         -------
         Dict
             A dictionary with keys representing each wave step (e.g., 'Arbitrary Wave - 1') and values containing
-            detailed wave information such as rate, coefficients, and duration.
+            detailed wave information such as rate, coefficients, and duration.        """
 
-        Notes
-        -----
-        - The method searches for specific patterns in the file content to identify and parse wave data.
-        - It handles repeat counts for waves, ensuring that repeated wave data is correctly accounted for.
-        - The method assumes a specific file format and structure, as expected from Ares G2 instrument outputs.
-        """
+        def extract_wave_coefficients(wave_data: str) -> Dict:
+            """
+            Extract wave coefficients, durations, and wave forms from the wave data string.
+            """
+            wave_info = {}
+            for wave_match in re.finditer(
+                    r"Wave ([\d]+)\s+((?:[\d.]*\*?[a-z()^*+\-./\d\s]+)+)\s+([\d.]*\s[a-zA-Z]+)",
+                    wave_data):
+                wave_num = 'wave ' + wave_match.group(1)
+                coef = wave_match.group(2)
+                duration = float(wave_match.group(3).split()[0])
+
+                # Preprocess coef to remove exponent parts before extracting coefficients
+                preprocessed_coef = re.sub(r"\^[0-9]+", "", coef)
+
+                wave_info[wave_num] = {
+                    'coef': [float(x) for x in re.findall(r"[+-]?(\d+\.\d+|\d+\.|\.\d+|\d+)", preprocessed_coef)],
+                    'duration (s)': duration,
+                    'wave form': coef.strip() if wave_num != 'wave 1' else '0'
+                }
+            return wave_info
+
         data = {}
         wave_counter = 0
         repeat_count = 1  # Default value if no "Repeat Count" is found
+        previous_end_temp = 0  # Initialize with a default value for ramps
 
         for line in file_content:
             # Extracting Repeat Count if available in the line
-            repeat_match = re.search(pattern=r"Repeat Count: (\d+)", string=line)
+            repeat_match = re.search(r"Repeat Count: (\d+)", line)
             if repeat_match:
                 repeat_count = int(repeat_match.group(1)) + 1  # Adding 1 to account for the current wave
 
-            match = re.search(pattern=r'Step (\d+)\s+Other-Arbitrary Wave :.*?rate (\d+)pts/s(.*?)Save images',
-                              string=line, flags=re.DOTALL)
+            match = re.search(r'Step (\d+)\s+Other-Arbitrary Wave :.*?rate (\d+)pts/s(.*?)Save images',
+                              line, flags=re.DOTALL)
             if match:
                 rate = int(match.group(2))
                 wave_data = match.group(3)
@@ -547,25 +560,58 @@ class TriosRheoReader(file_reader.FileReader):
                     wave_counter += 1  # Increment the counter for each replication
                     step = 'Arbitrary Wave - ' + str(wave_counter)
                     data[step] = {'rate (pts/s)': rate}
-
-                    for wave_match in re.finditer(
-                            r"Wave ([\d]+)\s+((?:[\d.]*\*?[a-z()^*+\-./\d\s]+)+)\s+([\d.]*\s[a-zA-Z]+)",
-                            wave_data):
-                        wave_num = 'wave ' + wave_match.group(1)
-                        coef = wave_match.group(2)
-                        duration = float(wave_match.group(3).split()[0])
-
-                        # Preprocess coef to remove exponent parts before extracting coefficients
-                        preprocessed_coef = re.sub(r"\^[0-9]+", "", coef)
-
-                        if wave_num not in data[step]:
-                            data[step][wave_num] = {}
-                        data[step][wave_num]['coef'] = [float(x) for x in re.findall(r"[+-]?(\d+\.\d+|\d+\.|\.\d+|\d+)", preprocessed_coef)]
-                        data[step][wave_num]['duration (s)'] = duration
-                        data[step][wave_num]['wave form'] = coef.strip() if wave_num != 'wave 1' else '0'
+                    data[step].update(extract_wave_coefficients(wave_data))  # Extract wave coefficients
 
                 # Resetting the repeat_count to default
                 repeat_count = 1
+
+            elif "Other-Arbitrary Wave Repeat : Ramp is selected" in line:
+                # Extract ramp-specific parameters
+                temp_match = re.search(r"Temperature (\d+)? °C", line)
+                end_temp_match = re.search(r"End temperature ([\d.]+) °C", line)
+                ramp_rate_match = re.search(r"Ramp rate ([\d.]+) °C/min", line)
+                sampling_rate_match = re.search(r"Sampling rate (\d+)pts/s", line)
+                playback_match = re.search(r"Playback Interval ([\d.]+) s", line)
+                wave_data = re.search(r"Wave Equation (.*?) Playback Interval", line, flags=re.DOTALL)
+
+                if end_temp_match and ramp_rate_match and sampling_rate_match and playback_match and wave_data:
+                    # Use end_temp of the previous wave if temp_match is None
+                    initial_temp = int(temp_match.group(1)) if temp_match else previous_end_temp
+                    end_temp = float(end_temp_match.group(1))
+                    temp_ramp_rate = float(ramp_rate_match.group(1))  # Temperature ramp rate
+                    sampling_rate = int(sampling_rate_match.group(1))  # Sampling rate
+                    playback_interval = float(playback_match.group(1))
+                    wave_details = wave_data.group(1)
+
+                    # Update the previous_end_temp for the next ramp
+                    previous_end_temp = end_temp
+
+                    # Calculate ramp duration and total waves
+                    delta_temp = end_temp - initial_temp
+                    ramp_time = (delta_temp / temp_ramp_rate) * 60  # Convert minutes to seconds
+
+                    # Calculate total wave duration
+                    total_wave_duration = sum(
+                        float(match.group(1)) for match in
+                        re.finditer(r"Wave \d+\s+.*?\s+([\d.]+) s", wave_details)
+                    )
+
+                    # Total time includes ramp time and wave duration
+                    total_time = ramp_time + total_wave_duration
+                    repetitions = int(total_time / playback_interval) + (1 if total_time % playback_interval else 0)
+
+                    # Extract individual wave information
+                    wave_info = extract_wave_coefficients(wave_details)
+
+                    # Replicate wave data based on repetitions
+                    for _ in range(repetitions):
+                        wave_counter += 1  # Increment the counter for each wave
+                        step = 'Arbitrary Wave - ' + str(wave_counter)
+                        data[step] = {
+                            'rate (pts/s)': sampling_rate  # Populate with sampling rate
+                        }
+                        data[step].update(wave_info)  # Populate wave details
+
         return data
 
     @staticmethod
