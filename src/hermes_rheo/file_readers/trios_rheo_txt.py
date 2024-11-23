@@ -503,8 +503,18 @@ class TriosRheoReader(file_reader.FileReader):
     @staticmethod
     def __extract_wave_data_G2(file_content: List[str]) -> Dict:
         """
-        Extract wave data specific to TA Ares G2 instruments from the file content.
-        """
+        This method processes the file content to extract the arbitrary wave information input by the user in the TRIOS
+        software. It identifies and parses information about each wave, such as repeat count, rate, coefficients,
+        and duration. The extracted data is structured into a dictionary, with each key representing a distinct wave step.
+        Parameters
+        ----------
+        file_content : List[str]
+            The content of the file as a list of strings, where each string represents a line from the file.
+        Returns
+        -------
+        Dict
+            A dictionary with keys representing each wave step (e.g., 'Arbitrary Wave - 1') and values containing
+            detailed wave information such as rate, coefficients, and duration.        """
 
         def extract_wave_coefficients(wave_data: str) -> Dict:
             """
