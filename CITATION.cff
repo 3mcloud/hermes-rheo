@@ -17,6 +17,10 @@ authors:
     family-names: Mills
     email: mmills2@mmm.com
     affiliation: 3M
+  - given-names: Damien C.
+    family-names: Vadillo
+    email: dvadillo@mmm.com
+    affiliation: 3M
 repository-code: 'https://github.com/3mcloud/hermes-rheo'
 abstract: >
   The rapid evolution of data science has opened new

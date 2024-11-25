@@ -619,6 +619,11 @@ class RheoAnalysis(MeasurementTransform):
         if 'Arbitrary Wave' in method:
             method_key = method.split('\t')[-1]  # Extract method key, e.g., 'Arbitrary Wave - 2'
 
+            # Handle 'Repeat' in the method key
+            if 'Repeat' in method_key:
+                method_key = method_key.replace(' Repeat',
+                                                '')  # Drop 'Repeat', e.g., 'Arbitrary Wave Repeat - 1' -> 'Arbitrary Wave - 1'
+
             # Check if the method key indicates a wave step > 1
             if 'Arbitrary Wave' in method_key:
                 wave_number = int(method_key.split('-')[-1].strip())  # Extract the wave number
