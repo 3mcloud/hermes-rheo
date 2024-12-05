@@ -2,6 +2,60 @@ from piblin.transform.abc.measurement_set_transform import MeasurementSetTransfo
 from mastercurves import MasterCurve
 from mastercurves.transforms import Multiply
 import numpy as np
+import pandas as pd
+
+class MasterCurveExtended(MasterCurve):
+    """
+    Extends the MasterCurve class with additional functionality such as exporting to Excel.
+    """
+
+    def to_excel(self, filename):
+        """
+        Exports the master curve data to an Excel file.
+
+        Args:
+            filename (str): The path to the Excel file to save the data.
+        """
+        if not hasattr(self, 'states') or not hasattr(self, 'xtransformed') or not hasattr(self, 'ytransformed'):
+            raise ValueError("Master curve data is missing. Ensure the master curve is properly constructed.")
+
+        # Extract the data from the master curve
+        states = self.states
+        xtransformed = self.xtransformed
+        ytransformed = self.ytransformed
+        xdata = self.xdata
+        ydata = self.ydata
+
+        # Flatten the arrays
+        xtransformed_flat = [val for sublist in xtransformed for val in sublist]
+        ytransformed_flat = [val for sublist in ytransformed for val in sublist]
+        xdata_flat = [val for sublist in xdata for val in sublist]
+        ydata_flat = [val for sublist in ydata for val in sublist]
+
+        # Repeat the states for each corresponding row in xtransformed and ytransformed
+        states_flat = np.repeat(states, [len(sublist) for sublist in xtransformed])
+
+        # Compute the exponent of the transformed values to reverse the log transformation
+        xtransformed_exp = np.exp(xtransformed_flat)
+        ytransformed_exp = np.exp(ytransformed_flat)
+        xdata_exp = np.exp(xdata_flat)
+        ydata_exp = np.exp(ydata_flat)
+
+        # Create a dictionary for the long format data
+        data_long = {
+            'State': states_flat,
+            'X_Transformed': xtransformed_exp,
+            'Y_Transformed': ytransformed_exp,
+            'X_Data': xdata_exp,
+            'Y_Data': ydata_exp
+        }
+
+        # Convert to DataFrame
+        df_long = pd.DataFrame(data_long)
+
+        # Export to Excel
+        df_long.to_excel(filename, index=False)
+        print(f"Data has been exported to {filename}.")
 
 
 class AutomatedMasterCurve(MeasurementSetTransform):
@@ -152,7 +206,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
             x_data.reverse()
             y_data.reverse()
 
-        master_curve = MasterCurve()
+        master_curve = MasterCurveExtended()
         master_curve.add_data(x_data, y_data, states)
         master_curve.add_htransform(Multiply())
 
