@@ -146,7 +146,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
 
     def _apply(self, target, **kwargs):
         """
-        Applies the algorithm to create a master curve from the target dataset.
+        Applies the mastercurve algorithm to create a master curve from the target dataset.
 
         Args:
             target (object): The target dataset containing the data to be used for master curve construction.
