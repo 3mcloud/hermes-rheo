@@ -202,7 +202,7 @@ class MutationNumber(MeasurementSetTransform):
         self._state_to_condition(target)
         moduli = []
         frequencies = []
-        time_conditions = []  # This contains the wave start times
+        wave_start_times = []
         waiting_times = []
         wave_durations = []
 
@@ -214,43 +214,43 @@ class MutationNumber(MeasurementSetTransform):
             frequency = copy.deepcopy(dataset_frequency.x_values)
             modulus = copy.deepcopy(dataset_frequency.y_values)
 
-            time_condition = measurement.conditions['time']  # This represents the wave start time
+            wave_start_time = measurement.conditions['time']
             waiting_time = measurement.details['waiting_time']
+
 
             dataset_time = measurement.datasets[1]
             dataset_time.switch_coordinates('step time', 'time')
             step_time = copy.deepcopy(dataset_time.x_values)
 
-            wave_duration = max(step_time) - waiting_time
+            wave_duration = max(step_time)
 
             moduli.append(modulus)
             frequencies.append(frequency)
-            time_conditions.append(time_condition)
+            wave_start_times.append(wave_start_time)
             waiting_times.append(waiting_time)
             wave_durations.append(wave_duration)
 
         moduli_by_frequency = defaultdict(lambda: defaultdict(list))
         for i, freq_list in enumerate(frequencies):
             for j, freq in enumerate(freq_list):
-                moduli_by_frequency[freq][time_conditions[i]].append(moduli[i][j])
+                moduli_by_frequency[freq][wave_start_times[i]].append(moduli[i][j])
 
         mutation_number_by_frequency = defaultdict(lambda: defaultdict(list))
         T_values = [wave_duration - waiting_time for wave_duration, waiting_time in zip(wave_durations, waiting_times)]
         measurements = []
         for i, freq_list in enumerate(frequencies):
             if i > 0:
-                # Use time_conditions to calculate time difference (delta_t)
-                time_diff = time_conditions[i] - time_conditions[i - 1]
-
+                # Use wave_start_times to calculate time difference (delta_t)
+                time_diff = wave_start_times[i] + waiting_times[i] - (wave_start_times[i - 1] + waiting_times[i -1])
                 T = T_values[i]
                 for j, freq in enumerate(freq_list):
-                    if time_conditions[i] != time_conditions[i - 1]:
+                    if wave_start_times[i] != wave_start_times[i - 1]:
                         ln_modulus_curr = np.log(moduli[i][j])
                         ln_modulus_prev = np.log(moduli[i - 1][j])
                         derivative_ln_modulus = (ln_modulus_curr - ln_modulus_prev) / time_diff  # Updated time difference
                         if derivative_ln_modulus != 0:
                             mutation_number = T / (1 / derivative_ln_modulus)
-                            mutation_number_by_frequency[freq][time_conditions[i]].append(mutation_number)
+                            mutation_number_by_frequency[freq][wave_start_times[i]].append(mutation_number)
 
         # Create Measurement objects with mutation number data
         for freq, time_dict in mutation_number_by_frequency.items():
