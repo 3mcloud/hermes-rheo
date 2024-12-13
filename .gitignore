@@ -127,7 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-/data/
-/old_algorithms/
 /scratch_notebooks/
 /_build/
+/paper/
