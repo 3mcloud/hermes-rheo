@@ -2,6 +2,7 @@
 title: 'Hermes-Rheo: A Python Package for Advanced Rheological Data Analysis'
 tags:
   - Rheology
+  - Time-resolved mechanical spectroscopy 
   - Data Science
   - Python
   - OWChirp
@@ -22,12 +23,25 @@ affiliations:
 date: 10 December 2024
 bibliography: paper.bib
 ---
-
 # Summary
+Scientific research produces significant volumes of complex data which require expert-guided processing prior to the 
+generation of insight through visualization and modeling. The recently developed [_piblin_ ](https://github.com/3mcloud/piblin)
+python package developed at 
+[3M](https://www.3m.com/3M/en_US/company-us/about-3m/research-development/)
+aims to address 
+these needs by providing a fundamental conceptual framework for reading, visualizing, processing, and writing analytical data, 
+along with a concrete, accessible implementation.
+Rheological measurements are foundational in understanding material properties, yet traditional techniques are often 
+time-consuming and limited in frequency resolution. To address these limitations, the Optimally Windowed Chirp (OWChirp) 
+methodology, introduced in Geri et al.'s 2018 study, revolutionized data collection by replacing discrete frequency sweeps 
+with a continuously varying input signal. This approach significantly reduces data collection time while enabling high-density 
+and high-quality data acquisition, making it particularly valuable for applications such as transient material characterization, 
+generating material data cards, high-frequency testing (e.g., vibration damping), and quality control.
 
-Rheological measurements are foundational in understanding material properties, yet traditional techniques are often time-consuming and limited in frequency resolution. To address these limitations, the Optimally Windowed Chirp (OWChirp) methodology, introduced in Geri et al.'s 2018 study, revolutionized data collection by replacing discrete frequency sweeps with a continuously varying input signal. This approach significantly reduces data collection time while enabling high-density and high-quality data acquisition, making it particularly valuable for applications such as transient material characterization, generating material data cards, high-frequency testing (e.g., vibration damping), and quality control.
-
-Despite its potential, the OWChirp method has been constrained by the lack of scalable and automated tools. The only existing software, MIT OWCh V1.01, is limited to MATLAB©, requiring a licensed environment, manual data cleaning, and single-signal processing. To overcome these challenges, we developed \textit{hermes-rheo}, a Python package designed for advanced rheological analysis, with a specific focus on OWChirp data processing.
+Despite its potential, the OWChirp method has been constrained by the lack of scalable and automated tools. The only 
+existing software, MIT OWCh V1.01, is limited to MATLAB©, requiring a licensed environment, manual data cleaning, and 
+single-signal processing. To overcome these challenges, we developed _hermes-rheo_, a Python package designed for 
+advanced rheological analysis, with a specific focus on OWChirp data processing.
 
 # Statement of Need
 
