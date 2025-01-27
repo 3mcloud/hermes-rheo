@@ -29,7 +29,7 @@ prior to the generation of insight through visualization and modeling. Data scie
 domain knowledge are key to making the connection between subject matter experts and emerging technologies with 
 potential to improve their workflows. However, in many cases there are gaps in applications between generalized 
 'big data' approaches that seek to identify and establish qualitative 'trends' and the 
-specific quantitative needs of measurement science. The _piblin_ [@mills2024piblin] Python package developed at [3M](https://www.3m.com/3M/en_US/company-us/about-3m/research-development/) 
+specific quantitative needs of measurement science. The _piblin_ Python package developed at [3M](https://www.3m.com/3M/en_US/company-us/about-3m/research-development/) 
 aims to address these needs by providing a fundamental conceptual framework for reading, 
 visualizing, processing, and writing analytical data, along with a concrete, accessible implementation. 
 
