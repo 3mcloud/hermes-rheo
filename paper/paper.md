@@ -20,7 +20,7 @@ authors:
 affiliations:
   - name: Corporate Research Laboratory, 3M, United States of America
     index: 1
-date: 10 December 2024
+date: 26 January 2025
 bibliography: paper.bib
 ---
 # Summary
@@ -46,8 +46,8 @@ development requirements of measurement science.
 The analysis of rheological datasets presents several technical challenges that hinder efficient data processing and the 
 integration of novel analytical methodologies. Current workflows are predominantly dependent on proprietary software, 
 which imposes significant limitations in customizing analysis pipelines and implementing emerging techniques such as 
-Optimally Windowed Chirp[@PhysRevX.8.041042], 
-Gaborheometry[@gabor10.11228.0000549], and Recovery Rheology[recoveryPhysRevLett.122.248003]. Moreover, the frequent development of new rheological models requires adaptable 
+Optimally Windowed Chirp [@PhysRevX.8.041042], 
+Gaborheometry [@gabor10.11228.0000549], and Recovery Rheology [@recoveryPhysRevLett.122.248003]. Moreover, the frequent development of new rheological models requires adaptable 
 tools capable of accommodating evolving analytical frameworks, a flexibility often lacking in existing solutions. 
 The increasing volume of experimental data further exacerbates the complexity of managing and processing large datasets 
 efficiently. Additionally, the integration of multi-instrument and multi-technique data formats remains a critical bottleneck, 
