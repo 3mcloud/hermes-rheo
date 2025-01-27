@@ -90,10 +90,10 @@ mechanical spectroscopy measurements obtained via Optimally Windowed Chirp, acco
 data from both stress- and strain-controlled rheometers.
 
 * The `AutomatedMasterCurve` transform automatically generates master curve datasets (e.g., time-temperature superposition) 
-through a data-driven machine learning algorithm developed by [@lennontts]that employs Gaussian process regression and maximum a posteriori 
-estimation to automatically superimpose datasets, creating a single master curve.
+through a data-driven machine learning algorithm developed by [@lennontts]. The method employs Gaussian process regression 
+and maximum a posteriori estimation to automatically superimpose datasets.
 
-* The `MutationNumber` transform returns the mutation number, $M_u$, using the following definition:[@mutation10.1122/8.0000432]
+* The `MutationNumber` transform returns the mutation number, $M_u$, using the following definition:[@mutation]
 
 $$M_u = \frac{T}{\lambda_{\mu}}$$
 
