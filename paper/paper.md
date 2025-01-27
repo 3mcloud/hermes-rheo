@@ -29,7 +29,7 @@ prior to the generation of insight through visualization and modeling. Data scie
 domain knowledge are key to making the connection between subject matter experts and emerging technologies with 
 potential to improve their workflows. However, in many cases there are gaps in applications between generalized 
 'big data' approaches that seek to identify and establish qualitative 'trends' and the 
-specific quantitative needs of measurement science. The _piblin_ Python package developed at [3M](https://www.3m.com/3M/en_US/company-us/about-3m/research-development/) 
+specific quantitative needs of measurement science. The _piblin_ [@mills2024piblin] Python package developed at [3M](https://www.3m.com/3M/en_US/company-us/about-3m/research-development/) 
 aims to address these needs by providing a fundamental conceptual framework for reading, 
 visualizing, processing, and writing analytical data, along with a concrete, accessible implementation. 
 
@@ -92,7 +92,15 @@ data from both stress- and strain-controlled rheometers.
 * The `AutomatedMasterCurve` transform automatically generates master curve datasets (e.g., time-temperature superposition) 
 through a data-driven machine learning algorithm that employs Gaussian process regression and maximum a posteriori 
 estimation to automatically superimpose datasets, creating a single master curve.
-* The `MutationNumber` transform returns the mutation number using the definition presented in [@mutation10.1122/8.0000432]
+
+The `MutationNumber` transform returns the mutation number, $M_u$, using the following definition:[@mutation10.1122/8.0000432]
+
+$$M_u = \frac{T}{\lambda_{\mu}}$$
+
+where $\lambda_{\mu}(t)$ is:
+
+$$\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - t_1}{\ln \left( \frac{g_{t_2}}{g_{t_1}} \right)}$$
+
 * The **OWChirpGeneration** transform helps users design Optimally Windowed Chirp signals for use in their rheometers. 
 Currently, it is specifically optimized for the experiments conducted TA TRIOS software.
 
