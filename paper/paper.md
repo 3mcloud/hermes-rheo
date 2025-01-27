@@ -95,15 +95,11 @@ estimation to automatically superimpose datasets, creating a single master curve
 
 The `MutationNumber` transform returns the mutation number, $M_u$, using the following definition:[@mutation10.1122/8.0000432]
 
-$$
-M_u = \frac{T}{\lambda_{\mu}}
-$$
+$$M_u = \frac{T}{\lambda_{\mu}}$$
 
 where $\lambda_{\mu}(t)$ is:
 
-$$
-\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - t_1}{\ln \left( \frac{g_{t_2}}{g_{t_1}} \right)}
-$$
+$$\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - t_1}{\ln \left( \frac{g_{t_2}}{g_{t_1}} \right)}$$
 
 * The **OWChirpGeneration** transform helps users design Optimally Windowed Chirp signals for use in their rheometers. 
 Currently, it is specifically optimized for the experiments conducted TA TRIOS software.
