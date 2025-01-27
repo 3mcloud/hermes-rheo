@@ -1,5 +1,5 @@
 ---
-title: 'Hermes-Rheo: A Python Package for Advanced Rheological Data Analysis'
+title: 'hermes-rheo: An open-source Python package for rheological data analysis'
 tags:
   - Rheology
   - Time-resolved mechanical spectroscopy 
@@ -24,17 +24,18 @@ date: 10 December 2024
 bibliography: paper.bib
 ---
 # Summary
-Scientific research produces significant volumes of structured and hi-fidelity data which require expert-guided processing prior to the generation of insight through visualization and modeling.
-ata scientists with relevant physical science domain knowledge are key to making the connection between subject matter 
-experts and emerging technologies with potential to improve their workflows. However, in many cases there are gaps in 
-applications between generalized 'big data' approaches that seek to identify and establish qualitative 'trends' and the 
-specific quantitative needs of measurement science. 
-The _piblin_ [@mills2024piblin] Python package developed at [3M](https://www.3m.com/3M/en_US/company-us/about-3m/research-development/) 
+Scientific research produces significant volumes of structured and hi-fidelity data which require expert-guided processing 
+prior to the generation of insight through visualization and modeling. Data scientists with relevant physical science 
+domain knowledge are key to making the connection between subject matter experts and emerging technologies with 
+potential to improve their workflows. However, in many cases there are gaps in applications between generalized 
+'big data' approaches that seek to identify and establish qualitative 'trends' and the 
+specific quantitative needs of measurement science. The _piblin_ [@mills2024piblin] Python package developed at [3M](https://www.3m.com/3M/en_US/company-us/about-3m/research-development/) 
 aims to address these needs by providing a fundamental conceptual framework for reading, 
 visualizing, processing, and writing analytical data, along with a concrete, accessible implementation. 
+
 To specifically address the needs of the rheology community, we have developed the _hermes-rheo_ [@perego2024hermesrheo] 
 Python package to 
-complement and extend the piblin library. Hermes offers a set of specialized transforms tailored for advanced rheological 
+complement and extend the piblin library. _hermes-rheo_ offers a set of specialized transforms tailored for advanced rheological 
 analysis within the piblin framework. These transforms can enhance data analysis 
 workflows in rheological datasets, bridging the gap between general data-rich methodologies and the specialized research and 
 development requirements of measurement science. 
@@ -45,8 +46,8 @@ development requirements of measurement science.
 The analysis of rheological datasets presents several technical challenges that hinder efficient data processing and the 
 integration of novel analytical methodologies. Current workflows are predominantly dependent on proprietary software, 
 which imposes significant limitations in customizing analysis pipelines and implementing emerging techniques such as 
-Optimally Windowed Chirp[, 
-Gaborheometry, and Recovery Rheology. Moreover, the frequent development of new rheological models requires adaptable 
+Optimally Windowed Chirp[@PhysRevX.8.041042], 
+Gaborheometry[@gabor10.11228.0000549], and Recovery Rheology[recoveryPhysRevLett.122.248003]. Moreover, the frequent development of new rheological models requires adaptable 
 tools capable of accommodating evolving analytical frameworks, a flexibility often lacking in existing solutions. 
 The increasing volume of experimental data further exacerbates the complexity of managing and processing large datasets 
 efficiently. Additionally, the integration of multi-instrument and multi-technique data formats remains a critical bottleneck, 
@@ -81,25 +82,28 @@ The `hermes-rheo` package provides a series of powerful transforms designed to h
    from hermes_rheo.transforms.owchirp_generation import OWChirpGeneration
 ```
 
-* The `RheoAnalysis` transform is the primary tool in hermes-rheo, providing a fast and efficient method to calculate 
-viscoelastic properties of datasets collected in both the frequency and time domains. It can also be used to analyze 
-time-resolved mechanical spectroscopy measurements acquired via an Optimally Windowed Chirp from both stress- and strain-controlled 
-rheometers.
+* The `RheoAnalysis` transform is the core tool in _hermes-rheo_, offering a fast and efficient analysis of
+viscoelastic properties from datasets collected in both the frequency and time domains.
+It supports standard rheological tests, including frequency and temperature sweeps, creep, 
+stress-relaxation, and flow and temperature ramps. Additionally, it can analyze time-resolved 
+mechanical spectroscopy measurements obtained via Optimally Windowed Chirp, accommodating 
+data from both stress- and strain-controlled rheometers.
 
 * The `AutomatedMasterCurve` transform automatically generates master curve datasets (e.g., time-temperature superposition) 
 through a data-driven machine learning algorithm that employs Gaussian process regression and maximum a posteriori 
 estimation to automatically superimpose datasets, creating a single master curve.
 
-* The `MutationNumber` transform  returns the mutation number,$M_u$ using the following 
-definition:
-$
-M_u = \frac{T}{\lambda_{\mu}}
-$
-where $( \lambda_{\mu}(t))$ is:
-$
-\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - t_1}{\ln \left( \frac{g_{t_2}}{g_{t_1}} \right)}
-$
+The `MutationNumber` transform returns the mutation number, $M_u$, using the following definition:[@mutation10.1122/8.0000432]
 
+$$
+M_u = \frac{T}{\lambda_{\mu}}
+$$
+
+where $\lambda_{\mu}(t)$ is:
+
+$$
+\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - t_1}{\ln \left( \frac{g_{t_2}}{g_{t_1}} \right)}
+$$
 
 * The **OWChirpGeneration** transform helps users design Optimally Windowed Chirp signals for use in their rheometers. 
 Currently, it is specifically optimized for the experiments conducted TA TRIOS software.
