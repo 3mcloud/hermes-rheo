@@ -101,7 +101,8 @@ where $\lambda_{\mu}(t)$ is:
 
 $$\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - t_1}{\ln \left( \frac{g_{t_2}}{g_{t_1}} \right)}$$
 
-where g can be any viscoelastic property of interest (e.g. G*, G', G'')
+where g can be any viscoelastic property of interest (e.g. G*, G', G'').
+
 * The `OWChirpGeneration` transform helps users design Optimally Windowed Chirp signals for use in their rheometers. 
 Currently, it is specifically optimized for experiments conducted with TA TRIOS software.
 
