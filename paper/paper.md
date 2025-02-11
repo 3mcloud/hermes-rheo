@@ -15,12 +15,12 @@ authors:
     orcid: 0000-0002-7208-7542
     affiliation: 1
   - name: Damien C. Vadillo
-    orcid: 
+    orcid: 0000-0003-0555-745X
     affiliation: 1
 affiliations:
-  - name: Corporate Research Laboratory, 3M, United States of America
+  - name: Corporate Research Analytical Laboratory, 3M, 3M Corporate Headquarters, St. Paul, MN, 55144, USA
     index: 1
-date: 26 January 2025
+date: 11 February 2025
 bibliography: paper.bib
 ---
 # Summary
@@ -101,8 +101,9 @@ where $\lambda_{\mu}(t)$ is:
 
 $$\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - t_1}{\ln \left( \frac{g_{t_2}}{g_{t_1}} \right)}$$
 
+where g can be any viscoelastic property of interest (e.g. G*, G', G'')
 * The `OWChirpGeneration` transform helps users design Optimally Windowed Chirp signals for use in their rheometers. 
-Currently, it is specifically optimized for the experiments conducted TA TRIOS software.
+Currently, it is specifically optimized for experiments conducted with TA TRIOS software.
 
 The [_hermes-rheo_](https://github.com/3mcloud/hermes-rheo/) project is under continuous development, and new transforms are regularly introduced to expand its functionality. If you have ideas or suggestions for additional transforms, please open a new issue on the [GitHub Issues page](https://github.com/3mcloud/hermes-rheo/issues). Contributions and feedback from the community help shape the future of **hermes-rheo** and ensure its capabilities stay aligned with user needs.
 
