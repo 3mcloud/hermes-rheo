@@ -8,6 +8,8 @@
       <excludeFolder url="file://$MODULE_DIR$/scractch_notebooks" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/scratch_notebooks" />
+      <excludeFolder url="file://$MODULE_DIR$/src/hermes_rheo.egg-info" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.10 (hermes-rheo)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
