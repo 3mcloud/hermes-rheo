@@ -816,6 +816,21 @@ class TriosRheoReader(file_reader.FileReader):
         metadata = cls.__read_keyed_metadata(file_contents)
         instrument_serial_number = metadata.get("instrument_serial_number")
 
+        # If the instrument serial number is "Offline", extract from the instrument name
+        if instrument_serial_number == "Offline":
+            instrument_name = metadata.get("instrument_name")
+            if instrument_name:
+                # Expected format: "TASerNo 4010-0321"
+                parts = instrument_name.split()
+                if len(parts) >= 2:
+                    # Split the second part on '-' and take the first four characters
+                    serial_candidate = parts[1].split("-")[0]
+                    instrument_serial_number = serial_candidate
+                else:
+                    raise ValueError(f"Invalid instrument name format: {instrument_name}")
+            else:
+                raise ValueError("Instrument name field is missing for an offline instrument.")
+
         if instrument_serial_number and len(instrument_serial_number) >= 4:
             serial_prefix = instrument_serial_number[:4]
         else:

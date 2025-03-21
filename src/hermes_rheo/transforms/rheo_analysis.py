@@ -1,9 +1,8 @@
 from typing import Tuple, Dict, List, Optional, Any
-import numpy as np
 import math
 import copy
 from scipy.fftpack import fft, fftshift
-
+import numpy as np
 from piblin.transform.abc.measurement_transform import MeasurementTransform
 import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
 
@@ -28,10 +27,12 @@ class RheoAnalysis(MeasurementTransform):
 
     """
 
-    def __init__(self, owchirp_waiting_time='before_signal', cutoff_points=0, *args, **kwargs):
+    def __init__(self, owchirp_waiting_time='before_signal', cutoff_points=0, filter_criterion="endpoints", *args,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.owchirp_waiting_time = owchirp_waiting_time
         self.cutoff_points = cutoff_points
+        self.filter_criterion = filter_criterion  # Store filter_criterion as an instance variable
 
     @staticmethod
     def prepare_owchirp_data(dataset: one_d_composite_dataset, time: str, strain: str, stress: str, temperature: str,
@@ -256,23 +257,26 @@ class RheoAnalysis(MeasurementTransform):
 
         return corrected_signal
 
-    from typing import List, Tuple, Optional
-    import numpy as np
-
-    def select_best_filter_method(self, t_w: float, time: List[float], signal: List[float]) -> Tuple[np.ndarray, str]:
+    def select_best_filter_method(self, t_w: float, time: List[float], signal: List[float],
+                                  criterion: str = "symmetry") -> Tuple[np.ndarray, str]:
         """
         Iterates over different filtering methods, applies each to the signal, and evaluates the corrected signal.
-        The best filtering method is selected based on the lowest sum of absolute values of the corrected signal,
-        indicating the most symmetrical signal around zero.
+        The best filtering method is selected based on the specified criterion.
 
         Args:
             t_w (float): The time threshold used for filtering.
             time (List[float]): A list of time values corresponding to the signal.
             signal (List[float]): A list of signal values to be filtered.
+            criterion (str): The criterion for selecting the best method. Options:
+                - "symmetry": Selects the method with the most symmetrical signal (lowest sum of absolute values).
+                - "DMA": Selects the method with minimal bias for DMA instruments (combined start/end avg + std dev).
 
         Returns:
             Tuple[np.ndarray, str]: A tuple containing the best corrected signal as a NumPy array
                                     and the name of the best method as a string.
+
+        Raises:
+            ValueError: If an invalid criterion is provided.
         """
         # Ensure time and signal are converted to np.ndarray for consistent operations
         time = np.asarray(time)
@@ -280,66 +284,33 @@ class RheoAnalysis(MeasurementTransform):
 
         methods = ['tw', 'chirp', 'all', 'none']
         best_method = None
-        min_sum_abs = float('inf')
+        min_score = float('inf')
 
-        for method in methods:
-            corrected_signal = self.filter_signal(t_w, time, signal, method)
-            if corrected_signal is not None:
-                sum_abs = np.sum(np.abs(corrected_signal))
-
-                if sum_abs < min_sum_abs:
-                    min_sum_abs = sum_abs
-                    best_method = method
-
-        best_corrected_signal = self.filter_signal(t_w, time, signal, best_method)
-        return best_corrected_signal, best_method
-
-    def select_best_filter_method_DMA(self, t_w: float, time: List[float], signal: List[float]) -> Tuple[
-        np.ndarray, str]:
-        """
-        Iterates over different filtering methods and selects the best one for DMA instruments.
-        The method with the best metric, calculated by combining the average of the start and end signal values and the
-        standard deviation, is selected to correct the bias in the signal.
-
-        Note: For DMA (Dynamic Mechanical Analysis) instruments, a slightly different algorithm was implemented to correct
-        bias. In this method, we focus on minimizing bias by combining two metrics:
-        1. The average of the absolute values of the corrected signal at the start and end.
-        2. The standard deviation of the corrected signal across the entire time range.
-        The method with the smallest combined metric is considered the best.
-
-        Args:
-            t_w (float): The time threshold used for filtering.
-            time (List[float]): A list of time values corresponding to the signal.
-            signal (List[float]): A list of signal values to be filtered.
-
-        Returns:
-            Tuple[np.ndarray, str]: A tuple containing the best corrected signal as a NumPy array
-                                    and the name of the best method as a string.
-        """
-        # Ensure time and signal are converted to np.ndarray for consistent operations
-        time = np.asarray(time)
-        signal = np.asarray(signal)
-
-        methods = ['tw', 'chirp', 'all', 'none']
-        best_method = None
-        min_metric = float('inf')
+        # Validate criterion
+        valid_criteria = ["symmetry", "endpoints"]
+        if criterion not in valid_criteria:
+            raise ValueError(f"Invalid criterion '{criterion}'. Must be one of {valid_criteria}.")
 
         for method in methods:
             corrected_signal = self.filter_signal(t_w, time, signal, method)
             if corrected_signal is None:
                 continue
 
-            # Metric: Sum of absolute values close to zero at the start and end, and standard deviation
-            start_end_avg = (abs(corrected_signal[0]) + abs(corrected_signal[-1])) / 2
-            std_dev = np.std(corrected_signal)
-            metric = start_end_avg + std_dev  # Combine the two metrics
+            # Calculate score based on the specified criterion
+            if criterion == "symmetry":
+                score = np.sum(np.abs(corrected_signal))
+            elif criterion == "endpoints":
+                start_end_avg = (abs(corrected_signal[0]) + abs(corrected_signal[-1])) / 2
+                std_dev = np.std(corrected_signal)
+                score = start_end_avg + std_dev
 
-            if metric < min_metric:
-                min_metric = metric
+            if score < min_score:
+                min_score = score
                 best_method = method
 
         best_corrected_signal = self.filter_signal(t_w, time, signal, best_method)
         return best_corrected_signal, best_method
+
 
     @staticmethod
     def calculate_wave_parameters(wave_data: Dict[str, dict]) -> Tuple[float, float, float, float, float]:
@@ -615,6 +586,7 @@ class RheoAnalysis(MeasurementTransform):
             target: The processed dataset with the appropriate corrections and transformations applied.
         """
         method = target.conditions['method']
+        method_key = method.split('\t')[-1]
 
         if 'Arbitrary Wave' in method:
             method_key = method.split('\t')[-1]  # Extract method key, e.g., 'Arbitrary Wave - 2'
@@ -645,26 +617,25 @@ class RheoAnalysis(MeasurementTransform):
             if target.details["instrument_serial_number"][:4] == "5343":  # TA DHR-3 - stress controlled
                 time, strain, stress, temperature = self.prepare_owchirp_data(
                     original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.select_best_filter_method_DMA(waiting_time, time, strain)
-                stress_filtered, filter_used_stress = self.select_best_filter_method_DMA(waiting_time, time, stress)
+                strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
+                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
 
             elif target.details["instrument_serial_number"][:4] == "5332":  # TA DHR-1 - stress controlled
                 time, strain, stress, temperature = self.prepare_owchirp_data(
                     original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.select_best_filter_method_DMA(waiting_time, time, strain)
-                stress_filtered, filter_used_stress = self.select_best_filter_method_DMA(waiting_time, time, stress)
-
+                strain_filtered, filter_used_strain = self.self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
+                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
             elif target.details["instrument_serial_number"][:4] == "4020":  # TA DMA
                 time, strain, stress, temperature = self.prepare_owchirp_data(
                     original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.select_best_filter_method_DMA(waiting_time, time, strain)
-                stress_filtered, filter_used_stress = self.select_best_filter_method_DMA(waiting_time, time, stress)
+                strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
+                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
 
-            elif target.details["instrument_serial_number"][:4] == "4010":  # TA ARES G2 - strain controlled
+            elif target.details["instrument_serial_number"][:4] == "4010" or target.details["instrument_serial_number"] == "Offline":  # TA ARES G2 - strain controlled
                 time, strain, stress, temperature = self.prepare_owchirp_data(
                     original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain)
-                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress)
+                strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
+                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
 
             else:
                 raise ValueError(
@@ -801,7 +772,7 @@ class RheoAnalysis(MeasurementTransform):
             original_dataset = target.datasets[0]
             original_dataset.switch_coordinates(independent_name='temperature', dependent_name='modulus')
 
-        elif 'Temperature sweep' in method:
+        elif 'Step name\tTemperature Sweep' in method:
             original_dataset = target.datasets[0]
             original_dataset.switch_coordinates(independent_name='temperature', dependent_name='storage modulus')
 
