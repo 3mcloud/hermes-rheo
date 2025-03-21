@@ -613,33 +613,12 @@ class RheoAnalysis(MeasurementTransform):
             sampling_frequency = wave_data['rate (pts/s)']
             original_dataset = target.datasets[0]
 
-            # Check for instrument serial number and process accordingly
-            if target.details["instrument_serial_number"][:4] == "5343":  # TA DHR-3 - stress controlled
-                time, strain, stress, temperature = self.prepare_owchirp_data(
-                    original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
-                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
-
-            elif target.details["instrument_serial_number"][:4] == "5332":  # TA DHR-1 - stress controlled
-                time, strain, stress, temperature = self.prepare_owchirp_data(
-                    original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
-                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
-            elif target.details["instrument_serial_number"][:4] == "4020":  # TA DMA
-                time, strain, stress, temperature = self.prepare_owchirp_data(
-                    original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
-                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
-
-            elif target.details["instrument_serial_number"][:4] == "4010" or target.details["instrument_serial_number"] == "Offline":  # TA ARES G2 - strain controlled
-                time, strain, stress, temperature = self.prepare_owchirp_data(
-                    original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
-                strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain, criterion=self.filter_criterion)
-                stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress, criterion=self.filter_criterion)
-
-            else:
-                raise ValueError(
-                    f"Current version of RheoAnalysis does not support TA instruments with serial number {target.details['instrument_serial_number']}")
+            time, strain, stress, temperature = self.prepare_owchirp_data(
+                original_dataset, 'step time', 'strain', 'stress', 'temperature', self.cutoff_points)
+            strain_filtered, filter_used_strain = self.select_best_filter_method(waiting_time, time, strain,
+                                                                                 criterion=self.filter_criterion)
+            stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress,
+                                                                                 criterion=self.filter_criterion)
 
             # Handle the owchirp_waiting_time configurations
             if self.owchirp_waiting_time == 'before_signal':
