@@ -772,7 +772,8 @@ class RheoAnalysis(MeasurementTransform):
 
         else:
             # Raise an error if the method is not supported in the RheoAnalysis pipeline
-            raise ValueError(f"The method '{method}' is currently not supported in the RheoAnalysis pipeline.")
+            raise ValueError(f"The method '{method}' is currently not supported in the RheoAnalysis pipeline. Please "
+                             f"submit an issue on GitHub if you would like to see this method supported.")
 
         return target
 
