@@ -619,7 +619,6 @@ class RheoAnalysis(MeasurementTransform):
                                                                                  criterion=self.filter_criterion)
             stress_filtered, filter_used_stress = self.select_best_filter_method(waiting_time, time, stress,
                                                                                  criterion=self.filter_criterion)
-
             # Handle the owchirp_waiting_time configurations
             if self.owchirp_waiting_time == 'before_signal':
                 time_tw = time[time > waiting_time]
