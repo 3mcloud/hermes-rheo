@@ -46,7 +46,7 @@ development requirements of measurement science.
 The analysis of rheological datasets presents several technical challenges that hinder efficient data processing and the 
 integration of novel analytical methodologies. Current workflows are predominantly dependent on proprietary software, 
 which imposes significant limitations in customizing analysis pipelines and implementing emerging techniques such as 
-Optimally Windowed Chirp [@owchirp], 
+Optimally Windowed Chirp [@owchirp; @peregoowch2025], 
 Gaborheometry [@gabor], and Recovery Rheology [@recovery]. Moreover, the frequent development of new rheological models requires adaptable 
 tools capable of accommodating evolving analytical frameworks, a flexibility often lacking in existing solutions. 
 The increasing volume of experimental data further exacerbates the complexity of managing and processing large datasets 
@@ -103,8 +103,7 @@ $$\lambda_{\mu}(t) = \left( \frac{d \ln g}{dt} \right)^{-1} \approx \frac{t_2 - 
 
 where g can be any viscoelastic property of interest (e.g. G*, G', G'').
 
-* The `OWChirpGeneration` transform helps users design Optimally Windowed Chirp signals for use in their rheometers. 
-Currently, it is specifically optimized for experiments conducted with TA TRIOS software.
+* The `OWChirpGeneration` transform helps users design Optimally Windowed Chirp signals for use in their rheometers and is currently optimized for experiments in TA TRIOS via its arbitrary waveform functionality [@peregoowch2025].
 
 The [_hermes-rheo_](https://github.com/3mcloud/hermes-rheo/) project is under continuous development, and new transforms are regularly introduced to expand its functionality. If you have ideas or suggestions for additional transforms, please open a new issue on the [GitHub Issues page](https://github.com/3mcloud/hermes-rheo/issues). Contributions and feedback from the community help shape the future of **hermes-rheo** and ensure its capabilities stay aligned with user needs.
 
