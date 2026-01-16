@@ -10,7 +10,7 @@ variables:
   isMainBranch: $[eq(variables['Build.SourceBranchName'], 'main')]
 
 pool:
-  vmImage: 'windows-2019'
+  vmImage: 'windows-2022'
 
 jobs:
 
