@@ -2,29 +2,27 @@
 title: 'hermes-rheo: An open-source Python package for rheological data analysis'
 tags:
   - Rheology
-  - Time-resolved mechanical spectroscopy 
-  - Data Science
+  - Analytical Data Science
   - Python
-  - OWChirp
-  - Machine Learning
+  
 authors:
   - name: Alessandro Perego
     orcid: 0000-0002-0570-3210
     affiliation: 1
   - name: Matthew J.L. Mills
-    orcid: 0000-0002-7208-7542
+    orcid: 000-0002-7208-7542
     affiliation: 1
   - name: Damien C. Vadillo
     orcid: 0000-0003-0555-745X
     affiliation: 1
 affiliations:
-  - name: Corporate Research Analytical Laboratory, 3M, 3M Corporate Headquarters, St. Paul, MN, 55144, USA
+  - name: Corporate Research Analytical Laboratory, 3M, Maplewood, MN, 55144, USA
     index: 1
-date: 11 February 2025
+date: 16 February 2026
 bibliography: paper.bib
 ---
 # Summary
-Scientific research produces significant volumes of structured and hi-fidelity data which require expert-guided processing 
+Scientific research produces significant volumes of structured and high-fidelity data which require expert-guided processing 
 prior to the generation of insight through visualization and modeling. Data scientists with relevant physical science 
 domain knowledge are key to making the connection between subject matter experts and emerging technologies with 
 potential to improve their workflows. However, in many cases there are gaps in applications between generalized 
@@ -59,7 +57,9 @@ and reproducibility.
 
 # Installation
 
-_hermes-rheo_ is available on the Python Package Index (PyPI). It can be installed or updated using the following commands:
+_hermes-rheo_ is available on the Python Package Index (PyPI): [hermes-rheo](https://pypi.org/project/hermes-rheo/). 
+
+It can be installed or updated using the following commands:
 
 ```console
 pip install hermes-rheo
