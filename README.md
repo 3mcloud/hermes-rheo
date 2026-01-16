@@ -5,8 +5,7 @@
 
 # hermes-rheo
 
-[![PyPI Version][pypi-image]][pypi-url] [![pypi download][pypi-download]][pypi-url] 
-[![DOI](https://zenodo.org/badge/851879885.svg)](https://doi.org/10.5281/zenodo.14182224)
+[![PyPI Version][pypi-image]][pypi-url] [![pypi download][pypi-download]][pypi-url]
 
 Python package designed to complement and extend the [piblin](https://github.com/3mcloud/piblin) library, 
 offering a set of transforms tailored for analysis of rheological data.
