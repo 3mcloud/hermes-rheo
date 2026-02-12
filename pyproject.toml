@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools==75.8.0", "setuptools-git-versioning >= 2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "hermes-rheo"
+authors = [
+    {name = "Alessandro Perego", email = "aperego@mmm.com"},
+    {name = "Matthew JL Mills", email = "mmills2@mmm.com"},
+]
+description = "piblin transforms tailored for advanced rheological analysis"
+readme = "README.md"
+dynamic = ["version"]
+requires-python = ">=3.10, <=3.11"
+
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License"
+]
+
+dependencies = [
+    "piblin",
+    "openpyxl",
+    "mastercurves",
+
+]
+
+[project.optional-dependencies]
+tests = [
+    "pytest",
+]
+
+docs = [
+    "sphinx",
+    "sphinx_rtd_theme"
+]
+
+all = [
+    "hermes-rheo[tests, docs]"
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
