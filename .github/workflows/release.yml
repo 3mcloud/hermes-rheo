@@ -31,13 +31,23 @@ jobs:
           python -m pip install build twine
 
       - name: Build package for dev
-        run: python -m build .
+        run: python -m build
+        working-directory: .
 
       - name: List dist contents
         run: ls -l dist
 
+      - name: Show files to upload
+        run: |
+          echo "Files found by find dist -type f:"
+          find dist -type f
+
       - name: Publish the package
-        run: python -m twine upload --username "__token__" --password ${{ secrets.TWINE_TOKEN }} --verbose $(find dist -type f)
+        run: |
+          FILES=$(find dist -type f)
+          echo "Uploading files: $FILES"
+          python -m twine upload --username "__token__" --password ${{ secrets.TWINE_TOKEN }} --verbose $FILES
+        working-directory: .
 
       - name: Create release
         uses: ncipollo/release-action@v1
