@@ -37,7 +37,7 @@ jobs:
         run: ls -l dist
 
       - name: Publish the package
-        run: python -m twine upload --username "__token__" --password ${{ secrets.TWINE_TOKEN }} --verbose dist/*
+        run: python -m twine upload --username "__token__" --password ${{ secrets.TWINE_TOKEN }} --verbose $(find dist -type f)
 
       - name: Create release
         uses: ncipollo/release-action@v1
