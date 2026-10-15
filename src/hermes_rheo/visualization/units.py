@@ -54,7 +54,7 @@ def get_unit(source: Any, name: str) -> str:
 
     Examples
     --------
-    >>> from piblin.dataio import read_file  # doctest: +SKIP
+    >>> from hermes_rheo import read_file  # doctest: +SKIP
     >>> exp = read_file("data.txt", ...)          # doctest: +SKIP
     >>> get_unit(exp, "storage modulus")            # doctest: +SKIP
     'MPa'

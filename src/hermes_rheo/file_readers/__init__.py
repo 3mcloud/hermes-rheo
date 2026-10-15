@@ -16,14 +16,19 @@ Available readers
     *Export to .txt* option strips step metadata and will not parse.
 :class:`~hermes_rheo.file_readers.rheo_compass_csv.RheoCompassReader`
     Anton Paar RheoCompass ``.csv``.
+
+:func:`~hermes_rheo.file_readers.read.read_file` reads a file with a given
+reader and returns the same collection types as ``piblin.dataio.read_file``.
 """
 
 from __future__ import annotations
 
+from hermes_rheo.file_readers.read import read_file
 from hermes_rheo.file_readers.rheo_compass_csv import RheoCompassReader
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 
 __all__ = [
     "TriosRheoReader",
     "RheoCompassReader",
+    "read_file",
 ]

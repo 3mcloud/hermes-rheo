@@ -25,7 +25,7 @@ try:
 except PackageNotFoundError:  # pragma: no cover - source tree without install
     __version__ = "0+unknown"
 
-# --- File readers --------------------------------------------------------
+from hermes_rheo.file_readers.read import read_file
 from hermes_rheo.file_readers.rheo_compass_csv import RheoCompassReader
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 from hermes_rheo.transforms.automated_mastercurve import (
@@ -42,8 +42,6 @@ from hermes_rheo.transforms.mutation_number import (
     MutationNumber,
     MutationNumberMeasurementSet,
 )
-
-# --- Transforms ----------------------------------------------------------
 from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
 from hermes_rheo.transforms.owchirp_generation import OWChirpGeneration
 from hermes_rheo.transforms.recovery_rheology import (
@@ -67,6 +65,7 @@ __all__ = [
     # file readers
     "TriosRheoReader",
     "RheoCompassReader",
+    "read_file",
     # transforms — chirp analysis
     "OWChirpAnalysis",
     "RheoAnalysis",  # deprecated alias
