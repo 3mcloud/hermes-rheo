@@ -10,10 +10,10 @@ name = "hermes-rheo"
 authors = [
     { name = "Alessandro Perego", email = "aperego@mmm.com" },
     { name = "Matthew J. L. Mills", email = "mmills2@mmm.com" },
-    { name = "Damien C. Vadillo" },
-    { name = "Jiachun Shi" },
+    { name = "Damien C. Vadillo", email = "dvadillo@mmm.com" },
+    { name = "Jiachun Shi", email = "jshi11@mmm.com"},
 ]
-description = "Python library for advanced rheological analysis: instrument file readers, time-temperature superposition, relaxation spectra, large-amplitude oscillatory and recovery rheology"
+description = "Python library for comprehensive rheological analysis, built using the piblin data abstraction"
 readme = "README.md"
 dynamic = ["version"]
 requires-python = ">=3.10, <3.14"
