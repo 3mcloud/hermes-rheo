@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=78.1.1", "setuptools-git-versioning>=2"]
+requires = ["setuptools==83.0.0", "setuptools-git-versioning>=2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools-git-versioning]
@@ -13,7 +13,7 @@ authors = [
     { name = "Damien C. Vadillo" },
     { name = "Jiachun Shi" },
 ]
-description = "piblin readers and transforms for advanced rheological analysis"
+description = "Python library for advanced rheological analysis: instrument file readers, time-temperature superposition, relaxation spectra, large-amplitude oscillatory and recovery rheology"
 readme = "README.md"
 dynamic = ["version"]
 requires-python = ">=3.10, <3.14"
