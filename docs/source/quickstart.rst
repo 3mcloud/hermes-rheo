@@ -96,7 +96,7 @@ behaviour can opt in:
    mset = TriosRheoReader().data_from_filepath(
        "mixed.txt",
        create_composite_datasets=True,
-       default_coords="legacy-temperature",   # all measurements get X=Y="Temperature"
+       default_coords="uniform",   # all measurements get X=Y="Temperature"
    )
    ExperimentSet(mset.measurements)   # works, but display labels are ugly
 

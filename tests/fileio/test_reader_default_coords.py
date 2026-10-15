@@ -11,7 +11,7 @@ replaces the historical ``Temperature=f(Temperature)`` fallback.
 
 Regression tests are also included for:
 
-* the ``default_coords="legacy-temperature"`` opt-in that reproduces the old
+* the ``default_coords="uniform"`` opt-in that reproduces the old
   consistency-preserving behaviour, and
 * the ``_lookup_method_defaults`` / ``_canonicalise_method`` helper units.
 """
@@ -94,17 +94,17 @@ def test_trios_creep_one_line_description(datadir):
 
 
 # ---------------------------------------------------------------------------
-# TriosRheoReader — legacy-temperature opt-in
+# TriosRheoReader — uniform mode
 # ---------------------------------------------------------------------------
 
 
-def test_trios_legacy_temperature_mode_reproduces_old_behaviour(datadir):
-    """``default_coords="legacy-temperature"`` restores ``Temperature=f(Temperature)``."""
+def test_trios_uniform_mode_reproduces_old_behaviour(datadir):
+    """``default_coords="uniform"`` restores ``Temperature=f(Temperature)``."""
     filepath = datadir.join("test_creep_apac.txt")
     mset = TriosRheoReader().data_from_filepath(
         filepath=str(filepath),
         create_composite_datasets=True,
-        default_coords="legacy-temperature",
+        default_coords="uniform",
     )
     for m in mset.measurements:
         ds = m.datasets[0]
@@ -112,19 +112,31 @@ def test_trios_legacy_temperature_mode_reproduces_old_behaviour(datadir):
         assert ds.dependent_variable_name == "Temperature"
 
 
-def test_trios_legacy_temperature_permits_experimentset_wrap(datadir):
-    """Legacy mode keeps mixed-method files consistent enough for ExperimentSet."""
+def test_trios_uniform_permits_experimentset_wrap(datadir):
+    """Uniform mode keeps mixed-method files consistent enough for ExperimentSet."""
     from piblin.data import ExperimentSet
 
     filepath = datadir.join("test_creep_apac.txt")
     mset = TriosRheoReader().data_from_filepath(
         filepath=str(filepath),
         create_composite_datasets=True,
-        default_coords="legacy-temperature",
+        default_coords="uniform",
     )
     # Would raise InconsistentMeasurementsError under natural defaults.
     exp = ExperimentSet(mset.measurements)
     assert exp.num_experiments == 4
+
+
+def test_trios_legacy_temperature_alias_still_accepted(datadir):
+    """The 1.x spelling ``"legacy-temperature"`` behaves like ``"uniform"``."""
+    filepath = datadir.join("test_creep_apac.txt")
+    mset = TriosRheoReader().data_from_filepath(
+        filepath=str(filepath),
+        create_composite_datasets=True,
+        default_coords="legacy-temperature",
+    )
+    ds = mset.measurements[0].datasets[0]
+    assert ds.independent_variable_name == ds.dependent_variable_name == "Temperature"
 
 
 # ---------------------------------------------------------------------------

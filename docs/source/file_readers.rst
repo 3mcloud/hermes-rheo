@@ -6,13 +6,11 @@ Every reader in :mod:`hermes_rheo.file_readers` subclasses
 an exported instrument file into a
 :class:`~piblin.data.data_collections.measurement_set.MeasurementSet`.
 
-**Reader-driven default coordinates.**  As of the 2.x → 3.x refactor the
-readers install the *natural* per-method default coordinates on each
+**Reader-driven default coordinates.**  The readers install the *natural* per-method default coordinates on each
 resulting composite dataset (e.g. ``strain=f(time)`` for a Creep step,
-``storage modulus=f(angular frequency)`` for a frequency sweep).  Users
-who need the historical consistency-preserving
-``Temperature=f(Temperature)`` behaviour can opt in with
-``default_coords="legacy-temperature"`` on
+``storage modulus=f(angular frequency)`` for a frequency sweep).  To give every measurement the same placeholder
+``Temperature=f(Temperature)`` axes (as in hermes-rheo 1.x), pass
+``default_coords="uniform"`` on
 :class:`~hermes_rheo.file_readers.trios_rheo_txt.TriosRheoReader`.
 
 TA Instruments TRIOS ``.txt``

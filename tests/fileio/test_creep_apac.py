@@ -13,7 +13,7 @@ def test_creep_apac(datadir):
     across measurements), so the test now consumes the underlying
     :class:`~piblin.data.MeasurementSet` returned by the reader.
     Callers who need ``ExperimentSet`` semantics for mixed-method files
-    should pass ``default_coords="legacy-temperature"`` to the reader.
+    should pass ``default_coords="uniform"`` to the reader.
     """
     filepath = datadir.join("test_creep_apac.txt")
     mset = TriosRheoReader().data_from_filepath(filepath=filepath, create_composite_datasets=True)

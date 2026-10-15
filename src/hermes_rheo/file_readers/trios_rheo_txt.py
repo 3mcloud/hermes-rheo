@@ -238,12 +238,13 @@ class TriosRheoReader(file_reader.FileReader):
         (which enforces consistency across measurements) can raise
         ``InconsistentMeasurementsError``.
 
-    ``"legacy-temperature"``
-        Reproduces the historical behaviour: every measurement gets
-        ``Temperature=f(Temperature)`` regardless of method.  Ugly but
-        consistent, so mixed-method files can be wrapped directly in
-        ``ExperimentSet``.  Provided for backwards compatibility with code
-        written against hermes-rheo 1.x.
+    ``"uniform"``
+        Every measurement gets the same placeholder pair,
+        ``Temperature=f(Temperature)``, regardless of method.  The axes are
+        not meaningful, but they are identical across measurements, so
+        mixed-method files can be wrapped directly in ``ExperimentSet``.
+        This is the behaviour of hermes-rheo 1.x; the former name
+        ``"legacy-temperature"`` is still accepted as an alias.
 
     Users can always override the active coordinates on any measurement with
     :meth:`~piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset.OneDimensionalCompositeDataset.switch_coordinates`.
@@ -258,12 +259,12 @@ class TriosRheoReader(file_reader.FileReader):
     >>> ds.independent_variable_name, ds.dependent_variable_name  # doctest: +SKIP
     ('time', 'strain')
 
-    Legacy behaviour for mixed-method files intended for ``ExperimentSet``:
+    Mixed-method files intended for ``ExperimentSet``:
 
     >>> mset = TriosRheoReader().data_from_filepath(
     ...     "mixed.txt",
     ...     create_composite_datasets=True,
-    ...     default_coords="legacy-temperature",
+    ...     default_coords="uniform",
     ... )  # doctest: +SKIP
     """
 
@@ -2050,13 +2051,12 @@ class TriosRheoReader(file_reader.FileReader):
                 # measurement.  The "natural" mode (default) uses the
                 # scientifically meaningful pair for each method (e.g.
                 # strain=f(time) for Creep, G'=f(omega) for a frequency
-                # sweep).  The "legacy-temperature" mode reproduces the
-                # historical Temperature=f(Temperature) fallback, which
-                # yields ugly labels but keeps every measurement consistent
-                # so that a mixed-method file can be wrapped directly in an
-                # ``ExperimentSet``.
+                # sweep).  The "uniform" mode (alias "legacy-temperature")
+                # gives every measurement the same Temperature=f(Temperature)
+                # placeholder so that a mixed-method file can be wrapped
+                # directly in an ``ExperimentSet``.
                 default_coords_mode = read_kwargs.get("default_coords", "natural")
-                if default_coords_mode == "legacy-temperature":
+                if default_coords_mode in ("uniform", "legacy-temperature"):
                     default_x = cls.X_VALUES_COLUMN_LABEL
                     default_y = cls.Y_VALUES_COLUMN_LABEL
                 else:
