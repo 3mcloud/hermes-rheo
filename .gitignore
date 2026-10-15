@@ -159,3 +159,6 @@ tutorial_notebooks/tutorial_data/tutorial_13/
 
 # Rheologica Acta manuscript (kept local)
 paper/rheologica_acta/
+
+# uv lockfile is not tracked (license scanners flag transitive deps)
+uv.lock
