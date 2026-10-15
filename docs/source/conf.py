@@ -1,48 +1,34 @@
-# Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
+# Sphinx configuration for hermes-rheo.
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-
-import os
 import sys
-import pathlib
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath('../../src/'))
-sys.path.insert(0, pathlib.Path(__file__).parents[2].resolve().as_posix())
+sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
-print("*********")
-
-project = 'hermes-rheo'
-copyright = 'Alessandro Perego - 2024'
-authors = 'Alessandro Perego, Matthew Mills'
-release = '1.0.11'
-
-# -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+project = "hermes-rheo"
+copyright = "2024-2026, Alessandro Perego - 3M"
+author = "Alessandro Perego, Matthew J.L. Mills, Damien C. Vadillo"
+try:
+    release = version("hermes-rheo")
+except PackageNotFoundError:
+    release = ""
+version = ".".join(release.split(".")[:2])
 
 extensions = [
-    'sphinx.ext.autodoc',
-    # import the modules you're documenting and pull in documentation from docstrings in a semi-automatic way
-    'sphinx.ext.autosummary',
-    # generate function/method/attribute summary lists
-    'sphinx.ext.napoleon',
-    # converts NumPy-style docstrings to reStructuredText prior to autodoc processing
-    'sphinx.ext.viewcode'
-    # generates HTML page for each module with a highlighted version of the source code - HTML related builders only
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
 ]
 
+autodoc_mock_imports = ["pyRheo", "cv2"]
 numpydoc_show_class_member = False
 
-templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', ]
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+language = "en"
 
-language = 'english'
-
-# -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 html_static_path = []

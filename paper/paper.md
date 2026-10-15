@@ -10,7 +10,7 @@ authors:
     orcid: 0000-0002-0570-3210
     affiliation: 1
   - name: Matthew J.L. Mills
-    orcid: 000-0002-7208-7542
+    orcid: 0000-0002-7208-7542
     affiliation: 1
   - name: Damien C. Vadillo
     orcid: 0000-0003-0555-745X
@@ -90,10 +90,10 @@ mechanical spectroscopy measurements obtained via Optimally Windowed Chirp, acco
 data from both stress- and strain-controlled rheometers.
 
 * The `AutomatedMasterCurve` transform automatically generates master curve datasets (e.g., time-temperature superposition) 
-through a data-driven machine learning algorithm developed by [@lennontts]. The method employs Gaussian process regression 
+through a data-driven machine learning algorithm developed by @lennontts. The method employs Gaussian process regression 
 and maximum a posteriori estimation to automatically superimpose datasets.
 
-* The `MutationNumber` transform returns the mutation number, $M_u$, using the following definition:[@mutation]
+* The `MutationNumber` transform returns the mutation number, $M_u$, using the following definition [@mutation]:
 
 $$M_u = \frac{T}{\lambda_{\mu}}$$
 
@@ -116,9 +116,8 @@ with a comprehensive set of Jupyter notebooks demonstrating the diverse capabili
 # Available File Readers
 
 The [`file_readers`](https://github.com/3mcloud/hermes-rheo/tree/main/src/hermes_rheo/file_readers) directory contains an example file reader for rheological data collected using [`TA TRIOS software`](https://www.tainstruments.com/trios-software).
-
-This reader was specifically designed to handle `.txt` files generated via the "Export to LIMS" command in TRIOS.  
-With the release of TRIOS V5, a new export format, `.json`, has been introduced ([see new features here](https://www.tainstruments.com/wp-content/uploads/NewFeaturesTRIOS.pdf)).  
+This reader was specifically designed to handle `.txt` files generated via the "Export to LIMS" command in TRIOS.
+With the release of TRIOS V5, a new export format, `.json`, has been introduced ([see new features here](https://www.tainstruments.com/wp-content/uploads/NewFeaturesTRIOS.pdf)).
 A reader for this format is currently in development. Additionally, a reader for Anton Paar CSV files is actively being developed and is expected to be released soon.
 
 For other data formats or instruments, users can develop custom readers while leveraging the `hermes-rheo` package's data transforms for analysis. Requests for additional file formats can be raised as an issue in the [hermes-rheo GitHub repository](https://github.com/3mcloud/hermes-rheo/issues).

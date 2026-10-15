@@ -2,7 +2,7 @@ Shorter chirp signal: 13.9626 (s), TB = 133.0
 Total length of chirp signal: 14 (s)
 Initial Frequency: 0.3 (rad/s)
 Final Frequency: 60 (rad/s)
-Strain amplitude: 0.0085 (%)
+Signal amplitude: 8.5e-05
 Waiting time: 1 (s)
 Tapering parameter: 0.1 (%)
 Time Bandwidth: 133.0

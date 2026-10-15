@@ -130,3 +130,32 @@ dmypy.json
 
 /_build/
 .idea/
+
+# Tooling
+.DS_Store
+.ruff_cache/
+tutorial_notebooks/_build/
+paper/**/*.aux
+paper/**/*.log
+paper/**/*.out
+paper/**/*.bbl
+paper/**/*.blg
+paper/**/*.synctex.gz
+
+# Tutorial outputs
+tutorial_notebooks/tutorial_data/tutorial_3/plots/
+tutorial_notebooks/_build/
+tutorial_notebooks/results/
+
+# Tutorials 10-13 (not distributed yet)
+tutorial_notebooks/tutorial_data/tutorial_10/
+tutorial_notebooks/tutorial_data/tutorial_11/
+tutorial_notebooks/tutorial_data/tutorial_12/
+tutorial_notebooks/10_*.ipynb
+tutorial_notebooks/11_*.ipynb
+tutorial_notebooks/12_*.ipynb
+tutorial_notebooks/13_*.ipynb
+tutorial_notebooks/tutorial_data/tutorial_13/
+
+# Rheologica Acta manuscript (kept local)
+paper/rheologica_acta/

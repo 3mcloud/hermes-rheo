@@ -1,0 +1,43 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - v*.*
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  package-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      # create the GitHub release
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # setuptools-git-versioning needs the tags
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: "3.12"
+
+      - name: Test
+        run: uv run pytest -q
+
+      - name: Build
+        run: uv build
+
+      - name: Check distributions
+        run: uvx twine check dist/*
+
+      - name: Publish to PyPI
+        run: uvx twine upload --username "__token__" --password "${{ secrets.TWINE_TOKEN }}" dist/*
+
+      - name: Create release
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
+        with:
+          artifactErrorsFailBuild: true
+          artifacts: "./dist/*"
