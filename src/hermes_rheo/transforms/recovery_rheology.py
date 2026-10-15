@@ -2,8 +2,8 @@
 Recovery Rheology Transform
 ===========================
 
-Implements oscillatory recovery rheology (OCR) and step-strain recovery
-analysis as a piblin abs and hermes_rheo transform.
+Implements oscillatory recovery rheology (OCR) and step-function recovery
+analysis as a piblin and hermes_rheo transform.
 
 Oscillatory method
 ------------------
@@ -11,25 +11,29 @@ Reproduces the MATLAB pipeline of ``ocr_rec_anal_mcr`` followed by
 ``ocr_mcr_shift_deriv``:
 
 1. **Pairing** – consecutive measurements are grouped as forward / reverse
-   pairs: (1,2), (3,4), …  If the last measurement has no partner the
-   forward run is used alone.
-2. **Averaging** – strain and stress are averaged as (A − B) / 2 and
-   centred on the mean of the final oscillation interval.
-3. **FFT moduli** – first-harmonic Fourier coefficients are rotated so
-   that strain is purely sinusoidal, giving G′_FT and G″_FT per pair.
+   pairs with positive and negative strain amplitudes: (1,2), (3,4), …
+   If the last measurement has no partner the forward run is used alone.
+2. **Averaging** – forward raw data (A) and reverse raw data (B) are
+   averaged as (A − B) / 2 to reduce material-drift effects, then centred
+   on the mean of the final oscillation interval.
+3. **FFT moduli** – the average stress response is converted to
+   frequency-domain moduli (G′ and G″) through a Fourier transform.
 4. **Transient decomposition** – a closed half-period loop is built from
-   the recovery-analysis matrix, differentiated with a periodic centred
-   stencil, and energy-based moduli (total, fluid, solid) are computed.
+   the recovery-analysis matrix and mirrored to complete the period.
+   Energy-informed dynamic moduli are then determined from total strain,
+   with G′_solid, G″_solid, and G″_fluid determined from the recoverable
+   and unrecoverable contributions.
 
-Step-strain method
-------------------
+Step-function method
+--------------------
 Reproduces ``Trios_recovery_rheology_creep.m``:
 
-1. Non-zero-stress blocks are identified in a single creep/recovery
-   measurement.
+1. Non-zero strain- or stress-controlled deformation blocks are identified
+   in a stepwise measurement.
 2. Blocks are classified as positive or negative steps.
-3. Positive/negative pairs are averaged to obtain total strain,
-   unrecoverable strain, and recoverable strain at each stress level.
+3. Positive/negative pairs are averaged to obtain total, unrecoverable,
+   and recoverable strain and strain rates as functions of the experimental
+   time of the input deformation.
 
 Usage
 -----
@@ -41,7 +45,7 @@ Usage
     pipeline = RecoveryRheology(method='oscillatory')
     result = pipeline(experiment)
 
-    # step strain (Trios creep data)
+    # step-function deformation (Trios creep/recovery data)
     pipeline = RecoveryRheology(method='step')
     result = pipeline(experiment)
 
@@ -219,10 +223,11 @@ class RecoveryRheologyResult:
 
     def plot_lissajous(self, figsize=(6, 4)):
         """
-        Plot strain vs stress Lissajous figures.
+        Plot stress versus total, recoverable, and unrecoverable responses.
 
-        Generates three separate figures (total, unrecoverable,
-        recoverable), each showing forward and reverse half-periods.
+        Generates three separate figures, each showing forward and reverse
+        half-periods. The unrecoverable panel uses strain rate rather than
+        strain to show the fluid contribution to the stress response.
 
         Parameters
         ----------
@@ -238,7 +243,7 @@ class RecoveryRheologyResult:
             raise ValueError(
                 "No decomposition waveform available. "
                 "plot_lissajous() is only valid for method='oscillatory'. "
-                "For step-strain results use plot_step_results() instead."
+                "For step-function results use plot_step_results() instead."
             )
 
         decomp = self.decomp_waveform
@@ -247,16 +252,16 @@ class RecoveryRheologyResult:
         r_idx = np.arange(n_halfp, min(2 * n_halfp + 1, decomp.shape[0]))
 
         titles = [
-            "Total strain vs Stress",
-            "Unrecoverable strain vs Stress",
-            "Recoverable strain vs Stress",
+            "Stress vs total strain",
+            "Stress vs unrecoverable strain rate",
+            "Stress vs recoverable strain",
         ]
         labels = [
             ("Total (forward)", "Total (reverse)"),
             ("Unrecoverable (forward)", "Unrecoverable (reverse)"),
             ("Recoverable (forward)", "Recoverable (reverse)"),
         ]
-        cols = [1, 2, 3]
+        cols = [1, 5, 3]
         color_pairs = [("C0", "C1"), ("C2", "C3"), ("C4", "C5")]
 
         figs, axes = [], []
@@ -264,7 +269,7 @@ class RecoveryRheologyResult:
             fig, ax = plt.subplots(figsize=figsize)
             ax.plot(decomp[f_idx, col], decomp[f_idx, 7], lw=1.5, color=cf, label=lf)
             ax.plot(decomp[r_idx, col], decomp[r_idx, 7], lw=1.5, color=cr, label=lr)
-            ax.set_xlabel("Strain [-]")
+            ax.set_xlabel("Unrecoverable strain rate [1/s]" if col == 5 else "Strain [-]")
             ax.set_ylabel("Stress [Pa]")
             ax.set_title(title)
             ax.legend()
@@ -277,7 +282,7 @@ class RecoveryRheologyResult:
 
     def plot_step_results(self, figsize=(8, 5)):
         """
-        Plot unrecoverable and recoverable strain vs creep time.
+        Plot total, unrecoverable, and recoverable strain versus experimental time.
 
         Parameters
         ----------
@@ -302,7 +307,7 @@ class RecoveryRheologyResult:
         ax.set_xlabel("Experiment Time [s]")
         ax.set_ylabel("Strain [-]")
         ax.legend(frameon=False)
-        ax.set_title("Step-strain recovery: strain decomposition vs time")
+        ax.set_title("Step-function recovery: strain decomposition vs experimental time")
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         return fig, ax
@@ -311,16 +316,16 @@ class RecoveryRheologyResult:
         """
         Plot transient recoverable strain vs recovery time.
 
-        For each creep/recovery pair the recoverable strain at time *t*
-        during recovery is defined as::
+        For each stepwise deformation, the recoverable strain at recovery
+        time *t* is defined as::
 
-            γ_rec(t) = γ(t_end_creep) − γ(t)
+            γ_rec(t_recovery) = γ_tot(t_exp) − γ(t_recovery)
 
         i.e. how much strain has been recovered by time *t*.  This
         starts at 0 (nothing recovered yet) and asymptotically
         approaches the final recoverable strain.
 
-        Curves are coloured by creep duration.
+        Curves are coloured by deformation duration.
 
         Parameters
         ----------
@@ -431,8 +436,6 @@ class RecoveryRheology(MeasurementSetTransform):
         Stencil width for periodic centred differentiation (1–4, default 4).
     k_step : int
         Step size for derivative stencil (default 1).
-    strain_shift_state : bool
-        Apply half-gap strain shift (default False).
     omega : float or None
         Angular frequency in rad/s.  If ``None`` (default) the value is
         estimated automatically from the FFT of the oscillation data.
@@ -1155,19 +1158,21 @@ class RecoveryRheology(MeasurementSetTransform):
         }
 
     # ==================================================================
-    #  STEP-STRAIN  workflow  (MATLAB: Trios_recovery_rheology_creep.m)
+    #  STEP-FUNCTION workflow  (MATLAB: Trios_recovery_rheology_creep.m)
     # ==================================================================
 
     def _run_step(self, target) -> RecoveryRheologyResult:
         """
-        Step-strain (creep) recovery analysis.
+        Step-function recovery analysis.
 
         1. Extract time, strain, stress from each measurement.
         2. Merge into a single continuous time series if needed (handles
            RheoCompass data where each interval is a separate measurement).
-        3. Identify non-zero stress blocks and classify as +/−.
+        3. Identify non-zero strain- or stress-controlled deformation blocks
+           and classify as +/−.
         4. Positive/negative pairs are averaged to obtain total strain,
-           unrecoverable strain, and recoverable strain at each stress level.
+           unrecoverable strain, and recoverable strain and strain rate as
+           functions of experimental time.
         """
         measurements = self._get_measurements(target)
 
@@ -1579,3 +1584,136 @@ class RecoveryRheology(MeasurementSetTransform):
             default_dependent_name="stress",
             source="Recovery rheology decomposition",
         )
+
+
+# ---------------------------------------------------------------------------
+# Batch helpers
+# ---------------------------------------------------------------------------
+
+
+def batch_oscillatory_recovery(
+    directory: str,
+    pattern: str = "*.csv",
+    export_dir: str | None = None,
+    **recovery_kwargs: Any,
+) -> pd.DataFrame:
+    """
+    Run oscillatory recovery rheology on every RheoCompass file in a directory.
+
+    Parameters
+    ----------
+    directory : str
+        Folder containing one RheoCompass ``.csv`` export per amplitude.
+    pattern : str
+        Glob pattern used to select the files (default ``"*.csv"``).
+    export_dir : str or None
+        If given, a sub-folder per file is created here holding the Excel
+        results and the Lissajous figures.  Nothing is written when ``None``.
+    **recovery_kwargs
+        Passed to :class:`RecoveryRheology` (``n_osc``, ``diff_state``, ...).
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per file, sorted by strain amplitude, with the columns
+        ``file``, ``omega``, ``strain_amplitude``, ``stress_amplitude``,
+        ``storage_modulus_solid``, ``loss_modulus_solid`` and
+        ``loss_modulus_fluid``.
+    """
+    import os
+    from glob import glob
+
+    from hermes_rheo.file_readers.read import read_file
+    from hermes_rheo.file_readers.rheo_compass_csv import RheoCompassReader
+
+    paths = sorted(glob(os.path.join(directory, pattern)))
+    if not paths:
+        raise FileNotFoundError(f"No files matching '{pattern}' in {directory}")
+
+    rows = []
+    for path in paths:
+        stem = os.path.splitext(os.path.basename(path))[0]
+        experiment = read_file(path, file_reader=RheoCompassReader, create_composite_dataset=True)
+        recovery = RecoveryRheology(method="oscillatory", **recovery_kwargs)(experiment).result
+
+        if export_dir is not None:
+            file_dir = os.path.join(export_dir, stem)
+            os.makedirs(file_dir, exist_ok=True)
+            recovery.to_excel(os.path.join(file_dir, "recovery_oscillatory_results.xlsx"))
+            figures, _ = recovery.plot_lissajous(figsize=(4, 4))
+            names = ("total", "unrecoverable_rate", "recoverable")
+            for name, figure in zip(names, figures):
+                figure.savefig(
+                    os.path.join(file_dir, f"lissajous_{name}.png"), dpi=300, bbox_inches="tight"
+                )
+                plt.close(figure)
+
+        rows.append(
+            {
+                "file": os.path.basename(path),
+                "omega": float(recovery.omega),
+                "strain_amplitude": float(recovery.amplitudes[0]),
+                "stress_amplitude": float(recovery.amplitudes[6]),
+                "storage_modulus_solid": float(recovery.trad_mod[2]),
+                "loss_modulus_solid": float(recovery.trad_mod[5]),
+                "loss_modulus_fluid": float(recovery.trad_mod[4]),
+            }
+        )
+
+    return pd.DataFrame(rows).sort_values("strain_amplitude").reset_index(drop=True)
+
+
+def plot_decomposed_moduli(
+    summary: pd.DataFrame,
+    x_axis: str = "strain",
+    title: str | None = None,
+    figsize: tuple[float, float] = (6, 4),
+):
+    """
+    Plot G'_solid, G''_solid and G''_fluid against the oscillation amplitude.
+
+    Parameters
+    ----------
+    summary : pandas.DataFrame
+        Output of :func:`batch_oscillatory_recovery`.
+    x_axis : {"strain", "stress"}
+        Amplitude shown on the horizontal axis.
+    title : str or None
+        Axis title.  Defaults to the median angular frequency.
+    figsize : tuple
+        Figure size in inches.
+
+    Returns
+    -------
+    (matplotlib.figure.Figure, matplotlib.axes.Axes)
+    """
+    if x_axis not in {"strain", "stress"}:
+        raise ValueError("x_axis must be 'strain' or 'stress'")
+
+    if x_axis == "strain":
+        x_values = 100 * summary["strain_amplitude"]
+        x_label = r"Strain amplitude $\gamma_0$ [%]"
+    else:
+        x_values = summary["stress_amplitude"]
+        x_label = r"Stress amplitude $\sigma_0$ [Pa]"
+
+    figure, axis = plt.subplots(figsize=figsize)
+    series = (
+        ("storage_modulus_solid", "o-", r"$G'_{\mathrm{solid}}$"),
+        ("loss_modulus_solid", "s-", r"$G''_{\mathrm{solid}}$"),
+        ("loss_modulus_fluid", "^-", r"$G''_{\mathrm{fluid}}$"),
+    )
+    for column, marker, label in series:
+        axis.plot(x_values, summary[column], marker, label=label)
+
+    axis.set_xscale("log")
+    axis.set_yscale("log")
+    axis.set_xlabel(x_label)
+    axis.set_ylabel("Modulus [Pa]")
+    if title is None:
+        title = rf"$\omega = {summary['omega'].median():.3g}$ rad/s"
+    axis.set_title(title)
+    axis.legend(frameon=False)
+    axis.grid(True, which="both", alpha=0.3)
+    figure.tight_layout()
+    return figure, axis
