@@ -130,3 +130,14 @@ dmypy.json
 
 /_build/
 .idea/
+
+# Tooling
+.DS_Store
+.ruff_cache/
+tutorial_notebooks/_build/
+paper/**/*.aux
+paper/**/*.log
+paper/**/*.out
+paper/**/*.bbl
+paper/**/*.blg
+paper/**/*.synctex.gz
