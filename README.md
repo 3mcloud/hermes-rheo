@@ -78,10 +78,6 @@ The notebooks are also in [`tutorial_notebooks/`](tutorial_notebooks/):
 | 7 | Visualization helpers |
 | 8 | Temperature ramp analysis |
 | 9 | Kymographs (TORCh) |
-| 10 | Recovery rheology |
-| 11 | Rheological model fitting |
-| 12 | Frequency to time relaxation modulus |
-| 13 | Relaxation spectrum (pyReSpect) |
 
 ## File readers
 

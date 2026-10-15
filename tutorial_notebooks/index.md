@@ -27,10 +27,6 @@ pip install "hermes-rheo[notebooks]"
 | 7 | [Van Gurp–Palmen and Cole–Cole plots](./7_visualization.ipynb)                                                               | Visualisation helpers                                             |
 | 8 | [Temperature Ramp Analysis](<./8_temperature%20ramp%20analysis.ipynb>)                                                         | `TemperatureRampAnalysis` — Tg + interpolated properties       |
 | 9 | [Kymographs from TORCh experiments](<./9_kymographs%20tutorial.ipynb>)                                                         | `Kymograph` — 2-D T × ω → modulus                           |
-| 10 | [Recovery rheology](<./10_recovery%20rheology.ipynb>)                                                                         | `RecoveryRheology` — oscillatory + step-strain recovery       |
-| 11 | [Rheological model fitting](<./11_rheological%20model%20fitting.ipynb>)                                                       | `FitModel`, `MultiModeMaxwellModel`, `ShiftFactorModel` (WLF/Arrhenius) |
-| 12 | [Frequency to time relaxation modulus](<./12_frequency%20to%20time%20relaxation%20modulus.ipynb>)                            | `FrequencyToTime` + `FitModel(domain="relaxation")`           |
-| 13 | [Relaxation spectrum via pyReSpect](<./13_relaxation%20spectrum%20via%20pyrespect.ipynb>)                                    | `RelaxationSpectrum` (time & frequency branches) + `SyntheticRheometry` |
 
 :::{tip}
 Every tutorial follows the same pipeline pattern:
