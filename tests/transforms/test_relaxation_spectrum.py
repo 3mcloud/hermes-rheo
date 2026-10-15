@@ -1,4 +1,5 @@
 """Tests for :mod:`hermes_rheo.transforms.relaxation_spectrum`."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -56,11 +57,13 @@ def test_relaxation_spectrum_frequency_recovers_multi_mode_maxwell():
     result = out.details["relaxation_spectrum_result"]
     g_rec, tau_rec = _sorted_recovered(result)
     assert g_rec.size >= 1
+
     # The frequency solver on a two-decade omega grid may only cleanly
     # resolve one of the two modes; require that at least one recovered
     # tau matches a true tau within a factor of 3.
     def _closest(true_val):
         return np.min(np.abs(np.log(tau_rec) - np.log(true_val)))
+
     assert _closest(TAU_TRUE[0]) < np.log(3.0) or _closest(TAU_TRUE[1]) < np.log(3.0)
 
     # Uncertainty band should be attached on the frequency branch.
@@ -70,9 +73,7 @@ def test_relaxation_spectrum_frequency_recovers_multi_mode_maxwell():
 
 def test_relaxation_spectrum_result_exposes_canonical_attributes():
     model = SyntheticRheometry.maxwell(G0=1e5, tau=1.0)
-    meas = model.to_measurement(
-        experiment="stress_relaxation", x=np.geomspace(1e-3, 10.0, 120)
-    )
+    meas = model.to_measurement(experiment="stress_relaxation", x=np.geomspace(1e-3, 10.0, 120))
     out = RelaxationSpectrum(domain="time", relaxation_name="relaxation modulus")(meas)
     result = out.details["relaxation_spectrum_result"]
     for name in ("s", "H", "tau", "g", "lam_C", "N_opt", "G_fit_cont"):

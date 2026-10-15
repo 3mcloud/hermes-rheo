@@ -9,6 +9,7 @@ These tests lock in that:
    well as from a plain ``(temperatures, shift_factors)`` tuple.
 3. The Arrhenius model honours the Celsius/Kelvin unit conversion.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -35,6 +36,7 @@ class _MockMasterCurve:
 # ---------------------------------------------------------------------------
 # 1) Synthetic round-trips
 # ---------------------------------------------------------------------------
+
 
 def test_wlf_recovers_constants():
     temperatures = np.linspace(-40.0, 150.0, 25)
@@ -70,9 +72,7 @@ def test_arrhenius_unit_conversion_matches_kelvin_input():
     temperatures_c = np.linspace(0.0, 120.0, 15)
     temperatures_k = temperatures_c + 273.15
     ea, t_ref_c = 8.0e4, 40.0
-    log_aT = (ea / (_R * _LN10)) * (
-        1.0 / (temperatures_c + 273.15) - 1.0 / (t_ref_c + 273.15)
-    )
+    log_aT = (ea / (_R * _LN10)) * (1.0 / (temperatures_c + 273.15) - 1.0 / (t_ref_c + 273.15))
 
     model_c = ArrheniusModel(temperature_unit="C").fit(
         temperatures_c, log_aT, reference_temperature=t_ref_c
@@ -88,11 +88,12 @@ def test_arrhenius_unit_conversion_matches_kelvin_input():
 # 2) ShiftFactorModel input adapters
 # ---------------------------------------------------------------------------
 
+
 def test_shift_factor_model_reads_mastercurve_object():
     temperatures = np.linspace(-40.0, 150.0, 20)
     c1, c2, t_ref = 15.0, 60.0, -40.0
     log_aT = -c1 * (temperatures - t_ref) / (c2 + (temperatures - t_ref))
-    shift_factors = 10.0 ** log_aT
+    shift_factors = 10.0**log_aT
 
     mc = _MockMasterCurve(temperatures, shift_factors)
     fit = ShiftFactorModel(model="WLF")(mc)
@@ -105,10 +106,8 @@ def test_shift_factor_model_reads_mastercurve_object():
 def test_shift_factor_model_reads_tuple_input():
     temperatures = np.linspace(0.0, 100.0, 12)
     ea, t_ref = 9.0e4, 50.0
-    log_aT = (ea / (_R * _LN10)) * (
-        1.0 / (temperatures + 273.15) - 1.0 / (t_ref + 273.15)
-    )
-    shift_factors = 10.0 ** log_aT
+    log_aT = (ea / (_R * _LN10)) * (1.0 / (temperatures + 273.15) - 1.0 / (t_ref + 273.15))
+    shift_factors = 10.0**log_aT
 
     fit = ShiftFactorModel(model="Arrhenius", reference_temperature=t_ref)(
         (temperatures, shift_factors)

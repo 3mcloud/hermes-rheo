@@ -15,6 +15,7 @@ Import commonly-used symbols directly from the top-level package::
         OWChirpGeneration,
     )
 """
+
 from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version

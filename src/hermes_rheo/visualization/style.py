@@ -29,6 +29,7 @@ Add the ``grid`` and ``ieee`` variants::
 
 >>> use_science_style(extras=['grid', 'ieee'])
 """
+
 from __future__ import annotations
 
 import logging

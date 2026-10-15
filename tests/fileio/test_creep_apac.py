@@ -16,9 +16,7 @@ def test_creep_apac(datadir):
     should pass ``default_coords="legacy-temperature"`` to the reader.
     """
     filepath = datadir.join("test_creep_apac.txt")
-    mset = TriosRheoReader().data_from_filepath(
-        filepath=filepath, create_composite_datasets=True
-    )
+    mset = TriosRheoReader().data_from_filepath(filepath=filepath, create_composite_datasets=True)
 
     processed = OWChirpAnalysis()(mset)
 

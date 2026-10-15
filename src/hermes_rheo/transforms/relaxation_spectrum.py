@@ -66,6 +66,7 @@ References
    dynamic viscoelastic measurements*, Applied Rheology **23**, 24628
    (2013).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -213,12 +214,8 @@ class RelaxationSpectrumResult:
     N_bst: Optional[np.ndarray] = None
 
     # Datasets stored back on the target measurement
-    dataset_continuous: Optional[
-        one_d_composite_dataset.OneDimensionalCompositeDataset
-    ] = None
-    dataset_discrete: Optional[
-        one_d_composite_dataset.OneDimensionalCompositeDataset
-    ] = None
+    dataset_continuous: Optional[one_d_composite_dataset.OneDimensionalCompositeDataset] = None
+    dataset_discrete: Optional[one_d_composite_dataset.OneDimensionalCompositeDataset] = None
 
 
 # ---------------------------------------------------------------------------
@@ -233,9 +230,7 @@ def _find_first(names: Tuple[str, ...], catalogue: list) -> Optional[str]:
     return None
 
 
-def _sanitize_time(
-    t: np.ndarray, g_t: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
+def _sanitize_time(t: np.ndarray, g_t: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     t = np.asarray(t, dtype=float).ravel()
     g_t = np.asarray(g_t, dtype=float).ravel()
     mask = np.isfinite(t) & np.isfinite(g_t) & (t > 0.0) & (g_t > 0.0)
@@ -419,9 +414,7 @@ class RelaxationSpectrum(MeasurementTransform):
     ) -> None:
         super().__init__()
         if domain not in _VALID_DOMAINS:
-            raise ValueError(
-                f"domain must be one of {_VALID_DOMAINS!r}, got {domain!r}"
-            )
+            raise ValueError(f"domain must be one of {_VALID_DOMAINS!r}, got {domain!r}")
 
         self.domain = domain
         self.plateau = plateau
@@ -502,9 +495,7 @@ class RelaxationSpectrum(MeasurementTransform):
     # Domain-specific branches
     # ------------------------------------------------------------------
 
-    def _apply_time(
-        self, dataset: Any, names: list
-    ) -> Optional[RelaxationSpectrumResult]:
+    def _apply_time(self, dataset: Any, names: list) -> Optional[RelaxationSpectrumResult]:
         time_col = self.time_name if self.time_name in names else _find_first(_TIME_ALIASES, names)
         modulus_col = (
             self.relaxation_name
@@ -536,9 +527,7 @@ class RelaxationSpectrum(MeasurementTransform):
             disc=disc,
         )
 
-    def _apply_frequency(
-        self, dataset: Any, names: list
-    ) -> Optional[RelaxationSpectrumResult]:
+    def _apply_frequency(self, dataset: Any, names: list) -> Optional[RelaxationSpectrumResult]:
         for required in (self.omega_name, self.storage_name, self.loss_name):
             if required not in names:
                 return None  # silent no-op

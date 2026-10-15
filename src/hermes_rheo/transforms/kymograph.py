@@ -52,6 +52,7 @@ References
    DOI: `10.1021/acs.macromol.6c00679
    <https://doi.org/10.1021/acs.macromol.6c00679>`_.
 """
+
 from __future__ import annotations
 
 from typing import List, Optional, Tuple, Union
@@ -68,26 +69,26 @@ import piblin.data.datasets.abc.split_datasets.two_dimensional_dataset as two_di
 # Quantity catalogue
 # ---------------------------------------------------------------------------
 QUANTITY_ALIASES: dict[str, List[str]] = {
-    "complex modulus":    ["|complex modulus|", "complex modulus", "g*", "|g*|"],
-    "storage modulus":    ["storage modulus", "g'", "g′"],
-    "loss modulus":       ["loss modulus", "g''", "g″", "g\""],
-    "tan(delta)":         ["tan(delta)", "tan δ", "tan(d)", "loss factor"],
-    "complex viscosity":  ["|complex viscosity|", "complex viscosity", "|η*|", "eta*"],
-    "phase angle":        ["phase angle"],
-    "dynamic viscosity":  ["dynamic viscosity"],
-    "mutation number":    ["mutation number", "mu", "m_u"],
+    "complex modulus": ["|complex modulus|", "complex modulus", "g*", "|g*|"],
+    "storage modulus": ["storage modulus", "g'", "g′"],
+    "loss modulus": ["loss modulus", "g''", "g″", 'g"'],
+    "tan(delta)": ["tan(delta)", "tan δ", "tan(d)", "loss factor"],
+    "complex viscosity": ["|complex viscosity|", "complex viscosity", "|η*|", "eta*"],
+    "phase angle": ["phase angle"],
+    "dynamic viscosity": ["dynamic viscosity"],
+    "mutation number": ["mutation number", "mu", "m_u"],
 }
 
 #: Default units for each canonical quantity key.
 _DEFAULT_UNITS: dict[str, str] = {
-    "complex modulus":   "Pa",
-    "storage modulus":   "Pa",
-    "loss modulus":      "Pa",
-    "tan(delta)":        "",
+    "complex modulus": "Pa",
+    "storage modulus": "Pa",
+    "loss modulus": "Pa",
+    "tan(delta)": "",
     "complex viscosity": "Pa·s",
-    "phase angle":       "°",
+    "phase angle": "°",
     "dynamic viscosity": "Pa·s",
-    "mutation number":   "a.u.",
+    "mutation number": "a.u.",
 }
 
 
@@ -125,6 +126,7 @@ def _resolve_column(column_names: List[str], quantity: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Result object
 # ---------------------------------------------------------------------------
+
 
 class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
     """A :class:`~piblin.data.datasets.abc.split_datasets.two_dimensional_dataset.TwoDimensionalDataset`
@@ -240,7 +242,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
         x_grid = self.x_values
         y_grid = self.y_values
-        z_grid = self.z_values   # shape (n_x, n_y)
+        z_grid = self.z_values  # shape (n_x, n_y)
 
         for xv in x_values:
             if use_raw:
@@ -287,7 +289,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
         x_grid = self.x_values
         y_grid = self.y_values
-        z_grid = self.z_values   # shape (n_x, n_y)
+        z_grid = self.z_values  # shape (n_x, n_y)
 
         for yv in y_values:
             if use_raw:
@@ -351,9 +353,9 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         else:
             fig = ax.get_figure()
 
-        x_grid = self.x_values          # (n_x,)
-        y_grid = self.y_values           # (n_y,)
-        z_grid = self.z_values.T         # (n_y, n_x) for pcolormesh
+        x_grid = self.x_values  # (n_x,)
+        y_grid = self.y_values  # (n_y,)
+        z_grid = self.z_values.T  # (n_y, n_x) for pcolormesh
 
         norm: Optional[mcolors.Normalize] = None
         if log_z:
@@ -362,7 +364,9 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
                 norm = mcolors.LogNorm(vmin=pos.min(), vmax=pos.max())
 
         mesh = ax.pcolormesh(
-            x_grid, y_grid, z_grid,
+            x_grid,
+            y_grid,
+            z_grid,
             cmap=colormap,
             norm=norm,
             shading="auto",
@@ -372,7 +376,9 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         if add_contours:
             levels = contour_levels if contour_levels is not None else 8
             ax.contour(
-                x_grid, y_grid, z_grid,
+                x_grid,
+                y_grid,
+                z_grid,
                 levels=levels,
                 colors=contour_colors,
                 linewidths=0.8,
@@ -380,8 +386,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
             )
 
         if add_scatter:
-            ax.scatter(self.raw_x, self.raw_y, s=4, c="k", alpha=0.4,
-                       zorder=5, label="raw data")
+            ax.scatter(self.raw_x, self.raw_y, s=4, c="k", alpha=0.4, zorder=5, label="raw data")
 
         ax.set_xlabel(self._x_label())
         ax.set_ylabel(self._y_label())
@@ -423,8 +428,14 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
         slices = self.slice_at_x(x_values)
         for xv, (yarr, zarr) in slices.items():
-            ax.plot(yarr, zarr, marker="o", linestyle="none", markersize=4,
-                    label=f"{self.x_name}={xv:.1f} {self.x_unit or ''}".strip())
+            ax.plot(
+                yarr,
+                zarr,
+                marker="o",
+                linestyle="none",
+                markersize=4,
+                label=f"{self.x_name}={xv:.1f} {self.x_unit or ''}".strip(),
+            )
 
         if log_x or self.log_y:
             ax.set_xscale("log")
@@ -467,8 +478,14 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
         slices = self.slice_at_y(y_values)
         for yv, (xarr, zarr) in slices.items():
-            ax.plot(xarr, zarr, marker="o", linestyle="none", markersize=4,
-                    label=f"{self.y_name}={yv:.3g} {self.y_unit or ''}".strip())
+            ax.plot(
+                xarr,
+                zarr,
+                marker="o",
+                linestyle="none",
+                markersize=4,
+                label=f"{self.y_name}={yv:.3g} {self.y_unit or ''}".strip(),
+            )
 
         if log_y_axis:
             ax.set_yscale("log")
@@ -503,8 +520,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
             from openpyxl import Workbook
         except ImportError as exc:
             raise ImportError(
-                "openpyxl is required for Excel export. "
-                "Install it with: pip install openpyxl"
+                "openpyxl is required for Excel export. Install it with: pip install openpyxl"
             ) from exc
 
         wb = Workbook()
@@ -514,17 +530,19 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         ws_raw.title = "raw_data"
         ws_raw.append([self._x_label(), self._y_label(), self._z_label()])
         for xv, yv, zv in zip(self.raw_x, self.raw_y, self.raw_z):
-            ws_raw.append([
-                None if not np.isfinite(xv) else float(xv),
-                None if not np.isfinite(yv) else float(yv),
-                None if not np.isfinite(zv) else float(zv),
-            ])
+            ws_raw.append(
+                [
+                    None if not np.isfinite(xv) else float(xv),
+                    None if not np.isfinite(yv) else float(yv),
+                    None if not np.isfinite(zv) else float(zv),
+                ]
+            )
 
         # --- grid sheet ---
         ws_grid = wb.create_sheet("grid_data")
         x_grid = self.x_values
         y_grid = self.y_values
-        z_grid = self.z_values   # (n_x, n_y)
+        z_grid = self.z_values  # (n_x, n_y)
 
         header = [f"{self._x_label()} \\ {self._y_label()}"] + [float(y) for y in y_grid]
         ws_grid.append(header)
@@ -581,6 +599,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 # ---------------------------------------------------------------------------
 # Transform
 # ---------------------------------------------------------------------------
+
 
 class Kymograph(MeasurementSetTransform):
     """Build a 2-D kymograph from TORCh or frequency-ramp rheology data.
@@ -708,115 +727,115 @@ class Kymograph(MeasurementSetTransform):
         measurements = list(getattr(target, "measurements", []))
 
         for m in measurements:
-                datasets = getattr(m, "datasets", [])
-                conditions = getattr(m, "conditions", {}) or {}
-                # Case-insensitive alias table for scalar per-measurement
-                # values (used when the requested axis is not a dataset
-                # column — e.g. Mutation Number results carry
-                # ``Angular Frequency`` in ``conditions`` rather than as a
-                # column).
-                cond_lookup = {str(k).lower(): (str(k), v) for k, v in conditions.items()}
+            datasets = getattr(m, "datasets", [])
+            conditions = getattr(m, "conditions", {}) or {}
+            # Case-insensitive alias table for scalar per-measurement
+            # values (used when the requested axis is not a dataset
+            # column — e.g. Mutation Number results carry
+            # ``Angular Frequency`` in ``conditions`` rather than as a
+            # column).
+            cond_lookup = {str(k).lower(): (str(k), v) for k, v in conditions.items()}
 
-                for ds in datasets:
-                    names = list(getattr(ds, "data_array_names", []) or [])
-                    arrays = list(getattr(ds, "data_arrays", []) or [])
-                    units_list = list(getattr(ds, "data_array_units", []) or [])
+            for ds in datasets:
+                names = list(getattr(ds, "data_array_names", []) or [])
+                arrays = list(getattr(ds, "data_arrays", []) or [])
+                units_list = list(getattr(ds, "data_array_units", []) or [])
 
-                    # Compatibility with plain OneDimensionalDataset (the
-                    # shape produced by e.g. ``MutationNumber``), which
-                    # exposes independent / dependent arrays separately
-                    # rather than a single flat ``data_arrays`` list.
-                    if not names:
-                        ind_names = list(getattr(ds, "independent_variable_names", []) or [])
-                        ind_data  = list(getattr(ds, "independent_variable_data", []) or [])
-                        ind_units = list(getattr(ds, "independent_variable_units", []) or [])
-                        dep_names = list(getattr(ds, "dependent_variable_names", []) or [])
-                        dep_data_raw = getattr(ds, "dependent_variable_data", None)
-                        dep_units = list(getattr(ds, "dependent_variable_units", []) or [])
+                # Compatibility with plain OneDimensionalDataset (the
+                # shape produced by e.g. ``MutationNumber``), which
+                # exposes independent / dependent arrays separately
+                # rather than a single flat ``data_arrays`` list.
+                if not names:
+                    ind_names = list(getattr(ds, "independent_variable_names", []) or [])
+                    ind_data = list(getattr(ds, "independent_variable_data", []) or [])
+                    ind_units = list(getattr(ds, "independent_variable_units", []) or [])
+                    dep_names = list(getattr(ds, "dependent_variable_names", []) or [])
+                    dep_data_raw = getattr(ds, "dependent_variable_data", None)
+                    dep_units = list(getattr(ds, "dependent_variable_units", []) or [])
 
-                        # ``dependent_variable_data`` may be a single array
-                        # (1-D dataset with a single dependent) or a list of
-                        # arrays (composite); normalise to a list.
-                        if dep_data_raw is None:
-                            dep_data = []
+                    # ``dependent_variable_data`` may be a single array
+                    # (1-D dataset with a single dependent) or a list of
+                    # arrays (composite); normalise to a list.
+                    if dep_data_raw is None:
+                        dep_data = []
+                    else:
+                        arr = np.asarray(dep_data_raw)
+                        if arr.dtype == object or (arr.ndim > 1 and len(dep_names) > 1):
+                            dep_data = list(dep_data_raw)
                         else:
-                            arr = np.asarray(dep_data_raw)
-                            if arr.dtype == object or (arr.ndim > 1 and len(dep_names) > 1):
-                                dep_data = list(dep_data_raw)
-                            else:
-                                dep_data = [dep_data_raw]
+                            dep_data = [dep_data_raw]
 
-                        names = ind_names + dep_names
-                        arrays = ind_data + dep_data
-                        units_list = ind_units + dep_units
+                    names = ind_names + dep_names
+                    arrays = ind_data + dep_data
+                    units_list = ind_units + dep_units
 
-                    if not names:
-                        continue
+                if not names:
+                    continue
 
-                    # Pad units if shorter
-                    while len(units_list) < len(names):
-                        units_list.append("")
+                # Pad units if shorter
+                while len(units_list) < len(names):
+                    units_list.append("")
 
-                    unit_map = {n.lower(): units_list[i] for i, n in enumerate(names)}
+                unit_map = {n.lower(): units_list[i] for i, n in enumerate(names)}
 
-                    # --- resolve column names ---
-                    x_col = _resolve_column(names, self.x)
-                    y_col = _resolve_column(names, self.y)
-                    z_col = _resolve_column(names, self.quantity)
+                # --- resolve column names ---
+                x_col = _resolve_column(names, self.x)
+                y_col = _resolve_column(names, self.y)
+                z_col = _resolve_column(names, self.quantity)
 
-                    # z MUST come from a dataset array.
-                    if z_col is None:
-                        continue
+                # z MUST come from a dataset array.
+                if z_col is None:
+                    continue
 
-                    zi = names.index(z_col)
-                    z_arr = np.asarray(arrays[zi], dtype=float)
+                zi = names.index(z_col)
+                z_arr = np.asarray(arrays[zi], dtype=float)
 
-                    # --- resolve x-values: dataset column first, then
-                    # measurement condition (broadcast scalar).
-                    if x_col is not None:
-                        xi = names.index(x_col)
-                        x_arr = np.asarray(arrays[xi], dtype=float)
-                    elif self.x in cond_lookup:
-                        x_arr = np.full_like(z_arr, float(cond_lookup[self.x][1]))
-                    else:
-                        continue
+                # --- resolve x-values: dataset column first, then
+                # measurement condition (broadcast scalar).
+                if x_col is not None:
+                    xi = names.index(x_col)
+                    x_arr = np.asarray(arrays[xi], dtype=float)
+                elif self.x in cond_lookup:
+                    x_arr = np.full_like(z_arr, float(cond_lookup[self.x][1]))
+                else:
+                    continue
 
-                    # --- resolve y-values likewise.
-                    if y_col is not None:
-                        yi = names.index(y_col)
-                        y_arr = np.asarray(arrays[yi], dtype=float)
-                    elif self.y in cond_lookup:
-                        y_arr = np.full_like(z_arr, float(cond_lookup[self.y][1]))
-                    else:
-                        continue
+                # --- resolve y-values likewise.
+                if y_col is not None:
+                    yi = names.index(y_col)
+                    y_arr = np.asarray(arrays[yi], dtype=float)
+                elif self.y in cond_lookup:
+                    y_arr = np.full_like(z_arr, float(cond_lookup[self.y][1]))
+                else:
+                    continue
 
-                    # handle complex (take magnitude)
-                    if np.iscomplexobj(z_arr):
-                        z_arr = np.abs(z_arr)
+                # handle complex (take magnitude)
+                if np.iscomplexobj(z_arr):
+                    z_arr = np.abs(z_arr)
 
-                    # common finite mask
-                    mask = np.isfinite(x_arr) & np.isfinite(y_arr) & np.isfinite(z_arr)
-                    if not mask.any():
-                        continue
+                # common finite mask
+                mask = np.isfinite(x_arr) & np.isfinite(y_arr) & np.isfinite(z_arr)
+                if not mask.any():
+                    continue
 
-                    x_all.extend(x_arr[mask].tolist())
-                    y_all.extend(y_arr[mask].tolist())
-                    z_all.extend(z_arr[mask].tolist())
+                x_all.extend(x_arr[mask].tolist())
+                y_all.extend(y_arr[mask].tolist())
+                z_all.extend(z_arr[mask].tolist())
 
-                    # capture units from first successful dataset (unit
-                    # metadata is only available for dataset-sourced axes;
-                    # condition-sourced axes fall back to '').
-                    if not found_x:
-                        x_unit = unit_map.get(x_col.lower(), "") if x_col else ""
-                        found_x = True
-                    if not found_y:
-                        y_unit = unit_map.get(y_col.lower(), "") if y_col else ""
-                        found_y = True
-                    if not found_quantity:
-                        z_unit_candidate = unit_map.get(z_col.lower(), "")
-                        if z_unit_candidate:
-                            z_unit = z_unit_candidate
-                        found_quantity = True
+                # capture units from first successful dataset (unit
+                # metadata is only available for dataset-sourced axes;
+                # condition-sourced axes fall back to '').
+                if not found_x:
+                    x_unit = unit_map.get(x_col.lower(), "") if x_col else ""
+                    found_x = True
+                if not found_y:
+                    y_unit = unit_map.get(y_col.lower(), "") if y_col else ""
+                    found_y = True
+                if not found_quantity:
+                    z_unit_candidate = unit_map.get(z_col.lower(), "")
+                    if z_unit_candidate:
+                        z_unit = z_unit_candidate
+                    found_quantity = True
 
         if not x_all:
             raise ValueError(
@@ -893,7 +912,7 @@ class Kymograph(MeasurementSetTransform):
 
         # Convert y-grid back to original units
         if self.log_y:
-            y_grid = 10.0 ** y_grid_log
+            y_grid = 10.0**y_grid_log
         else:
             y_grid = y_grid_log
 

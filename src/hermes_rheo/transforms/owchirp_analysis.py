@@ -32,6 +32,7 @@ References
    ``hermes-rheo`` to time-resolved OWChirp analysis.
 
 """
+
 from __future__ import annotations
 
 import copy
@@ -67,6 +68,7 @@ _UNIT_PREFIXES: Dict[str, float] = {
 # Method-string canonicalisation (shared with the reader's per-method defaults)
 # ---------------------------------------------------------------------------
 
+
 def _canonicalise_method(method_line: str) -> str:
     """Return the canonical, lower-cased form of a TRIOS step-name line.
 
@@ -101,6 +103,7 @@ def _canonicalise_method(method_line: str) -> str:
 # ---------------------------------------------------------------------------
 # OWChirpAnalysis
 # ---------------------------------------------------------------------------
+
 
 class OWChirpAnalysis(MeasurementTransform):
     """Extract time-resolved moduli from an OWChirp (Arbitrary Wave / Frequency Chirp) step.
@@ -235,7 +238,7 @@ class OWChirpAnalysis(MeasurementTransform):
 
         # Look for a prefix immediately before the first alphabetic unit
         # character.
-        unit_part = s[num_match.end():].strip().replace(" ", "")
+        unit_part = s[num_match.end() :].strip().replace(" ", "")
         m = re.match(r"([mµunkM])([A-Za-z])", unit_part)
         multiplier = 1.0
         if m:
@@ -309,9 +312,7 @@ class OWChirpAnalysis(MeasurementTransform):
         elif dataset.y_unit == "Pa":
             stress_values = copy.deepcopy(dataset.y_values[cutoff_index:])
         else:
-            raise ValueError(
-                f"Unsupported stress unit '{dataset.y_unit}'. Expected 'Pa' or 'MPa'."
-            )
+            raise ValueError(f"Unsupported stress unit '{dataset.y_unit}'. Expected 'Pa' or 'MPa'.")
 
         if stress_values is None:
             raise ValueError("Stress values not set after switching coordinates to stress.")
@@ -330,7 +331,7 @@ class OWChirpAnalysis(MeasurementTransform):
         )
 
     # ------------------------------------------------------------------
-    # Baseline-subtraction 
+    # Baseline-subtraction
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -345,9 +346,7 @@ class OWChirpAnalysis(MeasurementTransform):
             ) from exc
 
     @staticmethod
-    def average_until_tw(
-        t_w: float, time: List[float], signal: List[float]
-    ) -> np.ndarray:
+    def average_until_tw(t_w: float, time: List[float], signal: List[float]) -> np.ndarray:
         """Subtract the mean of *signal* over ``time <= t_w`` from *signal*.
 
         Best default for the *strain* channel: the pre-chirp waiting window
@@ -359,26 +358,22 @@ class OWChirpAnalysis(MeasurementTransform):
         return signal - initial_value
 
     @staticmethod
-    def average_over_chirp(
-        t_w: float, time: List[float], signal: List[float]
-    ) -> np.ndarray:
+    def average_over_chirp(t_w: float, time: List[float], signal: List[float]) -> np.ndarray:
         """Subtract the mean of *signal* AFTER the waiting window.
 
         Best default for the stress controlled instruments.
         """
         signal = np.asarray(signal)
         index_tw = OWChirpAnalysis._find_tw_index(t_w, time)
-        avg_signal = np.mean(signal[index_tw + 1:])
+        avg_signal = np.mean(signal[index_tw + 1 :])
         return signal - avg_signal
 
     @staticmethod
-    def average_over_all(
-        t_w: float, time: List[float], signal: List[float]
-    ) -> np.ndarray:
+    def average_over_all(t_w: float, time: List[float], signal: List[float]) -> np.ndarray:
         """Subtract the sum of pre-``t_w`` and post-``t_w`` means from *signal*."""
         signal = np.asarray(signal)
         index_tw = OWChirpAnalysis._find_tw_index(t_w, time)
-        return signal - np.mean(signal[: index_tw + 1]) - np.mean(signal[index_tw + 1:])
+        return signal - np.mean(signal[: index_tw + 1]) - np.mean(signal[index_tw + 1 :])
 
     def filter_signal(
         self,
@@ -448,9 +443,7 @@ class OWChirpAnalysis(MeasurementTransform):
         """
         valid_criteria = ("symmetry", "endpoints")
         if criterion not in valid_criteria:
-            raise ValueError(
-                f"Invalid criterion {criterion!r}. Must be one of {valid_criteria}."
-            )
+            raise ValueError(f"Invalid criterion {criterion!r}. Must be one of {valid_criteria}.")
 
         methods = ("tw", "chirp", "all", "none")
         best_method = None
@@ -620,8 +613,8 @@ class OWChirpAnalysis(MeasurementTransform):
         shifted_strain = fftshift(strain_fft)
         shifted_stress = fftshift(stress_ftt)
 
-        moduli = shifted_stress[int(n / 2):] / shifted_strain[int(n / 2):]
-        frequency_range = f[int(n / 2):]
+        moduli = shifted_stress[int(n / 2) :] / shifted_strain[int(n / 2) :]
+        frequency_range = f[int(n / 2) :]
         upper_frequency = frequency_range[frequency_range <= f2]
         lower_frequency = upper_frequency[upper_frequency >= f1]
         frequency = 2 * np.pi * lower_frequency
@@ -631,9 +624,9 @@ class OWChirpAnalysis(MeasurementTransform):
         l2 = len(lower_frequency)
         elastic_modulus = np.real(moduli)
         loss_modulus = np.imag(moduli)
-        complex_modulus = moduli[l1 - l2:l1]
-        elastic_modulus_final = elastic_modulus[l1 - l2:l1]
-        loss_modulus_final = loss_modulus[l1 - l2:l1]
+        complex_modulus = moduli[l1 - l2 : l1]
+        elastic_modulus_final = elastic_modulus[l1 - l2 : l1]
+        loss_modulus_final = loss_modulus[l1 - l2 : l1]
         if np.size(complex_modulus) == 1:
             complex_modulus = complex_modulus[np.newaxis]
         if np.size(elastic_modulus_final) == 1:
@@ -641,10 +634,10 @@ class OWChirpAnalysis(MeasurementTransform):
         if np.size(loss_modulus_final) == 1:
             loss_modulus_final = loss_modulus_final[np.newaxis]
 
-        stress_corrected = shifted_stress[int(n / 2):] / fs
-        strain_corrected = shifted_strain[int(n / 2):] / fs
-        stress_final = stress_corrected[l1 - l2:l1]
-        strain_final = strain_corrected[l1 - l2:l1]
+        stress_corrected = shifted_stress[int(n / 2) :] / fs
+        strain_corrected = shifted_strain[int(n / 2) :] / fs
+        stress_final = stress_corrected[l1 - l2 : l1]
+        strain_final = strain_corrected[l1 - l2 : l1]
         if np.size(stress_final) == 1:
             stress_final = stress_final[np.newaxis]
         if np.size(strain_final) == 1:
@@ -744,7 +737,7 @@ class OWChirpAnalysis(MeasurementTransform):
         shifted_stress = fftshift(stress_padded_fft)
         shifted_strain = fftshift(strain_padded_fft)
 
-        frequency_range = f[int(n / 2):]
+        frequency_range = f[int(n / 2) :]
         upper_frequency = frequency_range[frequency_range <= f2]
         lower_frequency = upper_frequency[upper_frequency >= f1]
         frequency = 2 * np.pi * lower_frequency
@@ -756,29 +749,36 @@ class OWChirpAnalysis(MeasurementTransform):
 
         # Stiffness with inertia + friction correction, then modulus with
         # compliance correction.
-        stiffness = (shifted_stress[int(n / 2):] / shifted_strain_rate[int(n / 2):]) * (
-            1j * frequency_range * 2 * np.pi
-        ) * K_strain / K_stress
+        stiffness = (
+            (shifted_stress[int(n / 2) :] / shifted_strain_rate[int(n / 2) :])
+            * (1j * frequency_range * 2 * np.pi)
+            * K_strain
+            / K_stress
+        )
 
         elastic_stiffness = np.real(stiffness) + I * (frequency_range * 2 * np.pi) ** 2
         loss_stiffness = np.imag(stiffness) - mu * (frequency_range * 2 * np.pi)
 
-        elastic_modulus = (K_stress / K_strain) * (
-            elastic_stiffness * (1 - c * elastic_stiffness) - c * loss_stiffness ** 2
-        ) / ((1 - c * elastic_stiffness) ** 2 + (c * loss_stiffness) ** 2)
-        loss_modulus = (K_stress / K_strain) * loss_stiffness / (
-            (1 - c * elastic_stiffness) ** 2 + (c * loss_stiffness) ** 2
+        elastic_modulus = (
+            (K_stress / K_strain)
+            * (elastic_stiffness * (1 - c * elastic_stiffness) - c * loss_stiffness**2)
+            / ((1 - c * elastic_stiffness) ** 2 + (c * loss_stiffness) ** 2)
+        )
+        loss_modulus = (
+            (K_stress / K_strain)
+            * loss_stiffness
+            / ((1 - c * elastic_stiffness) ** 2 + (c * loss_stiffness) ** 2)
         )
 
-        elastic_modulus_final = elastic_modulus[l1 - l2:l1]
-        loss_modulus_final = loss_modulus[l1 - l2:l1]
-        complex_modulus = (elastic_modulus_final ** 2 + loss_modulus_final ** 2) ** 0.5
+        elastic_modulus_final = elastic_modulus[l1 - l2 : l1]
+        loss_modulus_final = loss_modulus[l1 - l2 : l1]
+        complex_modulus = (elastic_modulus_final**2 + loss_modulus_final**2) ** 0.5
         complex_viscosity = complex_modulus / frequency
 
-        stress_corrected = shifted_stress[int(n / 2):] / fs
-        strain_corrected = shifted_strain[int(n / 2):] / fs
-        stress_final = stress_corrected[l1 - l2:l1]
-        strain_final = strain_corrected[l1 - l2:l1]
+        stress_corrected = shifted_stress[int(n / 2) :] / fs
+        strain_corrected = shifted_strain[int(n / 2) :] / fs
+        stress_final = stress_corrected[l1 - l2 : l1]
+        strain_final = strain_corrected[l1 - l2 : l1]
         if np.size(stress_final) == 1:
             stress_final = stress_final[np.newaxis]
         if np.size(strain_final) == 1:
@@ -830,7 +830,7 @@ class OWChirpAnalysis(MeasurementTransform):
                 return float("nan")
             if isinstance(val, (int, float)):
                 return float(val)
-            s = str(val).strip().replace("\u00A0", "").replace(" ", "")
+            s = str(val).strip().replace("\u00a0", "").replace(" ", "")
             if s == "":
                 return float("nan")
             if "," in s and "." in s:
@@ -868,13 +868,16 @@ class OWChirpAnalysis(MeasurementTransform):
         # ---------- 1) Preferred: structured per-step dict(s) ----------
         step_items: List[Tuple[str, Dict[str, Any]]] = []
         for k, v in details.items():
-            if isinstance(k, str) and re.search(r"^Frequency\s*Chirp\s*-\s*\d+\s*$", k, flags=re.IGNORECASE):
+            if isinstance(k, str) and re.search(
+                r"^Frequency\s*Chirp\s*-\s*\d+\s*$", k, flags=re.IGNORECASE
+            ):
                 if isinstance(v, dict) and any(
                     x in v for x in ("waiting_time", "chirp_length", "f_lo_hz", "f_hi_hz")
                 ):
                     step_items.append((k, v))
 
         if step_items:
+
             def _step_num(key: str) -> int:
                 m = re.search(r"(\d+)\s*$", key)
                 return int(m.group(1)) if m else -1
@@ -893,7 +896,9 @@ class OWChirpAnalysis(MeasurementTransform):
                 "waiting_time": waiting_time,
                 "chirp_length": chirp_length,
                 "oscillation_period": chirp_length,
-                "initial_frequency": 2 * _np.pi * f_lo_hz if _np.isfinite(f_lo_hz) else float("nan"),
+                "initial_frequency": 2 * _np.pi * f_lo_hz
+                if _np.isfinite(f_lo_hz)
+                else float("nan"),
                 "final_frequency": 2 * _np.pi * f_hi_hz if _np.isfinite(f_hi_hz) else float("nan"),
                 "taping_parameter": taper_pct,
                 "sampling_frequency": fs,
@@ -910,7 +915,9 @@ class OWChirpAnalysis(MeasurementTransform):
 
         m_baseline = re.search(r"Baseline\s*time\s*([\d.,]+)\s*s", blob, flags=re.IGNORECASE)
         m_len = re.search(r"Total\s*length\s*of\s*chirp\s*([\d.,]+)\s*s", blob, flags=re.IGNORECASE)
-        m_freq = re.search(r"Frequency\s*([\d.,]+)\s*Hz\s*to\s*([\d.,]+)\s*Hz", blob, flags=re.IGNORECASE)
+        m_freq = re.search(
+            r"Frequency\s*([\d.,]+)\s*Hz\s*to\s*([\d.,]+)\s*Hz", blob, flags=re.IGNORECASE
+        )
         m_taper = re.search(r"Tapering\s*parameter\s*%?\s*([\d.,]+)", blob, flags=re.IGNORECASE)
         m_fs = re.search(r"\(([\d.,]+)\s*points/s\s*approximately\)", blob, flags=re.IGNORECASE)
 
@@ -928,21 +935,27 @@ class OWChirpAnalysis(MeasurementTransform):
 
         m_mode = re.search(
             r"Oscillation-Frequency\s*Chirp\s*:\s*([A-Za-z]+)\s+is\s+selected",
-            blob, flags=re.IGNORECASE,
+            blob,
+            flags=re.IGNORECASE,
         )
         m_temp = re.search(r"Temperature\s*([-\d.,]+)\s*°C", blob, flags=re.IGNORECASE)
         m_end_temp = re.search(r"End\s*temperature\s*([-\d.,]+)\s*°C", blob, flags=re.IGNORECASE)
         m_soak = re.search(r"Soak\s*time\s*([\d.,]+)\s*s", blob, flags=re.IGNORECASE)
-        m_soak2 = re.search(r"Soak\s*time\s*after\s*ramp\s*([\d.,]+)\s*s", blob, flags=re.IGNORECASE)
+        m_soak2 = re.search(
+            r"Soak\s*time\s*after\s*ramp\s*([\d.,]+)\s*s", blob, flags=re.IGNORECASE
+        )
         m_ramp = re.search(r"Ramp\s*rate\s*([\d.,]+)\s*°C/min", blob, flags=re.IGNORECASE)
         m_stress = re.search(r"Stress\s*([-\d.,]+)\s*Pa", blob, flags=re.IGNORECASE)
         m_ppd = re.search(r"Points\s*per\s*decade\s*([\d.,]+)", blob, flags=re.IGNORECASE)
         m_cf = re.search(r"Control\s*frequency\s*([\d.,]+)\s*Hz", blob, flags=re.IGNORECASE)
-        m_maxfrac = re.search(r"Maximum\s*frequency\s*fraction\s*([\d.,]+)", blob, flags=re.IGNORECASE)
+        m_maxfrac = re.search(
+            r"Maximum\s*frequency\s*fraction\s*([\d.,]+)", blob, flags=re.IGNORECASE
+        )
         m_phase = re.search(r"Phase\s*angle\s*shift\s*([-\d.,]+)\s*°", blob, flags=re.IGNORECASE)
         m_eqvel = re.search(
             r"Equilibration\s*angular\s*velocity\s*tolerance\s*([\d.,]+)\s*rad/s",
-            blob, flags=re.IGNORECASE,
+            blob,
+            flags=re.IGNORECASE,
         )
         m_relax = re.search(r"Relaxation\s*time\s*([\d.,]+)\s*s", blob, flags=re.IGNORECASE)
         m_limit = re.search(r"Limit\s*checking\s*Enabled:\s*(\w+)", blob, flags=re.IGNORECASE)
@@ -967,7 +980,9 @@ class OWChirpAnalysis(MeasurementTransform):
             "control_frequency_hz": _to_float(m_cf.group(1)) if m_cf else float("nan"),
             "max_frequency_fraction": _to_float(m_maxfrac.group(1)) if m_maxfrac else float("nan"),
             "phase_angle_shift_deg": _to_float(m_phase.group(1)) if m_phase else float("nan"),
-            "equilibration_velocity_tol_rad_per_s": _to_float(m_eqvel.group(1)) if m_eqvel else float("nan"),
+            "equilibration_velocity_tol_rad_per_s": _to_float(m_eqvel.group(1))
+            if m_eqvel
+            else float("nan"),
             "relaxation_time_s": _to_float(m_relax.group(1)) if m_relax else float("nan"),
             "limit_checking_enabled": _to_bool_flag(m_limit.group(1)) if m_limit else None,
             "equilibrium_enabled": _to_bool_flag(m_equil.group(1)) if m_equil else None,
@@ -1037,21 +1052,32 @@ class OWChirpAnalysis(MeasurementTransform):
         wave_data = target.details[method_key]
 
         strain_applied = wave_data["wave 2"]["coef"][0]
-        (waiting_time, oscillation_period, taping_parameter,
-         initial_frequency, final_frequency) = self.calculate_wave_parameters(wave_data)
+        (waiting_time, oscillation_period, taping_parameter, initial_frequency, final_frequency) = (
+            self.calculate_wave_parameters(wave_data)
+        )
 
         sampling_frequency = wave_data["rate (pts/s)"]
         original_dataset = target.datasets[0]
 
         time, strain, stress, temperature = self.prepare_owchirp_data(
-            original_dataset, "step time", "strain", "stress", "temperature",
+            original_dataset,
+            "step time",
+            "strain",
+            "stress",
+            "temperature",
             self.cutoff_points,
         )
         strain_filtered, filter_used_strain = self.select_best_filter_method(
-            waiting_time, time, strain, criterion=self.filter_criterion,
+            waiting_time,
+            time,
+            strain,
+            criterion=self.filter_criterion,
         )
         stress_filtered, filter_used_stress = self.select_best_filter_method(
-            waiting_time, time, stress, criterion=self.filter_criterion,
+            waiting_time,
+            time,
+            stress,
+            criterion=self.filter_criterion,
         )
 
         if self.owchirp_waiting_time == "before_signal":
@@ -1081,12 +1107,20 @@ class OWChirpAnalysis(MeasurementTransform):
         # we simply use the strain-controlled path.  Users on stress-
         # controlled instruments who need inertia compensation should use
         # the Frequency Chirp macro (which does export the constants).
-        (frequency_radians, fourier_transform_strain, fourier_transform_stress,
-         storage_modulus, loss_modulus, complex_modulus) = \
-            self.moduli_owchirp_strain_controlled(
-                strain_filtered_tw, stress_filtered_tw, sampling_frequency,
-                initial_frequency, final_frequency,
-            )
+        (
+            frequency_radians,
+            fourier_transform_strain,
+            fourier_transform_stress,
+            storage_modulus,
+            loss_modulus,
+            complex_modulus,
+        ) = self.moduli_owchirp_strain_controlled(
+            strain_filtered_tw,
+            stress_filtered_tw,
+            sampling_frequency,
+            initial_frequency,
+            final_frequency,
+        )
         if target.details.get("instrument_serial_number", "").startswith(
             tuple(self._STRESS_CONTROLLED_SERIALS)
         ):
@@ -1099,24 +1133,33 @@ class OWChirpAnalysis(MeasurementTransform):
 
         frequency_hertz = frequency_radians / (2 * np.pi)
         tan_delta = loss_modulus / storage_modulus
-        complex_viscosity = np.sqrt(storage_modulus ** 2 + loss_modulus ** 2) / frequency_radians
+        complex_viscosity = np.sqrt(storage_modulus**2 + loss_modulus**2) / frequency_radians
         complex_modulus_abs = np.abs(complex_modulus)
 
         dataset_fourier_space = one_d_composite_dataset.OneDimensionalCompositeDataset(
             data_arrays=[
                 frequency_radians,
-                fourier_transform_strain, fourier_transform_stress,
-                storage_modulus, loss_modulus, complex_modulus_abs,
-                frequency_hertz, tan_delta, complex_viscosity,
+                fourier_transform_strain,
+                fourier_transform_stress,
+                storage_modulus,
+                loss_modulus,
+                complex_modulus_abs,
+                frequency_hertz,
+                tan_delta,
+                complex_viscosity,
             ],
             data_array_names=[
-                "angular frequency", "fourier_transform_strain",
-                "fourier_transform_stress", "storage modulus", "loss modulus",
-                "complex modulus", "frequency_hz", "tan(delta)",
+                "angular frequency",
+                "fourier_transform_strain",
+                "fourier_transform_stress",
+                "storage modulus",
+                "loss modulus",
+                "complex modulus",
+                "frequency_hz",
+                "tan(delta)",
                 "complex viscosity",
             ],
-            data_array_units=["rad/s", "a.u.", "a.u.", "Pa", "Pa", "Pa", "Hz",
-                              "", "Pa s"],
+            data_array_units=["rad/s", "a.u.", "a.u.", "Pa", "Pa", "Pa", "Hz", "", "Pa s"],
             default_independent_name="angular frequency",
             default_dependent_name="storage modulus",
             source="Dataset in frequency space",
@@ -1125,7 +1168,9 @@ class OWChirpAnalysis(MeasurementTransform):
         dataset_time_space = one_d_composite_dataset.OneDimensionalCompositeDataset(
             data_arrays=[time, strain_filtered, stress_filtered, strain_rate],
             data_array_names=[
-                "adjusted time", "adjusted strain", "adjusted stress",
+                "adjusted time",
+                "adjusted strain",
+                "adjusted stress",
                 "adjusted strain rate",
             ],
             data_array_units=["s", "a.u", "Pa", "1/s"],
@@ -1173,14 +1218,24 @@ class OWChirpAnalysis(MeasurementTransform):
 
         original_dataset = target.datasets[0]
         time, strain, stress, temperature = self.prepare_owchirp_data(
-            original_dataset, "step time", "strain", "stress", "temperature",
+            original_dataset,
+            "step time",
+            "strain",
+            "stress",
+            "temperature",
             self.cutoff_points,
         )
         strain_filtered, filter_used_strain = self.select_best_filter_method(
-            waiting_time, time, strain, criterion=self.filter_criterion,
+            waiting_time,
+            time,
+            strain,
+            criterion=self.filter_criterion,
         )
         stress_filtered, filter_used_stress = self.select_best_filter_method(
-            waiting_time, time, stress, criterion=self.filter_criterion,
+            waiting_time,
+            time,
+            stress,
+            criterion=self.filter_criterion,
         )
 
         chirp_start = waiting_time
@@ -1208,34 +1263,57 @@ class OWChirpAnalysis(MeasurementTransform):
         # strain-controlled instruments the ``K_strain / K_stress`` ratio and
         # the compliance / inertia terms are small, so the IC result reduces
         # to the strain-controlled moduli.
-        (frequency_radians, fourier_transform_strain, fourier_transform_stress,
-         storage_modulus, loss_modulus, complex_modulus, complex_viscosity) = \
-            self.moduli_owchirp_stress_controlled_IC(
-                time_tw, strain_filtered_tw, stress_filtered_tw,
-                sampling_frequency, initial_frequency, final_frequency,
-                K_stress, K_strain, I, c, mu,
-            )
+        (
+            frequency_radians,
+            fourier_transform_strain,
+            fourier_transform_stress,
+            storage_modulus,
+            loss_modulus,
+            complex_modulus,
+            complex_viscosity,
+        ) = self.moduli_owchirp_stress_controlled_IC(
+            time_tw,
+            strain_filtered_tw,
+            stress_filtered_tw,
+            sampling_frequency,
+            initial_frequency,
+            final_frequency,
+            K_stress,
+            K_strain,
+            I,
+            c,
+            mu,
+        )
 
         frequency_hertz = frequency_radians / (2 * np.pi)
         tan_delta = loss_modulus / storage_modulus
-        complex_viscosity = np.sqrt(storage_modulus ** 2 + loss_modulus ** 2) / frequency_radians
+        complex_viscosity = np.sqrt(storage_modulus**2 + loss_modulus**2) / frequency_radians
         complex_modulus_abs = np.abs(complex_modulus)
 
         dataset_fourier_space = one_d_composite_dataset.OneDimensionalCompositeDataset(
             data_arrays=[
                 frequency_radians,
-                fourier_transform_strain, fourier_transform_stress,
-                storage_modulus, loss_modulus, complex_modulus_abs,
-                frequency_hertz, tan_delta, complex_viscosity,
+                fourier_transform_strain,
+                fourier_transform_stress,
+                storage_modulus,
+                loss_modulus,
+                complex_modulus_abs,
+                frequency_hertz,
+                tan_delta,
+                complex_viscosity,
             ],
             data_array_names=[
-                "angular frequency", "fourier_transform_strain",
-                "fourier_transform_stress", "storage modulus", "loss modulus",
-                "complex modulus", "frequency_hz", "tan(delta)",
+                "angular frequency",
+                "fourier_transform_strain",
+                "fourier_transform_stress",
+                "storage modulus",
+                "loss modulus",
+                "complex modulus",
+                "frequency_hz",
+                "tan(delta)",
                 "complex viscosity",
             ],
-            data_array_units=["rad/s", "a.u.", "a.u.", "Pa", "Pa", "Pa", "Hz",
-                              "", "Pa s"],
+            data_array_units=["rad/s", "a.u.", "a.u.", "Pa", "Pa", "Pa", "Hz", "", "Pa s"],
             default_independent_name="angular frequency",
             default_dependent_name="storage modulus",
             source="Dataset in frequency space",
@@ -1244,7 +1322,9 @@ class OWChirpAnalysis(MeasurementTransform):
         dataset_time_space = one_d_composite_dataset.OneDimensionalCompositeDataset(
             data_arrays=[time, strain_filtered, stress_filtered, strain_rate],
             data_array_names=[
-                "adjusted time", "adjusted strain", "adjusted stress",
+                "adjusted time",
+                "adjusted strain",
+                "adjusted stress",
                 "adjusted strain rate",
             ],
             data_array_units=["s", "a.u", "Pa", "1/s"],

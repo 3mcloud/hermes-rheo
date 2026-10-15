@@ -78,7 +78,10 @@ def plot_model_fit(
     figsize = kwargs.pop("figsize", (7, 5))
     if show_residuals:
         fig, (ax, ax_res) = plt.subplots(
-            2, 1, figsize=figsize, sharex=True,
+            2,
+            1,
+            figsize=figsize,
+            sharex=True,
             gridspec_kw={"height_ratios": [3, 1]},
         )
     else:
@@ -88,10 +91,16 @@ def plot_model_fit(
             fig = ax.figure
         ax_res = None
 
-    ax.plot(omega, gp, "o", ms=6, color="tab:red",
-            label=data_label or r"$G'$ data")
-    ax.plot(omega, gpp, "s", ms=6, mfc="none", color="tab:blue",
-            label=data_label if data_label else r"$G''$ data")
+    ax.plot(omega, gp, "o", ms=6, color="tab:red", label=data_label or r"$G'$ data")
+    ax.plot(
+        omega,
+        gpp,
+        "s",
+        ms=6,
+        mfc="none",
+        color="tab:blue",
+        label=data_label if data_label else r"$G''$ data",
+    )
     ax.plot(omega, gp_pred, "-", lw=2, color="k", label=fit_label)
     ax.plot(omega, gpp_pred, "--", lw=2, color="k")
 
@@ -190,8 +199,8 @@ def plot_shift_factors(
 
     # Plot the shift factor a_T itself on a logarithmic y-axis (rather than
     # log10(a_T) on a linear axis).
-    aT = 10.0 ** log_aT
-    aT_fit = 10.0 ** log_aT_fit
+    aT = 10.0**log_aT
+    aT_fit = 10.0**log_aT_fit
 
     fit_label = fit_label or _shift_fit_label(shift_model)
     if show_data:

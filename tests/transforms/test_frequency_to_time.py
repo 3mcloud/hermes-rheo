@@ -7,6 +7,7 @@ These tests lock in:
 4. scientific correctness on a synthetic Maxwell spectrum,
 5. compatibility with ``FitModel(domain='relaxation')``.
 """
+
 from __future__ import annotations
 
 import os
@@ -62,11 +63,10 @@ def _make_synthetic_maxwell_measurement(g0=1e5, tau=2.0):
 # (a) End-to-end on standalone Frequency Sweep
 # ---------------------------------------------------------------------------
 
+
 def test_frequency_to_time_end_to_end_frequency_sweep(datadir):
     filepath = datadir.join("test_frequency_sweep_tts_ARES.txt")
-    experiment = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    experiment = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
 
     processed = FrequencyToTime()(experiment)
     measurement = processed.measurements[0]
@@ -91,7 +91,9 @@ def test_frequency_to_time_end_to_end_frequency_sweep(datadir):
     assert np.all(t > 0)
     assert np.all(np.diff(t) > 0)
 
-    omega = np.asarray(ds_freq.data_arrays[ds_freq.data_array_names.index("angular frequency")], dtype=float)
+    omega = np.asarray(
+        ds_freq.data_arrays[ds_freq.data_array_names.index("angular frequency")], dtype=float
+    )
     omega = omega[np.isfinite(omega) & (omega > 0)]
     omega = np.unique(np.sort(omega))
     assert t[0] == pytest.approx(1.0 / np.max(omega), rel=5e-2)
@@ -101,6 +103,7 @@ def test_frequency_to_time_end_to_end_frequency_sweep(datadir):
 # ---------------------------------------------------------------------------
 # (b) No-op on Temperature Ramp
 # ---------------------------------------------------------------------------
+
 
 def test_frequency_to_time_noop_on_temperature_ramp(datadir):
     filepath = datadir.join("test_temp_ramp.txt")
@@ -125,6 +128,7 @@ def test_frequency_to_time_noop_on_temperature_ramp(datadir):
 # (c) Chained after OWChirpAnalysis
 # ---------------------------------------------------------------------------
 
+
 def test_frequency_to_time_after_owchirp_analysis(datadir):
     filepath = datadir.join("test_owchirp_DHR.txt")
     mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
@@ -140,6 +144,7 @@ def test_frequency_to_time_after_owchirp_analysis(datadir):
 # ---------------------------------------------------------------------------
 # (d) Chained after SplitTemperatureSweep
 # ---------------------------------------------------------------------------
+
 
 def test_frequency_to_time_after_split_temperature_sweep(datadir):
     filepath = datadir.join("test_temp_sweep_tts.txt")
@@ -157,6 +162,7 @@ def test_frequency_to_time_after_split_temperature_sweep(datadir):
 # (e) Scientific correctness on synthetic single-mode Maxwell
 # ---------------------------------------------------------------------------
 
+
 def test_frequency_to_time_reconstructs_synthetic_maxwell():
     g0 = 1e5
     tau = 2.0
@@ -166,7 +172,9 @@ def test_frequency_to_time_reconstructs_synthetic_maxwell():
     ds_time = processed.datasets[0]
 
     t = np.asarray(ds_time.data_arrays[ds_time.data_array_names.index("time")], dtype=float)
-    g_recon = np.asarray(ds_time.data_arrays[ds_time.data_array_names.index("G_from_eta1")], dtype=float)
+    g_recon = np.asarray(
+        ds_time.data_arrays[ds_time.data_array_names.index("G_from_eta1")], dtype=float
+    )
 
     g_exact = g0 * np.exp(-t / tau)
 
@@ -178,6 +186,7 @@ def test_frequency_to_time_reconstructs_synthetic_maxwell():
 # ---------------------------------------------------------------------------
 # (f) MRAE reporting on synthetic Maxwell
 # ---------------------------------------------------------------------------
+
 
 def test_frequency_to_time_reports_mrae_on_synthetic_maxwell():
     g0 = 1e5
@@ -204,6 +213,7 @@ def test_frequency_to_time_reports_mrae_on_synthetic_maxwell():
 # ---------------------------------------------------------------------------
 # (f2) Maxwell terminal tail fit (mirrors iRheoTempo V9 "Overlay Maxwell tail")
 # ---------------------------------------------------------------------------
+
 
 def test_frequency_to_time_maxwell_tail_recovers_synthetic_parameters():
     g0 = 1e5
@@ -267,6 +277,7 @@ def test_frequency_to_time_use_maxwell_eta10_overrides_polynomial_anchor():
 # (g) FrequencyToTime + FitModel(domain="relaxation")
 # ---------------------------------------------------------------------------
 
+
 @requires_pyrheo
 def test_frequency_to_time_then_fitmodel_relaxation_maxwell():
     g0 = 1e5
@@ -300,12 +311,11 @@ def test_frequency_to_time_then_fitmodel_relaxation_maxwell():
 # (h) FitModel oscillation backward-compatibility smoke test
 # ---------------------------------------------------------------------------
 
+
 @requires_pyrheo
 def test_fitmodel_backward_compat_smoke_frequency_sweep(datadir):
     filepath = datadir.join("test_frequency_sweep_tts_ARES.txt")
-    experiment = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    experiment = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
 
     # Seed numpy so the SAOSModel random-restart optimizer is deterministic
     # across OS / Python combinations. FractionalMaxwell has pathological derivatives near alpha == beta and

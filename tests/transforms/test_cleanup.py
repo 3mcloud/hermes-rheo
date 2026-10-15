@@ -9,6 +9,7 @@ Locks in the following fixes:
 * :class:`~hermes_rheo.transforms.mutation_number.MutationNumber` has the
   same hardcoding removed from its ``_state_to_condition`` helper.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -27,6 +28,7 @@ from hermes_rheo.transforms.mutation_number import MutationNumber
 # ---------------------------------------------------------------------------
 # StatesToConditions — fixed hardcoded independent-name bug
 # ---------------------------------------------------------------------------
+
 
 def _make_measurement_without_temperature(state_name: str, state_values):
     """Build a Measurement whose dataset does NOT contain a 'temperature' array."""
@@ -73,6 +75,7 @@ def test_states_to_conditions_invalid_method_raises():
 # ---------------------------------------------------------------------------
 # MutationNumber._state_to_condition — hardcoded-temperature bug removed
 # ---------------------------------------------------------------------------
+
 
 def test_mutation_number_state_to_condition_no_temperature_column():
     """MutationNumber._state_to_condition works on datasets without 'temperature'."""

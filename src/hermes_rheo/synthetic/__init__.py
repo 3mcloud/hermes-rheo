@@ -49,6 +49,7 @@ Examples
 >>> meas.datasets[0].data_array_names
 ['time', 'relaxation modulus']
 """
+
 from __future__ import annotations
 
 from hermes_rheo.synthetic.factory import SyntheticRheometry

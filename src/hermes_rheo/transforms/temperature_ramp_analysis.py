@@ -76,6 +76,7 @@ _TEMP_METHOD_KEYWORDS = (
 # Worksheet helper (no pandas dependency)
 # ---------------------------------------------------------------------------
 
+
 def _write_dataset_to_ws(
     ws,
     ds: one_d_composite_dataset.OneDimensionalCompositeDataset,
@@ -93,7 +94,7 @@ def _write_dataset_to_ws(
     units = list(ds.data_array_units)
 
     for col, (name, unit) in enumerate(zip(names, units), 1):
-        ws.cell(row=start_row,     column=col, value=name)
+        ws.cell(row=start_row, column=col, value=name)
         ws.cell(row=start_row + 1, column=col, value=unit)
 
     for row_offset, values in enumerate(zip(*ds.data_arrays), 2):
@@ -107,6 +108,7 @@ def _write_dataset_to_ws(
 # ---------------------------------------------------------------------------
 # Result container
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class TemperatureRampResult:
@@ -191,16 +193,14 @@ class TemperatureRampResult:
             # Determine the temperature unit from the dataset
             temp_unit = ""
             if self.dataset is not None:
-                for name, unit in zip(
-                    self.dataset.data_array_names, self.dataset.data_array_units
-                ):
+                for name, unit in zip(self.dataset.data_array_names, self.dataset.data_array_units):
                     if name.lower() == "temperature":
                         temp_unit = unit
                         break
             ws2.cell(row=1, column=1, value="Tg")
             ws2.cell(row=1, column=2, value=self.tg)
             ws2.cell(row=1, column=3, value=temp_unit)
-            extracted_start = 4   # leave a blank row between Tg and the table
+            extracted_start = 4  # leave a blank row between Tg and the table
 
         if self.extracted_dataset is not None:
             _write_dataset_to_ws(ws2, self.extracted_dataset, start_row=extracted_start)
@@ -212,6 +212,7 @@ class TemperatureRampResult:
 # ---------------------------------------------------------------------------
 # Transform
 # ---------------------------------------------------------------------------
+
 
 class TemperatureRampAnalysis(MeasurementSetTransform):
     """Extract temperature-dependent viscoelastic properties from an ExperimentSet.
@@ -352,14 +353,10 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
             common_lower = [n for n in common_lower if n in ds_lower]
 
         # Canonical names (original casing from first dataset)
-        common_names: List[str] = [
-            first_names[first_names_lower.index(nl)] for nl in common_lower
-        ]
+        common_names: List[str] = [first_names[first_names_lower.index(nl)] for nl in common_lower]
         # Units from the first dataset
         first_units: List[str] = list(datasets[0].data_array_units)
-        common_units: List[str] = [
-            first_units[first_names_lower.index(nl)] for nl in common_lower
-        ]
+        common_units: List[str] = [first_units[first_names_lower.index(nl)] for nl in common_lower]
 
         # Identify the temperature variable
         temp_idx_in_common = next(
@@ -435,20 +432,18 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
                 None,
             ),
         )
-        temp_idx = next(
-            (i for i, n in enumerate(names_lower) if n == "temperature"), None
-        )
+        temp_idx = next((i for i, n in enumerate(names_lower) if n == "temperature"), None)
         if tan_idx is None or temp_idx is None:
             return None
 
-        tan_arr  = np.asarray(ds.data_arrays[tan_idx],  dtype=float)
+        tan_arr = np.asarray(ds.data_arrays[tan_idx], dtype=float)
         temp_arr = np.asarray(ds.data_arrays[temp_idx], dtype=float)
 
         valid = np.isfinite(tan_arr) & np.isfinite(temp_arr)
         if valid.sum() < 3:
             return None
 
-        tan_v  = tan_arr[valid]
+        tan_v = tan_arr[valid]
         temp_v = temp_arr[valid]
 
         peaks, _ = find_peaks(tan_v, prominence=0.01)
@@ -484,18 +479,15 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
             return None
 
         names_lower = [n.lower() for n in ds.data_array_names]
-        temp_idx = next(
-            (i for i, n in enumerate(names_lower) if n == "temperature"), None
-        )
+        temp_idx = next((i for i, n in enumerate(names_lower) if n == "temperature"), None)
         if temp_idx is None:
             return None
 
-        use_arr  = np.asarray(self.use_temps, dtype=float)
+        use_arr = np.asarray(self.use_temps, dtype=float)
         temp_arr = np.asarray(ds.data_arrays[temp_idx], dtype=float)
 
         extracted: List[np.ndarray] = [
-            np.interp(use_arr, temp_arr, np.asarray(arr, dtype=float))
-            for arr in ds.data_arrays
+            np.interp(use_arr, temp_arr, np.asarray(arr, dtype=float)) for arr in ds.data_arrays
         ]
         # The temperature column should exactly equal use_temps
         extracted[temp_idx] = use_arr.copy()
@@ -540,16 +532,12 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
 
         # --- 1. Filter to temperature-type steps ---
         selected: List[Measurement] = [
-            m for m in all_measurements
-            if self._method_matches(str(m.conditions.get("method", "")))
+            m for m in all_measurements if self._method_matches(str(m.conditions.get("method", "")))
         ]
 
         # --- 2. Collect composite datasets ---
         composite_datasets = [
-            ds
-            for meas in selected
-            for ds in meas.datasets
-            if hasattr(ds, "data_array_names")
+            ds for meas in selected for ds in meas.datasets if hasattr(ds, "data_array_names")
         ]
 
         # --- 3. Merge ---

@@ -5,6 +5,7 @@ Classes
 -------
 RheoCompassReader - Reader for files in the RheoCompass .csv format.
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,14 +41,11 @@ _logger = logging.getLogger(__name__)
 # from the columns alone).
 _DEFAULT_COORD_RULES: List[Tuple[Tuple[str, ...], str, str]] = [
     # Oscillatory sweep (frequency, amplitude, TTS)
-    (("angular frequency", "storage modulus"),
-     "angular frequency", "storage modulus"),
+    (("angular frequency", "storage modulus"), "angular frequency", "storage modulus"),
     # Rotational / flow sweep
-    (("shear rate", "viscosity"),
-     "shear rate", "viscosity"),
+    (("shear rate", "viscosity"), "shear rate", "viscosity"),
     # Fallback: matches almost every transient/step measurement
-    (("time", "shear stress"),
-     "time", "shear stress"),
+    (("time", "shear stress"), "time", "shear stress"),
 ]
 
 
@@ -91,6 +89,7 @@ def _lookup_rheocompass_defaults(
 
 class RheoCompassReader(file_reader.FileReader):
     """Reader for files in the RheoCompass .csv format"""
+
     supported_extensions = {"csv"}
 
     @property
@@ -127,12 +126,15 @@ class RheoCompassReader(file_reader.FileReader):
                 first_interval = i
                 break
         if first_interval is None:
-            raise FileParsingException("No 'Interval and data points:' blocks found in the .csv file.")
+            raise FileParsingException(
+                "No 'Interval and data points:' blocks found in the .csv file."
+            )
 
         global_metadata = self._parse_metadata([ln.rstrip("\n") for ln in lines[:first_interval]])
 
         interval_positions = [
-            i for i, ln in enumerate(lines)
+            i
+            for i, ln in enumerate(lines)
             if ln.lstrip().lower().startswith("interval and data points")
         ]
 
@@ -155,9 +157,12 @@ class RheoCompassReader(file_reader.FileReader):
             n_points = int(interval_fields[2].strip())
 
             header_idx = next(
-                (j for j in range(idx + 1, len(lines))
-                 if lines[j].lstrip().lower().startswith("interval data")),
-                None
+                (
+                    j
+                    for j in range(idx + 1, len(lines))
+                    if lines[j].lstrip().lower().startswith("interval data")
+                ),
+                None,
             )
             if header_idx is None:
                 raise FileParsingException(f"Missing 'Interval data:' header after line {idx}")
@@ -166,13 +171,15 @@ class RheoCompassReader(file_reader.FileReader):
             header_tokens = [h.strip() for h in header_tokens if h.strip()]
 
             units_fields = lines[header_idx + 2].rstrip("\n").split(delimiter)[2:]
-            units_fields = [u.strip() for u in units_fields[:len(header_tokens)]]
+            units_fields = [u.strip() for u in units_fields[: len(header_tokens)]]
 
             # end of block = next interval or next result
-            end_candidates = [p for p in interval_positions if p > idx] + [p for p, _ in result_positions if p > idx]
+            end_candidates = [p for p in interval_positions if p > idx] + [
+                p for p, _ in result_positions if p > idx
+            ]
             end_idx = min(end_candidates) if end_candidates else len(lines)
 
-            #data starts after units line
+            # data starts after units line
             data_rows: List[List[str]] = []
             data_start = header_idx + 3
 
@@ -186,7 +193,7 @@ class RheoCompassReader(file_reader.FileReader):
 
                 tokens = line.split(delimiter)
                 if len(tokens) >= len(header_tokens) + 2:
-                    data_rows.append(tokens[2:2 + len(header_tokens)])
+                    data_rows.append(tokens[2 : 2 + len(header_tokens)])
 
             data_str = f"{delimiter.join(header_tokens)}\n" + "\n".join(
                 delimiter.join(row) for row in data_rows
@@ -202,19 +209,20 @@ class RheoCompassReader(file_reader.FileReader):
                 invalid_raise=False,
             )
 
-
             units_dict = {}
             for headers, units in zip(header_tokens, units_fields):
                 key = headers.replace(" ", "_")
                 units_dict[key] = units
 
-            intervals.append({
-                "interval": f"Interval {interval_id}",
-                "points": n_points,
-                "data": block_data,
-                "result": current_result,
-                "units": units_dict,
-            })
+            intervals.append(
+                {
+                    "interval": f"Interval {interval_id}",
+                    "points": n_points,
+                    "data": block_data,
+                    "result": current_result,
+                    "units": units_dict,
+                }
+            )
 
         if not intervals:
             raise FileParsingException("No intervals were parsed.")

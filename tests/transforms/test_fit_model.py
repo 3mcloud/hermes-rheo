@@ -9,6 +9,7 @@ These tests lock in that:
    a master curve with the built-in Maxwell model.
 3. A missing pyRheo installation raises an actionable ``ImportError``.
 """
+
 from __future__ import annotations
 
 import os
@@ -35,6 +36,7 @@ def datadir(tmpdir, request):
 # 1) MultiModeMaxwell NNLS synthetic round-trip
 # ---------------------------------------------------------------------------
 
+
 def test_multimode_maxwell_nnls_recovers_prony_series():
     omega = np.logspace(-2, 3, 80)
     taus = np.array([1e-2, 1.0, 1e2])
@@ -43,9 +45,7 @@ def test_multimode_maxwell_nnls_recovers_prony_series():
 
     gp, gpp = MultiModeMaxwellModel._moduli(omega, g_modes, taus, Ge=g_e)
 
-    model = MultiModeMaxwellModel(mode="nnls", equilibrium_modulus=True).fit(
-        omega, gp, gpp
-    )
+    model = MultiModeMaxwellModel(mode="nnls", equilibrium_modulus=True).fit(omega, gp, gpp)
     gp_fit, gpp_fit = model.predict(omega)
 
     np.testing.assert_allclose(gp_fit, gp, rtol=1e-3)
@@ -59,9 +59,7 @@ def test_multimode_maxwell_without_plateau_has_no_equilibrium():
     g_modes = np.array([1e4, 1e4])
     gp, gpp = MultiModeMaxwellModel._moduli(omega, g_modes, taus)
 
-    model = MultiModeMaxwellModel(mode="nnls", equilibrium_modulus=False).fit(
-        omega, gp, gpp
-    )
+    model = MultiModeMaxwellModel(mode="nnls", equilibrium_modulus=False).fit(omega, gp, gpp)
 
     assert model.equilibrium_modulus_value == 0.0
     np.testing.assert_allclose(model.predict(omega)[1], gpp, rtol=1e-2)
@@ -71,11 +69,10 @@ def test_multimode_maxwell_without_plateau_has_no_equilibrium():
 # 2) FitModel single-dataset fitting
 # ---------------------------------------------------------------------------
 
+
 def test_fitmodel_fits_single_dataset_with_maxwell(datadir):
     filepath = datadir.join("test_frequency_sweep_tts_ARES.txt")
-    experiment = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    experiment = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
 
     fit = FitModel(
         model="custom",
@@ -94,14 +91,10 @@ def test_fitmodel_fits_single_dataset_with_maxwell(datadir):
 
 def test_fitmodel_measurement_index_selects_different_dataset(datadir):
     filepath = datadir.join("test_frequency_sweep_tts_ARES.txt")
-    experiment = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    experiment = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
 
-    fit0 = FitModel(model="custom", model_name="MultiModeMaxwell",
-                    measurement_index=0)(experiment)
-    fit1 = FitModel(model="custom", model_name="MultiModeMaxwell",
-                    measurement_index=5)(experiment)
+    fit0 = FitModel(model="custom", model_name="MultiModeMaxwell", measurement_index=0)(experiment)
+    fit1 = FitModel(model="custom", model_name="MultiModeMaxwell", measurement_index=5)(experiment)
 
     # Different temperatures -> different moduli magnitudes
     assert not np.allclose(fit0.G_prime.mean(), fit1.G_prime.mean())

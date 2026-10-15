@@ -9,6 +9,7 @@ of e.g. Creep, Frequency Sweep, Flow Ramp or Temperature Ramp files.
 Only when :class:`OWChirpAnalysis` is applied to an Arbitrary Wave step
 that has no wave metadata should a targeted error be raised.
 """
+
 import os
 import shutil
 
@@ -39,7 +40,8 @@ def test_reader_accepts_missing_serial_number(datadir):
     """A Creep file with an empty serial-number line must still parse."""
     filepath = _copy_and_patch_serial(datadir, "test_creep_apac.txt", "")
     experiment = TriosRheoReader().data_from_filepath(
-        filepath, create_composite_datasets=True,
+        filepath,
+        create_composite_datasets=True,
     )
     assert len(experiment.measurements) > 0
 
@@ -47,10 +49,13 @@ def test_reader_accepts_missing_serial_number(datadir):
 def test_reader_accepts_unknown_serial_prefix(datadir):
     """A file with an unrecognised serial prefix must still parse."""
     filepath = _copy_and_patch_serial(
-        datadir, "test_creep_apac.txt", "9999-0000",
+        datadir,
+        "test_creep_apac.txt",
+        "9999-0000",
     )
     experiment = TriosRheoReader().data_from_filepath(
-        filepath, create_composite_datasets=True,
+        filepath,
+        create_composite_datasets=True,
     )
     assert len(experiment.measurements) > 0
 
@@ -59,10 +64,13 @@ def test_owchirp_raises_when_wave_metadata_missing(datadir):
     """``OWChirpAnalysis`` must raise a targeted error on Arbitrary Wave
     steps whose wave metadata could not be extracted (unknown serial)."""
     filepath = _copy_and_patch_serial(
-        datadir, "test_owchirp_DHR.txt", "9999-0000",
+        datadir,
+        "test_owchirp_DHR.txt",
+        "9999-0000",
     )
     experiment = TriosRheoReader().data_from_filepath(
-        filepath, create_composite_datasets=True,
+        filepath,
+        create_composite_datasets=True,
     )
     with pytest.raises(ValueError, match="[Ww]ave metadata"):
         OWChirpAnalysis()(experiment)

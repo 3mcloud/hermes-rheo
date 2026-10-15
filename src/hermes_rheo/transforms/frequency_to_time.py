@@ -119,7 +119,7 @@ def _estimate_eta10_polynomial(
     if not np.isfinite(lf_fit_decades) or lf_fit_decades <= 0.0:
         lf_fit_decades = 1.0
 
-    w_lf_fit_max = min(wmin * (10.0 ** lf_fit_decades), wmax)
+    w_lf_fit_max = min(wmin * (10.0**lf_fit_decades), wmax)
     idx_lf = (omega >= wmin) & (omega <= w_lf_fit_max)
 
     min_fit_pts = max(6, lf_poly_order + 2)
@@ -161,12 +161,12 @@ def _build_interpolation_dataset(
     if not np.isfinite(hf_ext_decades) or hf_ext_decades < 0.0:
         hf_ext_decades = 1.0
 
-    w_hf_fit_min = max(wmax / (10.0 ** hf_fit_decades), wmin)
+    w_hf_fit_min = max(wmax / (10.0**hf_fit_decades), wmin)
     idx_hf = (omega >= w_hf_fit_min) & (omega <= wmax)
     min_fit_pts = max(6, hf_poly_order + 2)
     if np.count_nonzero(idx_hf) < min_fit_pts:
         idx_hf = np.zeros_like(omega, dtype=bool)
-        idx_hf[max(0, omega.size - min_fit_pts):] = True
+        idx_hf[max(0, omega.size - min_fit_pts) :] = True
 
     x_hf = np.log10(omega[idx_hf])
     y1_hf = np.log10(np.maximum(np.abs(eta1[idx_hf]), np.finfo(float).tiny))
@@ -175,7 +175,7 @@ def _build_interpolation_dataset(
     p1_hf = np.polyfit(x_hf, y1_hf, hf_poly_order)
     p2_hf = np.polyfit(x_hf, y2_hf, hf_poly_order)
 
-    w_hf = wmax * (10.0 ** hf_ext_decades)
+    w_hf = wmax * (10.0**hf_ext_decades)
     n_hf = 60
     w_hf_grid = np.logspace(np.log10(wmax), np.log10(w_hf), n_hf)
 
@@ -446,8 +446,8 @@ def _maxwell_objective(
     with small floor values to avoid division by zero.
     """
     wt = omega * tau
-    gp_fit = g0 * (wt ** 2) / (1.0 + wt ** 2)
-    gpp_fit = g0 * wt / (1.0 + wt ** 2)
+    gp_fit = g0 * (wt**2) / (1.0 + wt**2)
+    gpp_fit = g0 * wt / (1.0 + wt**2)
 
     ref1 = max(np.max(np.abs(g_prime_data)), np.finfo(float).tiny) * 1e-6
     ref2 = max(np.max(np.abs(g_double_prime_data)), np.finfo(float).tiny) * 1e-6
@@ -455,7 +455,7 @@ def _maxwell_objective(
     den2 = np.maximum(np.abs(g_double_prime_data), ref2)
     e1 = (gp_fit - g_prime_data) / den1
     e2 = (gpp_fit - g_double_prime_data) / den2
-    return float(np.sum(e1 ** 2) + np.sum(e2 ** 2))
+    return float(np.sum(e1**2) + np.sum(e2**2))
 
 
 def _fit_maxwell_tail(
@@ -715,9 +715,7 @@ class FrequencyToTime(MeasurementTransform):
         if omega_max / omega_min < 2.0:
             return target
 
-        omega_exp, gp_exp, gpp_exp = _sanitize_omega_moduli(
-            omega_raw, gp_raw, gpp_raw, self.units
-        )
+        omega_exp, gp_exp, gpp_exp = _sanitize_omega_moduli(omega_raw, gp_raw, gpp_raw, self.units)
         eta1_exp = gpp_exp / omega_exp
         eta2_exp = gp_exp / omega_exp
 

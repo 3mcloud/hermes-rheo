@@ -15,6 +15,7 @@ Regression tests are also included for:
   consistency-preserving behaviour, and
 * the ``_lookup_method_defaults`` / ``_canonicalise_method`` helper units.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -36,21 +37,19 @@ from hermes_rheo.file_readers.rheo_compass_csv import (
 
 _TRIOS_EXPECTED_DEFAULTS = [
     # (fixture_filename,               expected_indep,        expected_dep)
-    ("test_temp_ramp.txt",              "temperature",         "storage modulus"),
-    ("test_amplitude_apac.txt",         "oscillation strain",  "storage modulus"),
+    ("test_temp_ramp.txt", "temperature", "storage modulus"),
+    ("test_amplitude_apac.txt", "oscillation strain", "storage modulus"),
     ("test_frequency_sweep_tts_ARES.txt", "angular frequency", "storage modulus"),
-    ("test_owchirp_DHR.txt",            "step time",           "strain"),
-    ("test_temp_sweep_tts.txt",         "temperature",         "storage modulus"),
-    ("test_temperature_sweep_RSAG2.txt", "temperature",        "storage modulus"),
-    ("test_owchirp_tts_ARES.txt",       "step time",           "strain"),
+    ("test_owchirp_DHR.txt", "step time", "strain"),
+    ("test_temp_sweep_tts.txt", "temperature", "storage modulus"),
+    ("test_temperature_sweep_RSAG2.txt", "temperature", "storage modulus"),
+    ("test_owchirp_tts_ARES.txt", "step time", "strain"),
     # test_fitting.txt starts with a Temperature Sweep step
-    ("test_fitting.txt",                "temperature",         "storage modulus"),
+    ("test_fitting.txt", "temperature", "storage modulus"),
 ]
 
 
-@pytest.mark.parametrize(
-    "fname,expected_x,expected_y", _TRIOS_EXPECTED_DEFAULTS
-)
+@pytest.mark.parametrize("fname,expected_x,expected_y", _TRIOS_EXPECTED_DEFAULTS)
 def test_trios_natural_defaults(datadir, fname, expected_x, expected_y):
     """Each TRIOS fixture's first measurement carries its natural default coords."""
     filepath = datadir.join(fname)
@@ -72,8 +71,7 @@ def test_trios_no_measurement_has_identical_x_and_y(datadir):
         for i, m in enumerate(mset.measurements):
             for j, ds in enumerate(m.datasets):
                 assert ds.independent_variable_name != ds.dependent_variable_name, (
-                    f"{fname} m[{i}].datasets[{j}] has X==Y=="
-                    f"{ds.independent_variable_name!r}"
+                    f"{fname} m[{i}].datasets[{j}] has X==Y=={ds.independent_variable_name!r}"
                 )
 
 
@@ -99,6 +97,7 @@ def test_trios_creep_one_line_description(datadir):
 # ---------------------------------------------------------------------------
 # TriosRheoReader — legacy-temperature opt-in
 # ---------------------------------------------------------------------------
+
 
 def test_trios_legacy_temperature_mode_reproduces_old_behaviour(datadir):
     """``default_coords="legacy-temperature"`` restores ``Temperature=f(Temperature)``."""
@@ -133,6 +132,7 @@ def test_trios_legacy_temperature_permits_experimentset_wrap(datadir):
 # _canonicalise_method — unit tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "raw,expected",
     [
@@ -154,13 +154,25 @@ def test_canonicalise_method(raw, expected):
 
 _TRIOS_LOOKUP_CASES = [
     # (method_line,              variable_names_include,                    expected)
-    ("Step name\tCreep - 2",     ["time", "strain", "temperature"],         ("time", "strain")),
-    ("Step name\tFrequency sweep", ["angular frequency", "storage modulus"], ("angular frequency", "storage modulus")),
-    ("Temperature Ramp - 1",     ["temperature", "storage modulus"],        ("temperature", "storage modulus")),
-    ("Arbitrary Wave - 5",       ["step time", "strain", "stress"],         ("step time", "strain")),
-    ("Frequency Chirp - 1",      ["step time", "strain", "stress"],         ("step time", "strain")),
-    ("Flow Sweep - 1",           ["shear rate", "viscosity"],               ("shear rate", "viscosity")),
-    ("Multiwave - 1",            ["angular frequency", "storage modulus"],  ("angular frequency", "storage modulus")),
+    ("Step name\tCreep - 2", ["time", "strain", "temperature"], ("time", "strain")),
+    (
+        "Step name\tFrequency sweep",
+        ["angular frequency", "storage modulus"],
+        ("angular frequency", "storage modulus"),
+    ),
+    (
+        "Temperature Ramp - 1",
+        ["temperature", "storage modulus"],
+        ("temperature", "storage modulus"),
+    ),
+    ("Arbitrary Wave - 5", ["step time", "strain", "stress"], ("step time", "strain")),
+    ("Frequency Chirp - 1", ["step time", "strain", "stress"], ("step time", "strain")),
+    ("Flow Sweep - 1", ["shear rate", "viscosity"], ("shear rate", "viscosity")),
+    (
+        "Multiwave - 1",
+        ["angular frequency", "storage modulus"],
+        ("angular frequency", "storage modulus"),
+    ),
 ]
 
 
@@ -199,14 +211,12 @@ def test_lookup_method_defaults_unknown_method_falls_back():
 
 _RHEOCOMPASS_EXPECTED_DEFAULTS = [
     # (fixture_filename,                     expected_indep,       expected_dep)
-    ("test_antonpaar_702e_tts.csv",          "angular frequency",  "storage modulus"),
-    ("test_antonpaar_htr_stress_relax.csv",  "time",               "shear stress"),
+    ("test_antonpaar_702e_tts.csv", "angular frequency", "storage modulus"),
+    ("test_antonpaar_htr_stress_relax.csv", "time", "shear stress"),
 ]
 
 
-@pytest.mark.parametrize(
-    "fname,expected_x,expected_y", _RHEOCOMPASS_EXPECTED_DEFAULTS
-)
+@pytest.mark.parametrize("fname,expected_x,expected_y", _RHEOCOMPASS_EXPECTED_DEFAULTS)
 def test_rheocompass_natural_defaults(datadir, fname, expected_x, expected_y):
     filepath = datadir.join(fname)
     mset = RheoCompassReader().data_from_filepath(str(filepath))
@@ -219,14 +229,14 @@ def test_rheocompass_natural_defaults(datadir, fname, expected_x, expected_y):
     "names,expected",
     [
         # Frequency sweep — angular freq + G' present
-        (["time", "angular frequency", "storage modulus"],
-         ("angular frequency", "storage modulus")),
+        (
+            ["time", "angular frequency", "storage modulus"],
+            ("angular frequency", "storage modulus"),
+        ),
         # Flow sweep
-        (["time", "shear rate", "viscosity"],
-         ("shear rate", "viscosity")),
+        (["time", "shear rate", "viscosity"], ("shear rate", "viscosity")),
         # Stress relaxation / creep fallback
-        (["time", "shear strain", "shear stress"],
-         ("time", "shear stress")),
+        (["time", "shear strain", "shear stress"], ("time", "shear stress")),
     ],
 )
 def test_rheocompass_lookup_rules(names, expected):

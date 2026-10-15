@@ -17,6 +17,7 @@ Available readers
 :class:`~hermes_rheo.file_readers.rheo_compass_csv.RheoCompassReader`
     Anton Paar RheoCompass ``.csv``.
 """
+
 from __future__ import annotations
 
 from hermes_rheo.file_readers.rheo_compass_csv import RheoCompassReader

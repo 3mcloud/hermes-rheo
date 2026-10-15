@@ -8,6 +8,7 @@ These tests lock in that the high-level OWChirp visualiser:
    :meth:`plot_fourier` without error.
 4. Saves one PNG frame per wave with :meth:`save_frames`.
 """
+
 from __future__ import annotations
 
 import os
@@ -36,9 +37,7 @@ def datadir(tmpdir, request):
 @pytest.fixture()
 def visualizer(datadir):
     filepath = datadir.join("test_owchirp_DHR.txt")
-    mset = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
     processed = OWChirpAnalysis()(mset)
     viz = OWChirpVisualizer(processed)
     yield viz

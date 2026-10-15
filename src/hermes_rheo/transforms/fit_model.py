@@ -167,7 +167,7 @@ class MultiModeMaxwellModel:
         omega = np.asarray(omega, dtype=float)
         Gs = np.asarray(Gs, dtype=float)
         taus = np.asarray(taus, dtype=float)
-        wt = np.outer(omega, taus)          # (N, M)
+        wt = np.outer(omega, taus)  # (N, M)
         denom = 1.0 + wt * wt
         g_prime = (Gs * wt * wt / denom).sum(axis=1) + Ge
         g_double_prime = (Gs * wt / denom).sum(axis=1)
@@ -177,8 +177,7 @@ class MultiModeMaxwellModel:
         """Predict ``(G', G'')`` at *omega* from the fitted parameters."""
         if self.G_modes is None:
             raise ValueError("Model parameters have not been fitted yet.")
-        return self._moduli(omega, self.G_modes, self.tau_modes,
-                            self.equilibrium_modulus_value)
+        return self._moduli(omega, self.G_modes, self.tau_modes, self.equilibrium_modulus_value)
 
     # ------------------------------------------------------------------
     # Relaxation-time grid + weights
@@ -214,8 +213,8 @@ class MultiModeMaxwellModel:
 
     def _compute_metrics(self, residuals):
         residuals = np.asarray(residuals, dtype=float)
-        rss = float(np.sum(residuals ** 2))
-        mse = float(np.mean(residuals ** 2))
+        rss = float(np.sum(residuals**2))
+        mse = float(np.mean(residuals**2))
         n = residuals.size
         k = self._n_params()
         bic = n * np.log(max(rss, _TINY) / n) + k * np.log(n)
@@ -234,15 +233,15 @@ class MultiModeMaxwellModel:
         return self
 
     # ------------------------------------------------------------------
-    # Non-negative least-squares (NNLS) (linear Prony) fit 
+    # Non-negative least-squares (NNLS) (linear Prony) fit
     # ------------------------------------------------------------------
 
     def _fit_nnls(self, omega, Gp_data, Gpp_data):
         taus = self._make_taus(omega)
         wt = np.outer(omega, taus)
         denom = 1.0 + wt * wt
-        a_prime = wt * wt / denom            # (N, M)  -> G'
-        a_double = wt / denom                # (N, M)  -> G''
+        a_prime = wt * wt / denom  # (N, M)  -> G'
+        a_double = wt / denom  # (N, M)  -> G''
 
         if self.equilibrium_modulus:
             # G_e contributes to G' (column of ones) and not to G''.
@@ -278,8 +277,7 @@ class MultiModeMaxwellModel:
 
     def _objective(self, params_log, omega, Gp_data, Gpp_data, w_p, w_pp):
         Gp_pred, Gpp_pred = self._predict_from_log_params(omega, params_log)
-        residuals = np.concatenate([(Gp_pred - Gp_data) * w_p,
-                                    (Gpp_pred - Gpp_data) * w_pp])
+        residuals = np.concatenate([(Gp_pred - Gp_data) * w_p, (Gpp_pred - Gpp_data) * w_pp])
         rss, mse, bic = self._compute_metrics(residuals)
         return {"RSS": rss, "MSE": mse, "BIC": bic}[self.cost_function]
 
@@ -310,9 +308,13 @@ class MultiModeMaxwellModel:
         best_val = np.inf
         for _ in range(n_trials):
             x0 = self._make_initial_guess(omega, Gp_data)
-            res = minimize(self._objective, x0,
-                           args=(omega, Gp_data, Gpp_data, w_p, w_pp),
-                           method=self.minimization_algorithm, bounds=bounds)
+            res = minimize(
+                self._objective,
+                x0,
+                args=(omega, Gp_data, Gpp_data, w_p, w_pp),
+                method=self.minimization_algorithm,
+                bounds=bounds,
+            )
             if res.fun < best_val:
                 best_val, best = res.fun, res
         if best is None:
@@ -532,17 +534,14 @@ class FitModel:
 
     def _select_dataset(self, target):
         """Locate a single composite dataset from a variety of input objects."""
-        if hasattr(target, "switch_coordinates"):          # a dataset already
+        if hasattr(target, "switch_coordinates"):  # a dataset already
             return target
-        if hasattr(target, "measurements"):                # Experiment/MeasurementSet
+        if hasattr(target, "measurements"):  # Experiment/MeasurementSet
             measurements = list(target.measurements)
             return measurements[self.measurement_index].datasets[self.dataset_index]
-        if hasattr(target, "datasets"):                    # a Measurement
+        if hasattr(target, "datasets"):  # a Measurement
             return target.datasets[self.dataset_index]
-        raise TypeError(
-            f"FitModel could not locate a dataset to fit in a "
-            f"{type(target).__name__}."
-        )
+        raise TypeError(f"FitModel could not locate a dataset to fit in a {type(target).__name__}.")
 
     def _extract_from_measurements(self, target):
         dataset = self._select_dataset(target)
@@ -555,9 +554,7 @@ class FitModel:
     def _extract_from_composite(self, composite):
         for q in (self.storage_name, self.loss_name):
             if q not in composite.available_quantities:
-                raise ValueError(
-                    f"FitModel requires '{q}' in the CompositeMasterCurve quantities."
-                )
+                raise ValueError(f"FitModel requires '{q}' in the CompositeMasterCurve quantities.")
         mc_storage = composite.get_mastercurve(self.storage_name)
         mc_loss = composite.get_mastercurve(self.loss_name)
 
@@ -574,10 +571,12 @@ class FitModel:
         omega_max = min(np.max(omega_s), np.max(omega_l))
         omega_common = np.logspace(np.log10(omega_min), np.log10(omega_max), self.n_interp)
 
-        interp_storage = interp1d(omega_s, gp_s, kind="linear",
-                                  bounds_error=False, fill_value="extrapolate")
-        interp_loss = interp1d(omega_l, gpp_l, kind="linear",
-                               bounds_error=False, fill_value="extrapolate")
+        interp_storage = interp1d(
+            omega_s, gp_s, kind="linear", bounds_error=False, fill_value="extrapolate"
+        )
+        interp_loss = interp1d(
+            omega_l, gpp_l, kind="linear", bounds_error=False, fill_value="extrapolate"
+        )
         return omega_common, interp_storage(omega_common), interp_loss(omega_common)
 
     def _extract_moduli(self, target):
@@ -653,8 +652,7 @@ class FitModel:
                 minimization_algorithm=self.minimization_algorithm,
             )
         else:
-            model_class = (_load_pyrheo_model("oscillation")
-                           if self.model is None else self.model)
+            model_class = _load_pyrheo_model("oscillation") if self.model is None else self.model
             model = model_class(
                 model=self.model_name,
                 initial_guesses=self.initial_guesses,
@@ -714,13 +712,13 @@ class FitModel:
         return fig, ax
 
     def print_parameters(self, *args, **kwargs):
-        if self.fitted_model is not None and hasattr(self.fitted_model, 'print_parameters'):
+        if self.fitted_model is not None and hasattr(self.fitted_model, "print_parameters"):
             return self.fitted_model.print_parameters(*args, **kwargs)
         else:
             raise AttributeError("No fitted model available or print_parameters method not found.")
 
     def print_error(self, *args, **kwargs):
-        if self.fitted_model is not None and hasattr(self.fitted_model, 'print_error'):
+        if self.fitted_model is not None and hasattr(self.fitted_model, "print_error"):
             return self.fitted_model.print_error(*args, **kwargs)
         else:
             raise AttributeError("No fitted model available or print_error method not found.")

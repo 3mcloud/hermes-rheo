@@ -117,9 +117,16 @@ class OWChirpVisualizer:
             return self._data
 
         keys = [
-            "angular_frequencies", "storage_moduli", "loss_moduli",
-            "complex_moduli", "complex_viscosities", "phase_angles",
-            "step_times", "strains", "stresses", "temperatures",
+            "angular_frequencies",
+            "storage_moduli",
+            "loss_moduli",
+            "complex_moduli",
+            "complex_viscosities",
+            "phase_angles",
+            "step_times",
+            "strains",
+            "stresses",
+            "temperatures",
         ]
         data: Dict[str, List[np.ndarray]] = {k: [] for k in keys}
 
@@ -228,10 +235,17 @@ class OWChirpVisualizer:
         gs = gridspec.GridSpec(2, 2, width_ratios=[2, 1], height_ratios=[2, 2])
 
         ax_mod = plt.subplot(gs[:, 0])
-        ax_mod.plot(f, stor, marker="s", label=r"$G'$", color="red",
-                    markersize=10, linestyle="-")
-        ax_mod.plot(f, loss, marker="^", label=r"$G''$", color="blue",
-                    markersize=10, markerfacecolor="none", linestyle="--")
+        ax_mod.plot(f, stor, marker="s", label=r"$G'$", color="red", markersize=10, linestyle="-")
+        ax_mod.plot(
+            f,
+            loss,
+            marker="^",
+            label=r"$G''$",
+            color="blue",
+            markersize=10,
+            markerfacecolor="none",
+            linestyle="--",
+        )
         ax_mod.set_title(title, fontsize=15)
         ax_mod.set_xscale("log")
         ax_mod.set_yscale("log")
@@ -352,14 +366,17 @@ class OWChirpVisualizer:
         except ImportError as exc:  # pragma: no cover - optional dependency
             raise ImportError(
                 "to_video() requires opencv-python. Install it with "
-                "`pip install \"hermes-rheo[notebooks]\"` or "
+                '`pip install "hermes-rheo[notebooks]"` or '
                 "`pip install opencv-python`."
             ) from exc
 
         def _frame_paths() -> List[str]:
             return sorted(
-                (os.path.join(output_dir, f) for f in os.listdir(output_dir)
-                 if f.startswith("plot_") and f.endswith(".png")),
+                (
+                    os.path.join(output_dir, f)
+                    for f in os.listdir(output_dir)
+                    if f.startswith("plot_") and f.endswith(".png")
+                ),
                 key=lambda p: int(os.path.basename(p).split("_")[1].split(".")[0]),
             )
 
@@ -370,9 +387,7 @@ class OWChirpVisualizer:
         first = cv2.imread(frames[0])
         height, width = first.shape[:2]
         video_path = os.path.join(output_dir, filename)
-        writer = cv2.VideoWriter(
-            video_path, cv2.VideoWriter_fourcc(*codec), fps, (width, height)
-        )
+        writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*codec), fps, (width, height))
         for frame_path in frames:
             writer.write(cv2.imread(frame_path))
         writer.release()
@@ -423,8 +438,12 @@ class OWChirpVisualizer:
 
         ax2.plot(f, np.real(strain_hat), "black", label=r"$\mathfrak{Re}(\tilde\gamma)$")
         ax2.plot(f, np.imag(strain_hat), "lightgreen", label=r"$\mathfrak{Im}(\tilde\gamma)$")
-        ax2.plot(f, np.abs(strain_hat), "blue",
-                 label=r"$\mid\mathfrak{Re}(\tilde\gamma) + i\mathfrak{Im}(\tilde\gamma)\mid$")
+        ax2.plot(
+            f,
+            np.abs(strain_hat),
+            "blue",
+            label=r"$\mid\mathfrak{Re}(\tilde\gamma) + i\mathfrak{Im}(\tilde\gamma)\mid$",
+        )
         ax2.set_xlabel(r"$\omega$ (rad/s)")
         ax2.set_ylabel(r"$\tilde\gamma$")
         ax2.set_xlim(0, 60)
@@ -437,8 +456,12 @@ class OWChirpVisualizer:
 
         ax4.plot(f, np.real(stress_hat), "black", label=r"$\mathfrak{Re}(\tilde\sigma)$")
         ax4.plot(f, np.imag(stress_hat), "lightgreen", label=r"$\mathfrak{Im}(\tilde\sigma)$")
-        ax4.plot(f, np.abs(stress_hat), "red",
-                 label=r"$\mid\mathfrak{Re}(\tilde\sigma) + i\mathfrak{Im}(\tilde\sigma)\mid$")
+        ax4.plot(
+            f,
+            np.abs(stress_hat),
+            "red",
+            label=r"$\mid\mathfrak{Re}(\tilde\sigma) + i\mathfrak{Im}(\tilde\sigma)\mid$",
+        )
         ax4.set_xlabel(r"$\omega$ (rad/s)")
         ax4.set_ylabel(r"$\tilde\sigma$")
         ax4.set_xlim(0, 60)

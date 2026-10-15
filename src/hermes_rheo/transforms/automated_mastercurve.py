@@ -4,6 +4,7 @@ from mastercurves.transforms import Multiply
 import numpy as np
 import pandas as pd
 
+
 class MasterCurveExtended(MasterCurve):
     """
     Extends the MasterCurve class with additional functionality such as exporting to Excel.
@@ -16,8 +17,14 @@ class MasterCurveExtended(MasterCurve):
         Args:
             filename (str): The path to the Excel file to save the data.
         """
-        if not hasattr(self, 'states') or not hasattr(self, 'xtransformed') or not hasattr(self, 'ytransformed'):
-            raise ValueError("Master curve data is missing. Ensure the master curve is properly constructed.")
+        if (
+            not hasattr(self, "states")
+            or not hasattr(self, "xtransformed")
+            or not hasattr(self, "ytransformed")
+        ):
+            raise ValueError(
+                "Master curve data is missing. Ensure the master curve is properly constructed."
+            )
 
         # Extract the data from the master curve
         states = self.states
@@ -43,11 +50,11 @@ class MasterCurveExtended(MasterCurve):
 
         # Create a dictionary for the long format data
         data_long = {
-            'State': states_flat,
-            'X_Transformed': xtransformed_exp,
-            'Y_Transformed': ytransformed_exp,
-            'X_Data': xdata_exp,
-            'Y_Data': ydata_exp
+            "State": states_flat,
+            "X_Transformed": xtransformed_exp,
+            "Y_Transformed": ytransformed_exp,
+            "X_Data": xdata_exp,
+            "Y_Data": ydata_exp,
         }
 
         # Convert to DataFrame
@@ -104,16 +111,16 @@ class AutomatedMasterCurve(MeasurementSetTransform):
 
     def __init__(
         self,
-        state='temperature',
-        state_mode='average',
-        x='angular frequency',
-        y='storage modulus',
+        state="temperature",
+        state_mode="average",
+        x="angular frequency",
+        y="storage modulus",
         vertical_shift=False,
         reverse_data=False,
         measurements=None,
         sort_states=True,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.state = state
@@ -142,21 +149,27 @@ class AutomatedMasterCurve(MeasurementSetTransform):
             state_found = False
             for dataset in measurement.datasets:
                 if self.state in dataset._data_array_names:
-                    dataset.switch_coordinates(independent_name=self.state, dependent_name=self.state)
-                    if self.state_mode == 'average':
+                    dataset.switch_coordinates(
+                        independent_name=self.state, dependent_name=self.state
+                    )
+                    if self.state_mode == "average":
                         value = np.average(dataset.y_values)
-                    elif self.state_mode == 'first point':
+                    elif self.state_mode == "first point":
                         value = dataset.y_values[0]
-                    elif self.state_mode == 'last point':
+                    elif self.state_mode == "last point":
                         value = dataset.y_values[-1]
                     else:
-                        raise ValueError("Invalid method. Choose 'average', 'first point', or 'last point'")
-                    measurement.add_condition(f'{self.state}', value)
+                        raise ValueError(
+                            "Invalid method. Choose 'average', 'first point', or 'last point'"
+                        )
+                    measurement.add_condition(f"{self.state}", value)
                     state_found = True
                     break  # Break after adding the condition to the current measurement
 
             if not state_found:
-                raise ValueError(f"State name {self.state} not found in datasets for one of the measurements")
+                raise ValueError(
+                    f"State name {self.state} not found in datasets for one of the measurements"
+                )
 
     def _apply(self, target, **kwargs):
         """
@@ -192,12 +205,16 @@ class AutomatedMasterCurve(MeasurementSetTransform):
                 if i < len(self.state):
                     state_value = self.state[i]
                 else:
-                    raise ValueError("Length of the 'state' array does not match the number of measurements.")
+                    raise ValueError(
+                        "Length of the 'state' array does not match the number of measurements."
+                    )
             else:
                 # Handling state as a condition name within the dataset
-                state_value = measurement.conditions.get(f'{self.state}')
+                state_value = measurement.conditions.get(f"{self.state}")
                 if state_value is None:
-                    raise ValueError(f"The specified state '{self.state}' is not found in the conditions.")
+                    raise ValueError(
+                        f"The specified state '{self.state}' is not found in the conditions."
+                    )
 
             # Compute logarithms and filter out NaNs
             log_x_values = np.log(x_values)
@@ -235,6 +252,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         master_curve.superpose()
 
         return master_curve
+
 
 class CompositeMasterCurve(MeasurementSetTransform):
     """

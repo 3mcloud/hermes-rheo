@@ -107,60 +107,66 @@ def _lookup_method_defaults(
     m = _canonicalise_method(method_line)
 
     # Order matches RheoAnalysis._apply's elif cascade.
-    if 'arbitrary wave' in m:
-        default_x, default_y = 'step time', 'strain'
-    elif 'frequency chirp' in m:
-        default_x, default_y = 'step time', 'strain'
-    elif 'creep' in m:
-        default_x, default_y = 'time', 'strain'
-    elif 'amplitude sweep' in m:
-        default_x, default_y = 'oscillation strain (cmd)', 'storage modulus'
-    elif ('frequency sweep' in m) or ('frequenz' in m) or (m == 'frequency') or (m.startswith('frequency') and 'chirp' not in m):
-        default_x, default_y = 'angular frequency', 'storage modulus'
-    elif 'multiwave' in m:
-        default_x, default_y = 'angular frequency', 'storage modulus'
-    elif 'stress relaxation' in m:
-        default_x, default_y = 'step time', 'modulus'
-    elif 'temperature ramp iso force' in m:
-        default_x, default_y = 'temperature', 'modulus'
-    elif ('temperature ramp' in m) or ('temperaturrampe' in m):
-        default_x, default_y = 'temperature', 'storage modulus'
-    elif 'temperature sweep' in m:
-        default_x, default_y = 'temperature', 'storage modulus'
-    elif 'frequency dma' in m:
-        default_x, default_y = 'angular frequency', 'storage modulus'
-    elif ('shift factors' in m) and ('master curve' not in m):
-        default_x, default_y = '1/temperature', 'aT'
-    elif 'master curve - shift factors' in m:
-        default_x, default_y = '1/temperature', 'aT'
-    elif 'master curve - master curve' in m:
-        default_x, default_y = 'angular frequency', 'storage modulus'
-    elif ('master curve' in m) and ('master curve -' not in m):
-        default_x, default_y = 'angular frequency', 'storage modulus'
-    elif 'fast sampling' in m:
-        default_x, default_y = 'step time', 'storage modulus'
-    elif 'recovery' in m:
-        default_x, default_y = 'step time', 'modulus'
-    elif 'nanodma' in m:
-        default_x, default_y = 'frequency', 'storage modulus'
-    elif 'axial' in m:
-        default_x, default_y = 'step time', 'axial force'
-    elif 'correlated' in m:
-        default_x, default_y = 'angular frequency', 'storage modulus'
-    elif 'stress control' in m:
-        default_x, default_y = 'time', 'storage modulus'
-    elif 'amplitude' in m:
-        default_x, default_y = 'oscillation strain', 'storage modulus'
-    elif 'flow sweep' in m or 'flow ramp' in m:
-        default_x, default_y = 'shear rate', 'viscosity'
-    elif 'sine strain' in m:
-        default_x, default_y = 'stress', 'strain'
-    elif 'time' in m:
-        default_x, default_y = 'step time', 'storage modulus'
+    if "arbitrary wave" in m:
+        default_x, default_y = "step time", "strain"
+    elif "frequency chirp" in m:
+        default_x, default_y = "step time", "strain"
+    elif "creep" in m:
+        default_x, default_y = "time", "strain"
+    elif "amplitude sweep" in m:
+        default_x, default_y = "oscillation strain (cmd)", "storage modulus"
+    elif (
+        ("frequency sweep" in m)
+        or ("frequenz" in m)
+        or (m == "frequency")
+        or (m.startswith("frequency") and "chirp" not in m)
+    ):
+        default_x, default_y = "angular frequency", "storage modulus"
+    elif "multiwave" in m:
+        default_x, default_y = "angular frequency", "storage modulus"
+    elif "stress relaxation" in m:
+        default_x, default_y = "step time", "modulus"
+    elif "temperature ramp iso force" in m:
+        default_x, default_y = "temperature", "modulus"
+    elif ("temperature ramp" in m) or ("temperaturrampe" in m):
+        default_x, default_y = "temperature", "storage modulus"
+    elif "temperature sweep" in m:
+        default_x, default_y = "temperature", "storage modulus"
+    elif "frequency dma" in m:
+        default_x, default_y = "angular frequency", "storage modulus"
+    elif ("shift factors" in m) and ("master curve" not in m):
+        default_x, default_y = "1/temperature", "aT"
+    elif "master curve - shift factors" in m:
+        default_x, default_y = "1/temperature", "aT"
+    elif "master curve - master curve" in m:
+        default_x, default_y = "angular frequency", "storage modulus"
+    elif ("master curve" in m) and ("master curve -" not in m):
+        default_x, default_y = "angular frequency", "storage modulus"
+    elif "fast sampling" in m:
+        default_x, default_y = "step time", "storage modulus"
+    elif "recovery" in m:
+        default_x, default_y = "step time", "modulus"
+    elif "nanodma" in m:
+        default_x, default_y = "frequency", "storage modulus"
+    elif "axial" in m:
+        default_x, default_y = "step time", "axial force"
+    elif "correlated" in m:
+        default_x, default_y = "angular frequency", "storage modulus"
+    elif "stress control" in m:
+        default_x, default_y = "time", "storage modulus"
+    elif "amplitude" in m:
+        default_x, default_y = "oscillation strain", "storage modulus"
+    elif "flow sweep" in m or "flow ramp" in m:
+        default_x, default_y = "shear rate", "viscosity"
+    elif "sine strain" in m:
+        default_x, default_y = "stress", "strain"
+    elif "time" in m:
+        default_x, default_y = "step time", "storage modulus"
     else:
         _logger.debug(
-            "No default-coordinate rule matched method %r; falling back to "
-            "(%r, first-dependent).", method_line, fallback_independent,
+            "No default-coordinate rule matched method %r; falling back to (%r, first-dependent).",
+            method_line,
+            fallback_independent,
         )
         default_x = fallback_independent
         default_y = _first_non(variable_names, {fallback_independent})
@@ -168,16 +174,18 @@ def _lookup_method_defaults(
     # Safety fallbacks when a chosen name is not in this file's columns.
     if default_x not in variable_names:
         _logger.debug(
-            "Default independent %r for method %r not in columns; "
-            "falling back to %r.",
-            default_x, method_line, fallback_independent,
+            "Default independent %r for method %r not in columns; falling back to %r.",
+            default_x,
+            method_line,
+            fallback_independent,
         )
         default_x = fallback_independent
     if default_y not in variable_names:
         _logger.debug(
             "Default dependent %r for method %r not in columns; "
             "falling back to first available dependent.",
-            default_y, method_line,
+            default_y,
+            method_line,
         )
         default_y = _first_non(variable_names, {fallback_independent, default_x})
 
@@ -258,7 +266,8 @@ class TriosRheoReader(file_reader.FileReader):
     ...     default_coords="legacy-temperature",
     ... )  # doctest: +SKIP
     """
-    supported_extensions = {'txt'}
+
+    supported_extensions = {"txt"}
 
     __TOP_LEVEL_PARAMETER_REGEXES: Dict[str, str] = {
         "document_id": r"Document ID\s+(.*)",
@@ -325,11 +334,13 @@ class TriosRheoReader(file_reader.FileReader):
         "instrument_inertia": r"Instrument inertia\s+(.*)",
     }
 
-    __REGEX_DICTS = [__PROCEDURE_REGEXES,
-                     __FILE_PARAMETER_REGEXES,
-                     __GEOMETRY_REGEXES,
-                     __GEOMETRY_EXT_REGEXES,
-                     __CALIBRATION_PARAM_REGEXES]
+    __REGEX_DICTS = [
+        __PROCEDURE_REGEXES,
+        __FILE_PARAMETER_REGEXES,
+        __GEOMETRY_REGEXES,
+        __GEOMETRY_EXT_REGEXES,
+        __CALIBRATION_PARAM_REGEXES,
+    ]
 
     """All of the regular expression dictionaries defined for this file reader."""
 
@@ -362,850 +373,846 @@ class TriosRheoReader(file_reader.FileReader):
     }
     DATA_HEADER_REGEX = r"\[step\]"
 
-    X_VALUES_COLUMN_LABEL = 'Temperature'
-    Y_VALUES_COLUMN_LABEL = 'Temperature'
+    X_VALUES_COLUMN_LABEL = "Temperature"
+    Y_VALUES_COLUMN_LABEL = "Temperature"
 
     """The label for the x-values column."""
 
     Y_VALUES_COLUMN_LABELS = {  # EDIT as needed
-        'Amplitude sweep': {
-            'Angular frequency': 'angular frequency',
-            'Step time': 'step time',
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Raw phase': 'raw phase',
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Oscillation torque': 'oscillation torque',
-            'Oscillation displacement': 'oscillation displacement',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Oscillation stress': 'oscillation stress',
-            'Oscillation torque (sample)': 'oscillation torque (sample)',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation stress (cmd)': 'oscillation stress (cmd)',
-            'Loss modulus': 'loss modulus',
-            'Storage modulus': 'storage modulus',
-            'Normal stress': 'normal stress',
-            'Shear rate': 'shear rate',
-            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Normal stress coefficient': 'normal stress coefficient',
-            'Phase angle': 'phase angle',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Out of phase component of η*': 'out of phase component of η*',
-            'Complex viscosity': 'complex viscosity',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'G*/sin(delta)': 'G*/sin(delta)',
-            'G*.sin(delta)': 'G*.sin(delta)',
-            'Stiffness': 'stiffness',
-            'Oscillation strain rate': 'oscillation strain rate'
+        "Amplitude sweep": {
+            "Angular frequency": "angular frequency",
+            "Step time": "step time",
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Raw phase": "raw phase",
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Oscillation torque": "oscillation torque",
+            "Oscillation displacement": "oscillation displacement",
+            "Run time": "run time",
+            "Time": "time",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Oscillation stress": "oscillation stress",
+            "Oscillation torque (sample)": "oscillation torque (sample)",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation stress (cmd)": "oscillation stress (cmd)",
+            "Loss modulus": "loss modulus",
+            "Storage modulus": "storage modulus",
+            "Normal stress": "normal stress",
+            "Shear rate": "shear rate",
+            "Oscillation strain (cmd)": "oscillation strain (cmd)",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Normal stress coefficient": "normal stress coefficient",
+            "Phase angle": "phase angle",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Out of phase component of η*": "out of phase component of η*",
+            "Complex viscosity": "complex viscosity",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "G*/sin(delta)": "G*/sin(delta)",
+            "G*.sin(delta)": "G*.sin(delta)",
+            "Stiffness": "stiffness",
+            "Oscillation strain rate": "oscillation strain rate",
         },
-        'Frequency sweep': {
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation displacement': 'oscillation displacement',
-            'Velocity': 'velocity',
-            'Torque': 'torque',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation stress': 'oscillation stress',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Complex viscosity': 'complex viscosity',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Phase angle': 'phase angle',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Strain ratio': 'strain ratio',
-            'Oscillation strain rate': 'oscillation strain rate',
-            'Gap': 'gap',
+        "Frequency sweep": {
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation displacement": "oscillation displacement",
+            "Velocity": "velocity",
+            "Torque": "torque",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation stress": "oscillation stress",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Complex viscosity": "complex viscosity",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Phase angle": "phase angle",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Strain ratio": "strain ratio",
+            "Oscillation strain rate": "oscillation strain rate",
+            "Gap": "gap",
         },
-        'Flow ramp': {
-            'Torque': 'torque',
-            'Torque (step)': 'torque (step)',
-            'Velocity': 'velocity',
-            'Step time': 'step time',
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Displacement': 'displacement',
-            'Displacement (step)': 'displacement (step)',
-            'Termination reason': 'termination reason',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Normal stress': 'normal stress',
-            'Normal stress coefficient': 'normal stress coefficient',
-            'Shear rate': 'shear rate',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature'
+        "Flow ramp": {
+            "Torque": "torque",
+            "Torque (step)": "torque (step)",
+            "Velocity": "velocity",
+            "Step time": "step time",
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Displacement": "displacement",
+            "Displacement (step)": "displacement (step)",
+            "Termination reason": "termination reason",
+            "Run time": "run time",
+            "Time": "time",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Normal stress": "normal stress",
+            "Normal stress coefficient": "normal stress coefficient",
+            "Shear rate": "shear rate",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
         },
-        'Creep': {
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Displacement': 'displacement',
-            'Normal force': 'normal force',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'TransXducerDisplacement': 'transducer displacement',
-            'TransientMotorTorque': 'transient motor torque',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Normal stress': 'normal stress',
-            'Status bits': 'status bits',
-            'Torque transducer': 'torque transducer',
-            'Normal transducer': 'normal transducer',
-            'Transducer range': 'transducer range',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Displacement (step)': 'displacement (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Normal stress coefficient': 'normal stress coefficient',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
+        "Creep": {
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Displacement": "displacement",
+            "Normal force": "normal force",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "TransXducerDisplacement": "transducer displacement",
+            "TransientMotorTorque": "transient motor torque",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Normal stress": "normal stress",
+            "Status bits": "status bits",
+            "Torque transducer": "torque transducer",
+            "Normal transducer": "normal transducer",
+            "Transducer range": "transducer range",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Displacement (step)": "displacement (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Normal stress coefficient": "normal stress coefficient",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
         },
-        'Arbitrary Wave': {
-            'Temperature': 'temperature',
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Normal stress': 'normal stress',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
+        "Arbitrary Wave": {
+            "Temperature": "temperature",
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Normal stress": "normal stress",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
         },
-        'Multiwave': {
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Velocity': 'velocity',
-            'Torque': 'torque',
-            'Strain': 'strain',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation stress': 'oscillation stress',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Complex viscosity': 'complex viscosity',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Complex compliance': 'complex compliance',
-            'Loss compliance': 'loss compliance',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'Loss modulus',
-            'Strain ratio': 'strain ratio',
-            'Stiffness': 'stiffness',
-            'Oscillation strain rate': 'Oscillation strain rate',
+        "Multiwave": {
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Velocity": "velocity",
+            "Torque": "torque",
+            "Strain": "strain",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation stress": "oscillation stress",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Complex viscosity": "complex viscosity",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Complex compliance": "complex compliance",
+            "Loss compliance": "loss compliance",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "Loss modulus",
+            "Strain ratio": "strain ratio",
+            "Stiffness": "stiffness",
+            "Oscillation strain rate": "Oscillation strain rate",
         },
-        'Stress Relaxation': {
-            'Temperature': 'temperature',
-            'Velocity': 'velocity',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Strain constant (linear)': 'strain constant (linear)',
-            'Stress': 'stress',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
+        "Stress Relaxation": {
+            "Temperature": "temperature",
+            "Velocity": "velocity",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Strain constant (linear)": "strain constant (linear)",
+            "Stress": "stress",
+            "Step time": "step time",
+            "Time": "time",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
         },
-        'Temperature ramp': {
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation displacement': 'oscillation displacement',
-            'Velocity': 'velocity',
-            'Torque': 'torque',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation stress': 'oscillation stress',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Complex viscosity': 'complex viscosity',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Phase angle': 'phase angle',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Strain ratio': 'strain ratio',
-            'Oscillation strain rate': 'oscillation strain rate',
-            'Gap': 'gap',
+        "Temperature ramp": {
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation displacement": "oscillation displacement",
+            "Velocity": "velocity",
+            "Torque": "torque",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation stress": "oscillation stress",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Complex viscosity": "complex viscosity",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Phase angle": "phase angle",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Strain ratio": "strain ratio",
+            "Oscillation strain rate": "oscillation strain rate",
+            "Gap": "gap",
         },
-        'Temperature ramp ISO Force': {
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Step time': 'step time',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Normal stress': 'normal stress',
-            'Strain': 'strain',
-            'Stress': 'stress',
-            'Strain constant': 'strain constant',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
+        "Temperature ramp ISO Force": {
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Step time": "step time",
+            "Run time": "run time",
+            "Time": "time",
+            "Normal stress": "normal stress",
+            "Strain": "strain",
+            "Stress": "stress",
+            "Strain constant": "strain constant",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
         },
-        'Temperature sweep': {
-            'Angular frequency': 'angular frequency',
-            'Step time': 'step time',
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Raw phase': 'raw phase',
-            'Oscillation force': 'oscillation force',
-            'Oscillation displacement': 'oscillation displacement',
-            'Axial displacement': 'axial displacement',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Oscillation stress': 'oscillation stress',
-            'Oscillation strain': 'oscillation strain',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Phase angle': 'phase angle',
-            'Axial strain': 'axial strain',
-            'Axial strain %': 'axial strain %',
-            'Strain constant (linear)': 'strain constant (linear)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance'
+        "Temperature sweep": {
+            "Angular frequency": "angular frequency",
+            "Step time": "step time",
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Raw phase": "raw phase",
+            "Oscillation force": "oscillation force",
+            "Oscillation displacement": "oscillation displacement",
+            "Axial displacement": "axial displacement",
+            "Run time": "run time",
+            "Time": "time",
+            "Oscillation stress": "oscillation stress",
+            "Oscillation strain": "oscillation strain",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Phase angle": "phase angle",
+            "Axial strain": "axial strain",
+            "Axial strain %": "axial strain %",
+            "Strain constant (linear)": "strain constant (linear)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
         },
-
-        'Temperature Sweep (Multifrequency)': {
-            'Variables': 'variables',
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation force (cmd)': 'oscillation force (cmd)',
-            'Axial force': 'axial force',
-            'Oscillation force': 'oscillation force',
-            'Oscillation displacement': 'oscillation displacement',
-            'Raw phase (displacement)': 'raw phase (displacement)',
-            'Delta length': 'delta length',
-            'Oscillation Force (Drive)': 'oscillation force (drive)',
-            'Drive Position': 'drive position',
-            'Temperature set point': 'temperature set point',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation stress': 'oscillation stress',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Status bits': 'status bits',
-            'Status bits 2': 'status bits 2',
-            'Normal transducer': 'normal transducer',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Phase angle': 'phase angle',
-            'Pretension ratio': 'pretension ratio',
-            'Stiffness': 'stiffness',
-            'Oscillation displacement (drive': 'oscillation displacement (drive',  # note: no closing ')'
-            'Position': 'position',
-            'Length': 'length',
-            'Strain constant (linear)': 'strain constant (linear)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance'
+        "Temperature Sweep (Multifrequency)": {
+            "Variables": "variables",
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation force (cmd)": "oscillation force (cmd)",
+            "Axial force": "axial force",
+            "Oscillation force": "oscillation force",
+            "Oscillation displacement": "oscillation displacement",
+            "Raw phase (displacement)": "raw phase (displacement)",
+            "Delta length": "delta length",
+            "Oscillation Force (Drive)": "oscillation force (drive)",
+            "Drive Position": "drive position",
+            "Temperature set point": "temperature set point",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation stress": "oscillation stress",
+            "Step time": "step time",
+            "Time": "time",
+            "Status bits": "status bits",
+            "Status bits 2": "status bits 2",
+            "Normal transducer": "normal transducer",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Phase angle": "phase angle",
+            "Pretension ratio": "pretension ratio",
+            "Stiffness": "stiffness",
+            "Oscillation displacement (drive": "oscillation displacement (drive",  # note: no closing ')'
+            "Position": "position",
+            "Length": "length",
+            "Strain constant (linear)": "strain constant (linear)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
         },
-
-        'Frequency DMA': {
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
-            'Oscillation normal force average': 'oscillation normal force average',
-            'Axial force': 'axial force',
-            'Oscillation force': 'oscillation force',
-            'Oscillation displacement': 'oscillation displacement',
-            'Raw phase (displacement)': 'raw phase (displacement)',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'X-ducer Displacement': 'x-ducer displacement',
-            'Oscillation Force (Drive)': 'oscillation force (drive)',
-            'Drive Position': 'drive position',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
-            'Oscillation stress': 'oscillation stress',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Status bits': 'status bits',
-            'Status bits 2': 'status bits 2',
-            'Normal transducer': 'normal transducer',
-            'Transducer range': 'transducer range',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Phase angle': 'phase angle',
-            'Strain ratio': 'strain ratio',
-            'Pretension ratio': 'pretension ratio',
-            'X-ducer stiffness': 'x-ducer stiffness',
-            'Stiffness': 'stiffness',
-            'Oscillation displacement (drive': 'oscillation displacement (drive',
-            'Strain constant (linear)': 'strain constant (linear)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance'
+        "Frequency DMA": {
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation displacement (cmd)": "oscillation displacement (cmd)",
+            "Oscillation normal force average": "oscillation normal force average",
+            "Axial force": "axial force",
+            "Oscillation force": "oscillation force",
+            "Oscillation displacement": "oscillation displacement",
+            "Raw phase (displacement)": "raw phase (displacement)",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "X-ducer Displacement": "x-ducer displacement",
+            "Oscillation Force (Drive)": "oscillation force (drive)",
+            "Drive Position": "drive position",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation strain (cmd)": "oscillation strain (cmd)",
+            "Oscillation stress": "oscillation stress",
+            "Step time": "step time",
+            "Time": "time",
+            "Status bits": "status bits",
+            "Status bits 2": "status bits 2",
+            "Normal transducer": "normal transducer",
+            "Transducer range": "transducer range",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Phase angle": "phase angle",
+            "Strain ratio": "strain ratio",
+            "Pretension ratio": "pretension ratio",
+            "X-ducer stiffness": "x-ducer stiffness",
+            "Stiffness": "stiffness",
+            "Oscillation displacement (drive": "oscillation displacement (drive",
+            "Strain constant (linear)": "strain constant (linear)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
         },
-        'Master Curve - shift factors': {
-            'Temperature': 'temperature',
-            'sample density': 'density',
-            '1/temperature': '1/temperature',
-            'aT (x variable)': 'aT',
-            'bT base': 'bt base',
-            'bT delta': 'bT delta',
-            'bT (y variables)': 'bT',
+        "Master Curve - shift factors": {
+            "Temperature": "temperature",
+            "sample density": "density",
+            "1/temperature": "1/temperature",
+            "aT (x variable)": "aT",
+            "bT base": "bt base",
+            "bT delta": "bT delta",
+            "bT (y variables)": "bT",
         },
         # Frequency sweep steps exported from ARES-G3 (TRIOS 6+) that carry
         # oscillation columns and Time alongside the full complex modulus set.
         # Must be checked BEFORE 'Master Curve - master curve' because the MC
         # schema is a strict subset of these columns and would match first.
-        'Frequency sweep (ARES-G3)': {
-            'Angular frequency': 'angular frequency',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation stress': 'oscillation stress',
-            'Time': 'time',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            '1/temperature': '1/temperature',
-            'Phase angle': 'phase angle',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Out of phase component of η*': 'out of phase component of η*',
-            'Complex viscosity': 'complex viscosity',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'G*/sin(delta)': 'G*/sin(delta)',
-            'G*.sin(delta)': 'G*.sin(delta)',
-            'Oscillation strain rate': 'oscillation strain rate',
-            'Gap': 'gap',
+        "Frequency sweep (ARES-G3)": {
+            "Angular frequency": "angular frequency",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation stress": "oscillation stress",
+            "Time": "time",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "1/temperature": "1/temperature",
+            "Phase angle": "phase angle",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Out of phase component of η*": "out of phase component of η*",
+            "Complex viscosity": "complex viscosity",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "G*/sin(delta)": "G*/sin(delta)",
+            "G*.sin(delta)": "G*.sin(delta)",
+            "Oscillation strain rate": "oscillation strain rate",
+            "Gap": "gap",
         },
-        'Master Curve - master curve': {
-            'Angular frequency': 'angular frequency',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            '1/temperature': '1/temperature',
-            'Phase angle': 'phase angle',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Out of phase component of η*': 'out of phase component of η*',
-            'Complex viscosity': 'complex viscosity',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'G*/sin(delta)': 'G*/sin(delta)',
-            'G*.sin(delta)': 'G*.sin(delta)',
+        "Master Curve - master curve": {
+            "Angular frequency": "angular frequency",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "1/temperature": "1/temperature",
+            "Phase angle": "phase angle",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Out of phase component of η*": "out of phase component of η*",
+            "Complex viscosity": "complex viscosity",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "G*/sin(delta)": "G*/sin(delta)",
+            "G*.sin(delta)": "G*.sin(delta)",
         },
         "Recovery": {
-            'Variables': 'variables',
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Force': 'force',
-            'Velocity': 'velocity',
-            'Displacement': 'displacement',
-            'Drive Position': 'drive position',
-            'Delta length': 'drive length',
-            'Temperature set point': 'temperature set point',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Status bits': 'status bits',
-            'Normal transducer': 'normal transducer',
-            'Stress': 'stress',
-            'Recoverable strain': 'recoverable strain',
-            'Recoverable compliance': 'recoverable compliance',
-            'Position': 'position',
-            'Total Displacement': 'total displacement',
-            'Displacement(step)': 'displacement (step)',
-            'Total Force': 'total force',
-            'Total Stress': 'total stress',
-            'Thickness': 'thickness',
-            'Relative Stress': 'relative stress',
-            'Recovered Strain': 'recovered strain',
-            'Strain constant (linear)': 'strain constant (linear)',
-            'Date and time': 'data and time',
-            '1/temperature': '1/temperature',
-            'Modulus': 'modulus'
+            "Variables": "variables",
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Force": "force",
+            "Velocity": "velocity",
+            "Displacement": "displacement",
+            "Drive Position": "drive position",
+            "Delta length": "drive length",
+            "Temperature set point": "temperature set point",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Step time": "step time",
+            "Time": "time",
+            "Status bits": "status bits",
+            "Normal transducer": "normal transducer",
+            "Stress": "stress",
+            "Recoverable strain": "recoverable strain",
+            "Recoverable compliance": "recoverable compliance",
+            "Position": "position",
+            "Total Displacement": "total displacement",
+            "Displacement(step)": "displacement (step)",
+            "Total Force": "total force",
+            "Total Stress": "total stress",
+            "Thickness": "thickness",
+            "Relative Stress": "relative stress",
+            "Recovered Strain": "recovered strain",
+            "Strain constant (linear)": "strain constant (linear)",
+            "Date and time": "data and time",
+            "1/temperature": "1/temperature",
+            "Modulus": "modulus",
         },
         "Axial": {
-            'Variables': 'variables',
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Step time': 'step time',
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Displacement': 'displacement',
-            'Termination reason': 'termination reason',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Stress': 'stress',
-            'Normal stress': 'normal stress',
-            'Shear rate': 'shear rate',
-            'Strain': 'strain',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Normal stress coefficient': 'normal stress coefficient',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus'
+            "Variables": "variables",
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Step time": "step time",
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Displacement": "displacement",
+            "Termination reason": "termination reason",
+            "Run time": "run time",
+            "Time": "time",
+            "Stress": "stress",
+            "Normal stress": "normal stress",
+            "Shear rate": "shear rate",
+            "Strain": "strain",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Normal stress coefficient": "normal stress coefficient",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
         },
         "Time": {
-            'Variables': 'variables',
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
-            'Oscillation normal force average': 'oscillation normal force average',
-            'Axial force': 'axial force',
-            'Oscillation torque': 'oscillation torque',
-            'Raw phase (torque)': 'raw phase (torque)',
-            'Oscillation displacement': 'oscillation displacement',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'X-ducer Displacement': 'x-ducer displacement',
-            'Raw Phase (Xducer displacement)': 'raw phase (xducer displacement)',
-            'Oscillation normal force': 'oscillation normal force',
-            'Raw phase (normal force)': 'raw phase (normal force)',
-            'Velocity': 'velocity',
-            'Torque': 'torque',
-            'ScaleTorqWaveData': 'scaletorqwavedata',
-            'ScaleStrnWaveData': 'scalestrnwavedata',
-            'ScaleNormWaveData': 'scalenormwavedata',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
-            'Oscillation stress': 'oscillation stress',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Complex viscosity': 'complex viscosity',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Oscillation normal stress': 'oscillation normal stress',
-            'Phase angle': 'phase angle',
-            'Status bits': 'status bits',
-            'Status bits 2': 'status bits 2',
-            'Torque transducer': 'torque transducer',
-            'Normal transducer': 'normal transducer',
-            'Transducer range': 'transducer range',
-            'X-ducer stiffness': 'x-ducer stiffness',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Out of phase component of η*': 'out of phase component of η*',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'G*/sin(delta)': 'g*/sin(delta)',
-            'G*.sin(delta)': 'g*.sin(delta)',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Strain ratio': 'strain ratio',
-            'Stiffness': 'stiffness',
-            'Oscillation strain rate': 'oscillation strain rate'
+            "Variables": "variables",
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation displacement (cmd)": "oscillation displacement (cmd)",
+            "Oscillation normal force average": "oscillation normal force average",
+            "Axial force": "axial force",
+            "Oscillation torque": "oscillation torque",
+            "Raw phase (torque)": "raw phase (torque)",
+            "Oscillation displacement": "oscillation displacement",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "X-ducer Displacement": "x-ducer displacement",
+            "Raw Phase (Xducer displacement)": "raw phase (xducer displacement)",
+            "Oscillation normal force": "oscillation normal force",
+            "Raw phase (normal force)": "raw phase (normal force)",
+            "Velocity": "velocity",
+            "Torque": "torque",
+            "ScaleTorqWaveData": "scaletorqwavedata",
+            "ScaleStrnWaveData": "scalestrnwavedata",
+            "ScaleNormWaveData": "scalenormwavedata",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation strain (cmd)": "oscillation strain (cmd)",
+            "Oscillation stress": "oscillation stress",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Complex viscosity": "complex viscosity",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Oscillation normal stress": "oscillation normal stress",
+            "Phase angle": "phase angle",
+            "Status bits": "status bits",
+            "Status bits 2": "status bits 2",
+            "Torque transducer": "torque transducer",
+            "Normal transducer": "normal transducer",
+            "Transducer range": "transducer range",
+            "X-ducer stiffness": "x-ducer stiffness",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Out of phase component of η*": "out of phase component of η*",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "G*/sin(delta)": "g*/sin(delta)",
+            "G*.sin(delta)": "g*.sin(delta)",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Strain ratio": "strain ratio",
+            "Stiffness": "stiffness",
+            "Oscillation strain rate": "oscillation strain rate",
         },
-        'Frequency Chirp': {
-            'Torque': 'torque',
-            'Step time': 'step time',
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Displacement': 'displacement',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Normal stress': 'normal stress',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Strain constant': 'strain constant',
-            'Torque (step)': 'torque (step)',
-            'Displacement (step)': 'displacement (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
+        "Frequency Chirp": {
+            "Torque": "torque",
+            "Step time": "step time",
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Displacement": "displacement",
+            "Run time": "run time",
+            "Time": "time",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Normal stress": "normal stress",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Strain constant": "strain constant",
+            "Torque (step)": "torque (step)",
+            "Displacement (step)": "displacement (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
         },
-
-        'Correlated': {
-            'Angular frequency': 'angular frequency',
-            'Step time': 'step time',
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Raw phase': 'raw phase',
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Oscillation torque': 'oscillation torque',
-            'Oscillation displacement': 'oscillation displacement',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Oscillation stress': 'oscillation stress',
-            'Oscillation torque (sample)': 'oscillation torque (sample)',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation stress (cmd)': 'oscillation stress (cmd)',
-            'Loss modulus': 'loss modulus',
-            'Storage modulus': 'storage modulus',
-            'Normal stress': 'normal stress',
-            'Shear rate': 'shear rate',
-            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Normal stress coefficient': 'normal stress coefficient',
-            'Phase angle': 'phase angle',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Out of phase component of η*': 'out of phase component of η*',
-            'Complex viscosity': 'complex viscosity',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'G*/sin(delta)': 'G*/sin(delta)',
-            'G*.sin(delta)': 'G*.sin(delta)',
-            'Stiffness': 'stiffness',
-            'Oscillation strain rate': 'oscillation strain rate',
+        "Correlated": {
+            "Angular frequency": "angular frequency",
+            "Step time": "step time",
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Raw phase": "raw phase",
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Oscillation torque": "oscillation torque",
+            "Oscillation displacement": "oscillation displacement",
+            "Run time": "run time",
+            "Time": "time",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Oscillation stress": "oscillation stress",
+            "Oscillation torque (sample)": "oscillation torque (sample)",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation stress (cmd)": "oscillation stress (cmd)",
+            "Loss modulus": "loss modulus",
+            "Storage modulus": "storage modulus",
+            "Normal stress": "normal stress",
+            "Shear rate": "shear rate",
+            "Oscillation strain (cmd)": "oscillation strain (cmd)",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Normal stress coefficient": "normal stress coefficient",
+            "Phase angle": "phase angle",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Out of phase component of η*": "out of phase component of η*",
+            "Complex viscosity": "complex viscosity",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "G*/sin(delta)": "G*/sin(delta)",
+            "G*.sin(delta)": "G*.sin(delta)",
+            "Stiffness": "stiffness",
+            "Oscillation strain rate": "oscillation strain rate",
         },
-        'Stress Control': {
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
-            'Oscillation normal force average': 'oscillation normal force average',
-            'Axial force': 'axial force',
-            'Oscillation torque': 'oscillation torque',
-            'Raw phase (torque)': 'raw phase (torque)',
-            'Oscillation displacement': 'oscillation displacement',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'X-ducer Displacement': 'x-ducer displacement',
-            'Raw Phase (Xducer displacement)': 'raw phase (xducer displacement)',
-            'Oscillation normal force': 'oscillation normal force',
-            'Raw phase (normal force)': 'raw phase (normal force)',
-            'Velocity': 'velocity',
-            'Torque': 'torque',
-            'ScaleTorqWaveData': 'scaletorqwavedata',
-            'ScaleStrnWaveData': 'scalestrnwavedata',
-            'ScaleNormWaveData': 'scalenormwavedata',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
-            'Oscillation stress': 'oscillation stress',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Complex viscosity': 'complex viscosity',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Oscillation normal stress': 'oscillation normal stress',
-            'Phase angle': 'phase angle',
-            'Status bits': 'status bits',
-            'Status bits 2': 'status bits 2',
-            'Torque transducer': 'torque transducer',
-            'Normal transducer': 'normal transducer',
-            'Transducer range': 'transducer range',
-            'X-ducer stiffness': 'x-ducer stiffness',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Out of phase component of η*': 'out of phase component of η*',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'G*/sin(delta)': 'g*/sin(delta)',
-            'G*.sin(delta)': 'g*.sin(delta)',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Strain ratio': 'strain ratio',
-            'Stiffness': 'stiffness',
-            'Oscillation strain rate': 'oscillation strain rate',
+        "Stress Control": {
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation displacement (cmd)": "oscillation displacement (cmd)",
+            "Oscillation normal force average": "oscillation normal force average",
+            "Axial force": "axial force",
+            "Oscillation torque": "oscillation torque",
+            "Raw phase (torque)": "raw phase (torque)",
+            "Oscillation displacement": "oscillation displacement",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "X-ducer Displacement": "x-ducer displacement",
+            "Raw Phase (Xducer displacement)": "raw phase (xducer displacement)",
+            "Oscillation normal force": "oscillation normal force",
+            "Raw phase (normal force)": "raw phase (normal force)",
+            "Velocity": "velocity",
+            "Torque": "torque",
+            "ScaleTorqWaveData": "scaletorqwavedata",
+            "ScaleStrnWaveData": "scalestrnwavedata",
+            "ScaleNormWaveData": "scalenormwavedata",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation strain (cmd)": "oscillation strain (cmd)",
+            "Oscillation stress": "oscillation stress",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Complex viscosity": "complex viscosity",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Oscillation normal stress": "oscillation normal stress",
+            "Phase angle": "phase angle",
+            "Status bits": "status bits",
+            "Status bits 2": "status bits 2",
+            "Torque transducer": "torque transducer",
+            "Normal transducer": "normal transducer",
+            "Transducer range": "transducer range",
+            "X-ducer stiffness": "x-ducer stiffness",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Out of phase component of η*": "out of phase component of η*",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "G*/sin(delta)": "g*/sin(delta)",
+            "G*.sin(delta)": "g*.sin(delta)",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Strain ratio": "strain ratio",
+            "Stiffness": "stiffness",
+            "Oscillation strain rate": "oscillation strain rate",
         },
-        'Creep (Recoverable)': {
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Displacement': 'displacement',
-            'Normal force': 'normal force',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'TransXducerDisplacement': 'transducer displacement',
-            'TransientMotorTorque': 'transient motor torque',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Recoverable compliance': 'recoverable compliance',
-            'Recoverable strain': 'recoverable strain',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Normal stress': 'normal stress',
-            'Status bits': 'status bits',
-            'Torque transducer': 'torque transducer',
-            'Normal transducer': 'normal transducer',
-            'Transducer range': 'transducer range',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Displacement (step)': 'displacement (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Normal stress coefficient': 'normal stress coefficient',
-            'Modulus': 'modulus',
+        "Creep (Recoverable)": {
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Displacement": "displacement",
+            "Normal force": "normal force",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "TransXducerDisplacement": "transducer displacement",
+            "TransientMotorTorque": "transient motor torque",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Recoverable compliance": "recoverable compliance",
+            "Recoverable strain": "recoverable strain",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Normal stress": "normal stress",
+            "Status bits": "status bits",
+            "Torque transducer": "torque transducer",
+            "Normal transducer": "normal transducer",
+            "Transducer range": "transducer range",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Displacement (step)": "displacement (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Normal stress coefficient": "normal stress coefficient",
+            "Modulus": "modulus",
         },
-
-        'Amplitude': {
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
-            'Oscillation normal force average': 'oscillation normal force average',
-            'Axial force': 'axial force',
-            'Oscillation torque': 'oscillation torque',
-            'Raw phase (torque)': 'raw phase (torque)',
-            'Oscillation displacement': 'oscillation displacement',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'X-ducer Displacement': 'x-ducer displacement',
-            'Raw Phase (Xducer displacement)': 'raw phase (xducer displacement)',
-            'Oscillation normal force': 'oscillation normal force',
-            'Raw phase (normal force)': 'raw phase (normal force)',
-            'Velocity': 'velocity',
-            'Torque': 'torque',
-            'ScaleTorqWaveData': 'scaletorqwavedata',
-            'ScaleStrnWaveData': 'scalestrnwavedata',
-            'ScaleNormWaveData': 'scalenormwavedata',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
-            'Oscillation stress': 'oscillation stress',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Complex viscosity': 'complex viscosity',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Oscillation normal stress': 'oscillation normal stress',
-            'Phase angle': 'phase angle',
-            'Status bits': 'status bits',
-            'Status bits 2': 'status bits 2',
-            'Torque transducer': 'torque transducer',
-            'Normal transducer': 'normal transducer',
-            'Transducer range': 'transducer range',
-            'X-ducer stiffness': 'x-ducer stiffness',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Dynamic viscosity': 'dynamic viscosity',
-            'Out of phase component of η*': 'out of phase component of η*',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance',
-            'G*/sin(delta)': 'G*/sin(delta)',
-            'G*.sin(delta)': 'G*.sin(delta)',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Strain ratio': 'strain ratio',
-            'Stiffness': 'stiffness',
-            'Oscillation strain rate': 'oscillation strain rate',
+        "Amplitude": {
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation displacement (cmd)": "oscillation displacement (cmd)",
+            "Oscillation normal force average": "oscillation normal force average",
+            "Axial force": "axial force",
+            "Oscillation torque": "oscillation torque",
+            "Raw phase (torque)": "raw phase (torque)",
+            "Oscillation displacement": "oscillation displacement",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "X-ducer Displacement": "x-ducer displacement",
+            "Raw Phase (Xducer displacement)": "raw phase (xducer displacement)",
+            "Oscillation normal force": "oscillation normal force",
+            "Raw phase (normal force)": "raw phase (normal force)",
+            "Velocity": "velocity",
+            "Torque": "torque",
+            "ScaleTorqWaveData": "scaletorqwavedata",
+            "ScaleStrnWaveData": "scalestrnwavedata",
+            "ScaleNormWaveData": "scalenormwavedata",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation strain (cmd)": "oscillation strain (cmd)",
+            "Oscillation stress": "oscillation stress",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Complex viscosity": "complex viscosity",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Oscillation normal stress": "oscillation normal stress",
+            "Phase angle": "phase angle",
+            "Status bits": "status bits",
+            "Status bits 2": "status bits 2",
+            "Torque transducer": "torque transducer",
+            "Normal transducer": "normal transducer",
+            "Transducer range": "transducer range",
+            "X-ducer stiffness": "x-ducer stiffness",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Dynamic viscosity": "dynamic viscosity",
+            "Out of phase component of η*": "out of phase component of η*",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
+            "G*/sin(delta)": "G*/sin(delta)",
+            "G*.sin(delta)": "G*.sin(delta)",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Strain ratio": "strain ratio",
+            "Stiffness": "stiffness",
+            "Oscillation strain rate": "oscillation strain rate",
         },
         # in Y_VALUES_COLUMN_LABELS
-        'Flow Sweep': {
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Step time': 'step time',
-            'Temperature': 'temperature',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Displacement': 'displacement',
-            'Termination reason': 'termination reason',
-            'Run time': 'run time',
-            'Time': 'time',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Normal stress': 'normal stress',
-            'Shear rate': 'shear rate',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Displacement (step)': 'displacement (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Normal stress coefficient': 'normal stress coefficient',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
+        "Flow Sweep": {
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Step time": "step time",
+            "Temperature": "temperature",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Displacement": "displacement",
+            "Termination reason": "termination reason",
+            "Run time": "run time",
+            "Time": "time",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Normal stress": "normal stress",
+            "Shear rate": "shear rate",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Displacement (step)": "displacement (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Normal stress coefficient": "normal stress coefficient",
+            "Compliance": "compliance",
+            "Modulus": "modulus",
         },
-        'Temperature Sweep DMA': {
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Angular frequency': 'angular frequency',
-            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
-            'Oscillation normal force average': 'oscillation normal force average',
-            'Axial force': 'axial force',
-            'Oscillation force': 'oscillation force',
-            'Oscillation displacement': 'oscillation displacement',
-            'Raw phase (Axial displacement)': 'raw phase (axial displacement)',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'Axial Xducer compliance': 'axial xducer compliance',
-            'Oscillation Force (Drive)': 'oscillation force (drive)',
-            'Drive Position': 'drive position',
-            'Oscillation strain': 'oscillation strain',
-            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
-            'Oscillation stress': 'oscillation stress',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Status bits': 'status bits',
-            'Status bits 2': 'status bits 2',
-            'Normal transducer': 'normal transducer',
-            'Transducer range': 'transducer range',
-            'Storage modulus': 'storage modulus',
-            'Loss modulus': 'loss modulus',
-            'Phase angle': 'phase angle',
-            'Strain ratio': 'strain ratio',
-            'Pretension ratio': 'pretension ratio',
-            'X-ducer stiffness': 'x-ducer stiffness',
-            'Stiffness': 'stiffness',
-            'Oscillation displacement (drive': 'oscillation displacement (drive',
-            'Strain constant (linear)': 'strain constant (linear)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Frequency': 'frequency',
-            'Tan(delta)': 'tan(delta)',
-            'Complex modulus': 'complex modulus',
-            'Complex compliance': 'complex compliance',
-            'Storage compliance': 'storage compliance',
-            'Loss compliance': 'loss compliance'
+        "Temperature Sweep DMA": {
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Angular frequency": "angular frequency",
+            "Oscillation displacement (cmd)": "oscillation displacement (cmd)",
+            "Oscillation normal force average": "oscillation normal force average",
+            "Axial force": "axial force",
+            "Oscillation force": "oscillation force",
+            "Oscillation displacement": "oscillation displacement",
+            "Raw phase (Axial displacement)": "raw phase (axial displacement)",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "Axial Xducer compliance": "axial xducer compliance",
+            "Oscillation Force (Drive)": "oscillation force (drive)",
+            "Drive Position": "drive position",
+            "Oscillation strain": "oscillation strain",
+            "Oscillation strain (cmd)": "oscillation strain (cmd)",
+            "Oscillation stress": "oscillation stress",
+            "Step time": "step time",
+            "Time": "time",
+            "Status bits": "status bits",
+            "Status bits 2": "status bits 2",
+            "Normal transducer": "normal transducer",
+            "Transducer range": "transducer range",
+            "Storage modulus": "storage modulus",
+            "Loss modulus": "loss modulus",
+            "Phase angle": "phase angle",
+            "Strain ratio": "strain ratio",
+            "Pretension ratio": "pretension ratio",
+            "X-ducer stiffness": "x-ducer stiffness",
+            "Stiffness": "stiffness",
+            "Oscillation displacement (drive": "oscillation displacement (drive",
+            "Strain constant (linear)": "strain constant (linear)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Frequency": "frequency",
+            "Tan(delta)": "tan(delta)",
+            "Complex modulus": "complex modulus",
+            "Complex compliance": "complex compliance",
+            "Storage compliance": "storage compliance",
+            "Loss compliance": "loss compliance",
         },
-        'Sine Strain': {
-            'Run time': 'run time',
-            'Temperature': 'temperature',
-            'Torque': 'torque',
-            'Velocity': 'velocity',
-            'Displacement': 'displacement',
-            'Normal force': 'normal force',
-            'Axial force': 'axial force',
-            'Gap': 'gap',
-            'Delta length': 'delta length',
-            'TransXducerDisplacement': 'transducer displacement',
-            'TransientMotorTorque': 'transient motor torque',
-            'Strain': 'strain',
-            'Strain (step)': 'strain (step)',
-            'Stress': 'stress',
-            'Stress (step)': 'stress (step)',
-            'Step time': 'step time',
-            'Time': 'time',
-            'Shear rate': 'shear rate',
-            'Normal stress': 'normal stress',
-            'Strain constant': 'strain constant',
-            'Viscosity': 'viscosity',
-            'Torque (step)': 'torque (step)',
-            'Displacement (step)': 'displacement (step)',
-            'Date and time': 'date and time',
-            '1/temperature': '1/temperature',
-            'Normal stress coefficient': 'normal stress coefficient',
+        "Sine Strain": {
+            "Run time": "run time",
+            "Temperature": "temperature",
+            "Torque": "torque",
+            "Velocity": "velocity",
+            "Displacement": "displacement",
+            "Normal force": "normal force",
+            "Axial force": "axial force",
+            "Gap": "gap",
+            "Delta length": "delta length",
+            "TransXducerDisplacement": "transducer displacement",
+            "TransientMotorTorque": "transient motor torque",
+            "Strain": "strain",
+            "Strain (step)": "strain (step)",
+            "Stress": "stress",
+            "Stress (step)": "stress (step)",
+            "Step time": "step time",
+            "Time": "time",
+            "Shear rate": "shear rate",
+            "Normal stress": "normal stress",
+            "Strain constant": "strain constant",
+            "Viscosity": "viscosity",
+            "Torque (step)": "torque (step)",
+            "Displacement (step)": "displacement (step)",
+            "Date and time": "date and time",
+            "1/temperature": "1/temperature",
+            "Normal stress coefficient": "normal stress coefficient",
         },
     }
 
@@ -1237,8 +1244,7 @@ class TriosRheoReader(file_reader.FileReader):
         piblin.data.data_collections.measurement_set.MeasurementSet
             The set of measurements in the file.
         """
-        return super().data_from_filepath(filepath,
-                                          **read_kwargs)
+        return super().data_from_filepath(filepath, **read_kwargs)
 
     @staticmethod
     def __extract_wave_data_G2(file_content: List[str]) -> Dict:
@@ -1254,7 +1260,7 @@ class TriosRheoReader(file_reader.FileReader):
         -------
         Dict
             A dictionary with keys representing each wave step (e.g., 'Arbitrary Wave - 1') and values containing
-            detailed wave information such as rate, coefficients, and duration.        """
+            detailed wave information such as rate, coefficients, and duration."""
 
         def extract_wave_coefficients(wave_data: str) -> Dict:
             """
@@ -1262,9 +1268,9 @@ class TriosRheoReader(file_reader.FileReader):
             """
             wave_info = {}
             for wave_match in re.finditer(
-                    r"Wave (\d+)\s+(.+?)\s{2,}([\d.]+\s[a-zA-Z]+)",
-                    wave_data):
-                wave_num = 'wave ' + wave_match.group(1)
+                r"Wave (\d+)\s+(.+?)\s{2,}([\d.]+\s[a-zA-Z]+)", wave_data
+            ):
+                wave_num = "wave " + wave_match.group(1)
                 coef = wave_match.group(2)
                 duration = float(wave_match.group(3).split()[0])
 
@@ -1272,9 +1278,12 @@ class TriosRheoReader(file_reader.FileReader):
                 preprocessed_coef = re.sub(r"\^[0-9]+", "", coef)
 
                 wave_info[wave_num] = {
-                    'coef': [float(x) for x in re.findall(r"[+-]?(\d+\.\d+|\d+\.|\.\d+|\d+)", preprocessed_coef)],
-                    'duration (s)': duration,
-                    'wave form': coef.strip() if wave_num != 'wave 1' else '0'
+                    "coef": [
+                        float(x)
+                        for x in re.findall(r"[+-]?(\d+\.\d+|\d+\.|\.\d+|\d+)", preprocessed_coef)
+                    ],
+                    "duration (s)": duration,
+                    "wave form": coef.strip() if wave_num != "wave 1" else "0",
                 }
             return wave_info
 
@@ -1287,10 +1296,15 @@ class TriosRheoReader(file_reader.FileReader):
             # Extracting Repeat Count if available in the line
             repeat_match = re.search(r"Repeat Count: (\d+)", line)
             if repeat_match:
-                repeat_count = int(repeat_match.group(1)) + 1  # Adding 1 to account for the current wave
+                repeat_count = (
+                    int(repeat_match.group(1)) + 1
+                )  # Adding 1 to account for the current wave
 
-            match = re.search(r'Step (\d+)\s+Other-Arbitrary Wave :.*?rate (\d+)pts/s(.*?)Save images',
-                              line, flags=re.DOTALL)
+            match = re.search(
+                r"Step (\d+)\s+Other-Arbitrary Wave :.*?rate (\d+)pts/s(.*?)Save images",
+                line,
+                flags=re.DOTALL,
+            )
             if match:
                 rate = int(match.group(2))
                 wave_data = match.group(3)
@@ -1298,9 +1312,11 @@ class TriosRheoReader(file_reader.FileReader):
                 # Replicating wave data based on repeat_count
                 for _ in range(repeat_count):
                     wave_counter += 1  # Increment the counter for each replication
-                    step = 'Arbitrary Wave - ' + str(wave_counter)
-                    data[step] = {'rate (pts/s)': rate}
-                    data[step].update(extract_wave_coefficients(wave_data))  # Extract wave coefficients
+                    step = "Arbitrary Wave - " + str(wave_counter)
+                    data[step] = {"rate (pts/s)": rate}
+                    data[step].update(
+                        extract_wave_coefficients(wave_data)
+                    )  # Extract wave coefficients
 
                 # Resetting the repeat_count to default
                 repeat_count = 1
@@ -1312,9 +1328,17 @@ class TriosRheoReader(file_reader.FileReader):
                 ramp_rate_match = re.search(r"Ramp rate ([\d.]+) °C/min", line)
                 sampling_rate_match = re.search(r"Sampling rate (\d+)pts/s", line)
                 playback_match = re.search(r"Playback Interval ([\d.]+) s", line)
-                wave_data = re.search(r"Wave Equation (.*?) Playback Interval", line, flags=re.DOTALL)
+                wave_data = re.search(
+                    r"Wave Equation (.*?) Playback Interval", line, flags=re.DOTALL
+                )
 
-                if end_temp_match and ramp_rate_match and sampling_rate_match and playback_match and wave_data:
+                if (
+                    end_temp_match
+                    and ramp_rate_match
+                    and sampling_rate_match
+                    and playback_match
+                    and wave_data
+                ):
                     # Use end_temp of the previous wave if temp_match is None
                     initial_temp = int(temp_match.group(1)) if temp_match else previous_end_temp
                     end_temp = float(end_temp_match.group(1))
@@ -1332,13 +1356,15 @@ class TriosRheoReader(file_reader.FileReader):
 
                     # Calculate total wave duration
                     total_wave_duration = sum(
-                        float(match.group(1)) for match in
-                        re.finditer(r"Wave \d+\s+.*?\s+([\d.]+) s", wave_details)
+                        float(match.group(1))
+                        for match in re.finditer(r"Wave \d+\s+.*?\s+([\d.]+) s", wave_details)
                     )
 
                     # Total time includes ramp time and wave duration
                     total_time = ramp_time + total_wave_duration
-                    repetitions = int(total_time / playback_interval) + (1 if total_time % playback_interval else 0)
+                    repetitions = int(total_time / playback_interval) + (
+                        1 if total_time % playback_interval else 0
+                    )
 
                     # Extract individual wave information
                     wave_info = extract_wave_coefficients(wave_details)
@@ -1346,9 +1372,9 @@ class TriosRheoReader(file_reader.FileReader):
                     # Replicate wave data based on repetitions
                     for _ in range(repetitions):
                         wave_counter += 1  # Increment the counter for each wave
-                        step = 'Arbitrary Wave - ' + str(wave_counter)
+                        step = "Arbitrary Wave - " + str(wave_counter)
                         data[step] = {
-                            'rate (pts/s)': sampling_rate  # Populate with sampling rate
+                            "rate (pts/s)": sampling_rate  # Populate with sampling rate
                         }
                         data[step].update(wave_info)  # Populate wave details
 
@@ -1391,22 +1417,25 @@ class TriosRheoReader(file_reader.FileReader):
                 rate_match = re.search(r"Rate divider \d+ \((\d+) points/s approximately\)", line)
                 rate = int(rate_match.group(1)) if rate_match else None
 
-                wave_matches = re.finditer(
-                    r"Wave \d+\s+(.*?)\s+(\d+\.\d+) s", line)
+                wave_matches = re.finditer(r"Wave \d+\s+(.*?)\s+(\d+\.\d+) s", line)
                 for wave_match in wave_matches:
                     wave_equation = wave_match.group(1).strip()
                     # Preprocess wave equation to remove exponent parts before extracting coefficients
                     preprocessed_wave_equation = re.sub(r"\^[0-9]+", "", wave_equation)
                     duration = float(wave_match.group(2))
-                    coef = [float(x) for x in
-                            re.findall(r"[+-]?(\d+\.\d+|\d+\.|\.\d+|\d+)", preprocessed_wave_equation)]
+                    coef = [
+                        float(x)
+                        for x in re.findall(
+                            r"[+-]?(\d+\.\d+|\d+\.|\.\d+|\d+)", preprocessed_wave_equation
+                        )
+                    ]
                     wave_data[len(wave_data) + 1] = {
-                        'coef': coef,
-                        'duration (s)': duration,
-                        'wave form': wave_equation  # Keeping the original wave form for reference
+                        "coef": coef,
+                        "duration (s)": duration,
+                        "wave form": wave_equation,  # Keeping the original wave form for reference
                     }
 
-                original_waves.append({'rate (pts/s)': rate, 'waves': wave_data})
+                original_waves.append({"rate (pts/s)": rate, "waves": wave_data})
 
             repeat_match = re.search(r"Repeat Count: (\d+)", line)
             if repeat_match:
@@ -1417,10 +1446,10 @@ class TriosRheoReader(file_reader.FileReader):
         for _ in range(total_repeat_count + 1):
             for wave in original_waves:
                 wave_counter += 1
-                wave_id = f'Arbitrary Wave - {wave_counter}'
-                data[wave_id] = {'rate (pts/s)': wave['rate (pts/s)']}
-                for i, w in enumerate(wave['waves'].values(), 1):
-                    wave_num = f'wave {i}'
+                wave_id = f"Arbitrary Wave - {wave_counter}"
+                data[wave_id] = {"rate (pts/s)": wave["rate (pts/s)"]}
+                for i, w in enumerate(wave["waves"].values(), 1):
+                    wave_num = f"wave {i}"
                     # Copy the wave data to ensure uniqueness for each wave instance
                     data[wave_id][wave_num] = {key: value for key, value in w.items()}
 
@@ -1452,14 +1481,14 @@ class TriosRheoReader(file_reader.FileReader):
         notes_content = []
         project_found = False
         for line in file_content:
-            if 'Project' in line:
+            if "Project" in line:
                 project_found = True
                 continue
-            if 'File name' in line:  # stop reading lines for notes once 'File name' is encountered
+            if "File name" in line:  # stop reading lines for notes once 'File name' is encountered
                 break
             if project_found:
                 notes_content.append(line.strip())  # remove leading/trailing white spaces
-        notes_string = ' '.join(notes_content)
+        notes_string = " ".join(notes_content)
         return notes_string
 
     @classmethod
@@ -1476,7 +1505,9 @@ class TriosRheoReader(file_reader.FileReader):
         List of str
             The names of signals present in the file.
         """
-        signal_list_start_index = 1 + cls.__find_regex_position(file_contents, cls.__GEOMETRY_HEADER_REGEX)
+        signal_list_start_index = 1 + cls.__find_regex_position(
+            file_contents, cls.__GEOMETRY_HEADER_REGEX
+        )
         signal_y_names = []
         for line in file_contents[signal_list_start_index:]:
             matcher = re.match(cls.__GEOMETRY_HEADER_REGEX, line)
@@ -1488,11 +1519,9 @@ class TriosRheoReader(file_reader.FileReader):
         return signal_y_names
 
     @classmethod
-    def __parse_analysis_datasets(cls,
-                                  file_contents: List[str],
-                                  dataset_regexes: Dict[str, str]) -> \
-            Dict[str,
-                 zero_dimensional_dataset.ZeroDimensionalDataset]:
+    def __parse_analysis_datasets(
+        cls, file_contents: List[str], dataset_regexes: Dict[str, str]
+    ) -> Dict[str, zero_dimensional_dataset.ZeroDimensionalDataset]:
         """Parse any datasets from any existing analyses in the Trios DSC .txt file.
 
         Parameters
@@ -1505,18 +1534,19 @@ class TriosRheoReader(file_reader.FileReader):
 
         analysis_datasets = {}
         for dataset_name, dataset_regex in dataset_regexes.items():
-
             for line in file_contents:
                 matched = re.match(dataset_regex, line)
                 if matched is not None:
                     value = cls.__parse_str(matched.groups()[0].strip())
                     unit = cls.__parse_str(matched.groups()[1].strip())
 
-                    analysis_datasets[dataset_name] = \
-                        zero_dimensional_dataset.ZeroDimensionalDataset.create(value=value,
-                                                                               unit=unit,
-                                                                               label=dataset_name)
+                    analysis_datasets[dataset_name] = (
+                        zero_dimensional_dataset.ZeroDimensionalDataset.create(
+                            value=value, unit=unit, label=dataset_name
+                        )
+                    )
         return analysis_datasets
+
     @staticmethod
     def __extract_frequency_chirp_method(file_content: List[str]) -> Dict[str, Dict[str, float]]:
         """
@@ -1583,19 +1613,27 @@ class TriosRheoReader(file_reader.FileReader):
             # Parse baseline time (waiting time)
             m_baseline = re.search(r"Baseline\s+time\s+([\d.,]+)\s*s", chunk, flags=re.IGNORECASE)
             # Parse chirp total length
-            m_len = re.search(r"Total\s+length\s+of\s+chirp\s+([\d.,]+)\s*s", chunk, flags=re.IGNORECASE)
+            m_len = re.search(
+                r"Total\s+length\s+of\s+chirp\s+([\d.,]+)\s*s", chunk, flags=re.IGNORECASE
+            )
             # Parse frequency range "Frequency 0.1 Hz to 10.0 Hz"
-            m_freq = re.search(r"Frequency\s+([\d.,]+)\s*Hz\s*to\s*([\d.,]+)\s*Hz", chunk, flags=re.IGNORECASE)
+            m_freq = re.search(
+                r"Frequency\s+([\d.,]+)\s*Hz\s*to\s*([\d.,]+)\s*Hz", chunk, flags=re.IGNORECASE
+            )
             # Parse sampling rate " (976 points/s approximately)"
-            m_fs = re.search(r"\(([\d.,]+)\s*points/s\s*approximately\)", chunk, flags=re.IGNORECASE)
+            m_fs = re.search(
+                r"\(([\d.,]+)\s*points/s\s*approximately\)", chunk, flags=re.IGNORECASE
+            )
             # Parse tapering parameter "% 5.0"
-            m_taper = re.search(r"Tapering\s+parameter\s*%?\s*([\d.,]+)", chunk, flags=re.IGNORECASE)
+            m_taper = re.search(
+                r"Tapering\s+parameter\s*%?\s*([\d.,]+)", chunk, flags=re.IGNORECASE
+            )
 
             def _to_float(s: str) -> float:
                 s = (s or "").strip()
                 if s == "":
                     return float("nan")
-                s = s.replace("\u00A0", "").replace(" ", "")
+                s = s.replace("\u00a0", "").replace(" ", "")
                 if "," in s and "." in s:
                     s = s.replace(".", "").replace(",", ".")
                 elif "," in s:
@@ -1626,7 +1664,7 @@ class TriosRheoReader(file_reader.FileReader):
         if s == "":
             return np.nan
         # Remove spaces / non-breaking spaces (handles "1 234,56")
-        s = s.replace("\u00A0", "").replace(" ", "")
+        s = s.replace("\u00a0", "").replace(" ", "")
         # If both ',' and '.' appear, assume '.' are thousands sep and ',' is decimal
         if "," in s and "." in s:
             s = s.replace(".", "").replace(",", ".")
@@ -1713,9 +1751,9 @@ class TriosRheoReader(file_reader.FileReader):
         # ``wave_details`` empty and let ``OWChirpAnalysis`` raise a
         # targeted error if a caller later tries to analyse an Arbitrary
         # Wave step from an unknown instrument.
-        _DHR_SERIALS       = {"5343", "5332", "5333"}
-        _G2_SERIALS        = {"4020", "4010"}
-        _G3_SERIALS        = {"4060"}
+        _DHR_SERIALS = {"5343", "5332", "5333"}
+        _G2_SERIALS = {"4020", "4010"}
+        _G3_SERIALS = {"4060"}
         _DISCOVERY_SERIALS = {"0850"}
 
         serial_prefix = (
@@ -1765,9 +1803,9 @@ class TriosRheoReader(file_reader.FileReader):
         measurements = []
 
         for index in range(len(block) - 1):
-            check = re.match(r'Number of points\t\d+', file_contents[block[index] + 1])
+            check = re.match(r"Number of points\t\d+", file_contents[block[index] + 1])
             if check:
-                offset = 2         # change between 2 or 1 according to data file structure
+                offset = 2  # change between 2 or 1 according to data file structure
             else:
                 offset = 1
             method = file_contents[block[index]]
@@ -1779,90 +1817,159 @@ class TriosRheoReader(file_reader.FileReader):
 
             y_axis_index = []
 
-            if all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Amplitude sweep"]):
+            if all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Amplitude sweep"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Amplitude sweep"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Amplitude"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Amplitude"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Amplitude"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency sweep"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency sweep"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Frequency sweep"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Flow ramp"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Flow ramp"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Flow ramp"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Creep"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Creep"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Creep"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Creep (Recoverable)"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Creep (Recoverable)"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Creep (Recoverable)"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Arbitrary Wave"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Arbitrary Wave"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Arbitrary Wave"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Multiwave"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Multiwave"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Multiwave"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Stress Relaxation"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Stress Relaxation"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Stress Relaxation"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature ramp"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature ramp"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Temperature ramp"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature ramp ISO Force"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature ramp ISO Force"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Temperature ramp ISO Force"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature sweep"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature sweep"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Temperature sweep"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency DMA"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency DMA"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Frequency DMA"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Master Curve - shift factors"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Master Curve - shift factors"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Master Curve - shift factors"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency sweep (ARES-G3)"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency sweep (ARES-G3)"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Frequency sweep (ARES-G3)"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Master Curve - master curve"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Master Curve - master curve"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Master Curve - master curve"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Recovery"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Recovery"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Recovery"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep (Multifrequency)"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep (Multifrequency)"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep (Multifrequency)"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Axial"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Axial"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Axial"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Correlated"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Correlated"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Correlated"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency Chirp"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency Chirp"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Frequency Chirp"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Time"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Time"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Time"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Stress Control"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Stress Control"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Stress Control"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Flow Sweep"]):
+            elif all(
+                col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Flow Sweep"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Flow Sweep"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep DMA"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep DMA"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep DMA"]
 
-            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Sine Strain"]):
+            elif all(
+                col_label in column_labels
+                for col_label in cls.Y_VALUES_COLUMN_LABELS["Sine Strain"]
+            ):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Sine Strain"]
 
             else:
                 # Pull a human-friendly method label from the step line
                 method_line = file_contents[block[index]].strip()
-                if method_line.lower().startswith('step name'):
+                if method_line.lower().startswith("step name"):
                     try:
-                        method_label = method_line.split('\t', 1)[1].strip()
+                        method_label = method_line.split("\t", 1)[1].strip()
                     except Exception:
                         method_label = method_line
                 else:
@@ -1877,17 +1984,19 @@ class TriosRheoReader(file_reader.FileReader):
 
             variable_names = [select_col_labels[col_label] for col_label in select_col_labels]
             variable_names.append(cls.X_VALUES_COLUMN_LABEL)
-            variable_units = [unit_labels[column_labels.index(col_label)] for col_label in select_col_labels]
+            variable_units = [
+                unit_labels[column_labels.index(col_label)] for col_label in select_col_labels
+            ]
             variable_units.append(unit_labels[column_labels.index(cls.X_VALUES_COLUMN_LABEL)])
 
             dataset = []
             x_values = []
             y_values = []
 
-            #read "Number of points" from the header line just after "Step name"
+            # read "Number of points" from the header line just after "Step name"
             n_points = None
             npts_line = file_contents[block[index] + 1].strip()
-            m_npts = re.match(r'Number of points\s*\t\s*(\d+)', npts_line, re.IGNORECASE)
+            m_npts = re.match(r"Number of points\s*\t\s*(\d+)", npts_line, re.IGNORECASE)
             if m_npts:
                 n_points = int(m_npts.group(1))
 
@@ -1904,7 +2013,7 @@ class TriosRheoReader(file_reader.FileReader):
                     # skip blank lines just in case
                     continue
 
-                data = line.split('\t')
+                data = line.split("\t")
                 num_columns = len(data)
 
                 # x
@@ -1947,9 +2056,7 @@ class TriosRheoReader(file_reader.FileReader):
                 # yields ugly labels but keeps every measurement consistent
                 # so that a mixed-method file can be wrapped directly in an
                 # ``ExperimentSet``.
-                default_coords_mode = read_kwargs.get(
-                    "default_coords", "natural"
-                )
+                default_coords_mode = read_kwargs.get("default_coords", "natural")
                 if default_coords_mode == "legacy-temperature":
                     default_x = cls.X_VALUES_COLUMN_LABEL
                     default_y = cls.Y_VALUES_COLUMN_LABEL
@@ -1966,7 +2073,8 @@ class TriosRheoReader(file_reader.FileReader):
                     data_array_units=variable_units,
                     default_independent_name=default_x,
                     default_dependent_name=default_y,
-                    source='Converted .txt file from TRIOS .tri file')
+                    source="Converted .txt file from TRIOS .tri file",
+                )
 
                 datasets.append(composite_dataset)
 
@@ -1981,18 +2089,15 @@ class TriosRheoReader(file_reader.FileReader):
                         x_values=x_values,
                         x_name=column_labels[x_axis_index],
                         x_unit=unit_labels[x_axis_index],
-                        source='Converted .txt file from TRIOS .tri file'
+                        source="Converted .txt file from TRIOS .tri file",
                     )
                     datasets.append(dataset)
 
             measurements.append(
-                measurement.Measurement(
-                    datasets, conditions={"method": method}, details=details
-                )
+                measurement.Measurement(datasets, conditions={"method": method}, details=details)
             )
 
-        return measurement_set.MeasurementSet(measurements,
-                                              merge_redundant=False)
+        return measurement_set.MeasurementSet(measurements, merge_redundant=False)
 
     @staticmethod
     def __parse_str(value: str) -> Union[int, float, str, bool]:
@@ -2041,7 +2146,9 @@ class TriosRheoReader(file_reader.FileReader):
                 return cls.__parse_str(raw.strip())
 
     @classmethod
-    def __read_keyed_metadata(cls, file_contents: List[str], regex_dict=None) -> Dict[str, Union[int, float, str]]:
+    def __read_keyed_metadata(
+        cls, file_contents: List[str], regex_dict=None
+    ) -> Dict[str, Union[int, float, str]]:
         """Read all scalar metadata from a file.
 
         Parameters
@@ -2115,4 +2222,3 @@ class TriosRheoReader(file_reader.FileReader):
             raise FileParsingException(f"Could not locate regex in file.{regex}")
         else:
             return match
-

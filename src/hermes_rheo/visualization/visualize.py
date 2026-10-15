@@ -8,7 +8,7 @@ Two plot functions are provided:
 
 Both functions iterate over every measurement in an
 :py:class:`~piblin.data.ExperimentSet`, colour-coding each trace
-by temperature using a ``coolwarm`` colormap.  
+by temperature using a ``coolwarm`` colormap.
 
 Usage::
 
@@ -34,6 +34,7 @@ import numpy as np
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_temperature(measurement) -> Optional[float]:
     """Extract a scalar temperature label from a *Measurement*.
 
@@ -57,7 +58,7 @@ def _get_temperature(measurement) -> Optional[float]:
     """
     # 1. conditions
     for key, val in measurement.conditions.items():
-        if 'temperature' in key.lower():
+        if "temperature" in key.lower():
             try:
                 return float(val)
             except (TypeError, ValueError):
@@ -65,7 +66,7 @@ def _get_temperature(measurement) -> Optional[float]:
 
     # 2. details
     for key, val in measurement.details.items():
-        if 'temperature' in key.lower():
+        if "temperature" in key.lower():
             try:
                 return float(val)
             except (TypeError, ValueError):
@@ -73,10 +74,10 @@ def _get_temperature(measurement) -> Optional[float]:
 
     # 3. dataset variable
     for ds in measurement.datasets:
-        names = getattr(ds, '_data_array_names', [])
-        arrays = getattr(ds, '_data_arrays', [])
+        names = getattr(ds, "_data_array_names", [])
+        arrays = getattr(ds, "_data_arrays", [])
         for arr_name, arr in zip(names, arrays):
-            if arr_name.lower() == 'temperature':
+            if arr_name.lower() == "temperature":
                 try:
                     return float(np.nanmean(arr))
                 except Exception:
@@ -162,6 +163,7 @@ def _get_array_unit(dataset, array_name: str) -> str:
         The unit string, or an empty string when not found.
     """
     from hermes_rheo.visualization.units import get_unit
+
     return get_unit(dataset, array_name)
 
 
@@ -190,8 +192,7 @@ def _first_valid_dataset(experiment_set, dataset_index: int = 0):
     return None
 
 
-def _add_temperature_colorbar(fig, ax, temperatures, colormap,
-                              label='Temperature (°C)') -> bool:
+def _add_temperature_colorbar(fig, ax, temperatures, colormap, label="Temperature (°C)") -> bool:
     """Attach a temperature colorbar to *ax*; return *True* on success.
 
     Falls back (returns *False*) when fewer than two numeric temperatures
@@ -208,8 +209,9 @@ def _add_temperature_colorbar(fig, ax, temperatures, colormap,
     return True
 
 
-def _apply_temperature_key(fig, ax, temperatures, colormap, legend,
-                           legend_max, legend_title=None) -> None:
+def _apply_temperature_key(
+    fig, ax, temperatures, colormap, legend, legend_max, legend_title=None
+) -> None:
     """Add either a discrete legend or a temperature colorbar to *ax*.
 
     Parameters
@@ -229,24 +231,24 @@ def _apply_temperature_key(fig, ax, temperatures, colormap, legend,
     n_distinct = len(set(valid)) if valid else len(temperatures)
 
     if legend is True:
-        mode = 'legend'
-    elif legend is False or legend == 'colorbar':
-        mode = 'colorbar'
+        mode = "legend"
+    elif legend is False or legend == "colorbar":
+        mode = "colorbar"
     else:  # 'auto'
-        mode = 'colorbar' if n_distinct > legend_max else 'legend'
+        mode = "colorbar" if n_distinct > legend_max else "legend"
 
-    if mode == 'colorbar' and _add_temperature_colorbar(fig, ax, temperatures, colormap):
+    if mode == "colorbar" and _add_temperature_colorbar(fig, ax, temperatures, colormap):
         return
 
     legend_kwargs = dict(
         fontsize=10,
         title_fontsize=11,
         bbox_to_anchor=(1.05, 1),
-        loc='upper left',
+        loc="upper left",
         frameon=True,
     )
     if legend_title:
-        legend_kwargs['title'] = legend_title
+        legend_kwargs["title"] = legend_title
     ax.legend(**legend_kwargs)
 
 
@@ -254,14 +256,15 @@ def _apply_temperature_key(fig, ax, temperatures, colormap, legend,
 # Public plotting functions
 # ---------------------------------------------------------------------------
 
+
 def plot_vgp(
     experiment_set,
     ax: Optional[matplotlib.axes.Axes] = None,
     colormap=None,
-    x_name: str = 'complex modulus',
-    y_name: str = 'tan(delta)',
+    x_name: str = "complex modulus",
+    y_name: str = "tan(delta)",
     dataset_index: int = 0,
-    legend: Union[str, bool] = 'auto',
+    legend: Union[str, bool] = "auto",
     legend_max: int = 12,
     **kwargs,
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
@@ -359,14 +362,14 @@ def plot_vgp(
 
     # Resolve axis units from the first available dataset.
     _ref_ds = _first_valid_dataset(experiment_set, dataset_index)
-    x_unit = _get_array_unit(_ref_ds, x_name) if _ref_ds is not None else ''
-    y_unit = _get_array_unit(_ref_ds, y_name) if _ref_ds is not None else ''
+    x_unit = _get_array_unit(_ref_ds, x_name) if _ref_ds is not None else ""
+    y_unit = _get_array_unit(_ref_ds, y_name) if _ref_ds is not None else ""
 
-    x_label = f'|G*| ({x_unit})' if x_unit else '|G*|'
-    y_label = f'tan(δ) ({y_unit})' if y_unit else 'tan(δ)'
+    x_label = f"|G*| ({x_unit})" if x_unit else "|G*|"
+    y_label = f"tan(δ) ({y_unit})" if y_unit else "tan(δ)"
 
     # Default style: markers only, no connecting lines.
-    plot_style = {'linestyle': 'none', 'marker': 'o', 'markersize': 5}
+    plot_style = {"linestyle": "none", "marker": "o", "markersize": 5}
     plot_style.update(kwargs)
 
     plotted = 0
@@ -377,7 +380,7 @@ def plot_vgp(
         except (ValueError, AttributeError):
             continue  # dataset does not have the required variables
 
-        label = f'T = {temp:.3g} °C' if isinstance(temp, float) else f'T = {temp}'
+        label = f"T = {temp:.3g} °C" if isinstance(temp, float) else f"T = {temp}"
         ax.plot(x_vals, y_vals, label=label, color=get_color(temp), **plot_style)
         plotted += 1
 
@@ -388,15 +391,20 @@ def plot_vgp(
         )
 
     # --- axes formatting ---------------------------------------------------
-    ax.set_xscale('log')
+    ax.set_xscale("log")
     ax.set_xlabel(x_label, fontsize=13)
     ax.set_ylabel(y_label, fontsize=13)
-    ax.set_title('Van Gurp-Palmen plot', fontsize=14)
-    ax.tick_params(which='both', direction='in', top=True, right=True)
+    ax.set_title("Van Gurp-Palmen plot", fontsize=14)
+    ax.tick_params(which="both", direction="in", top=True, right=True)
 
     _apply_temperature_key(
-        fig, ax, temperatures, colormap, legend, legend_max,
-        legend_title='Temperature',
+        fig,
+        ax,
+        temperatures,
+        colormap,
+        legend,
+        legend_max,
+        legend_title="Temperature",
     )
     fig.tight_layout()
     return fig, ax
@@ -406,10 +414,10 @@ def plot_cole_cole(
     experiment_set,
     ax: Optional[matplotlib.axes.Axes] = None,
     colormap=None,
-    x_name: str = 'storage modulus',
-    y_name: str = 'loss modulus',
+    x_name: str = "storage modulus",
+    y_name: str = "loss modulus",
     dataset_index: int = 0,
-    legend: Union[str, bool] = 'auto',
+    legend: Union[str, bool] = "auto",
     legend_max: int = 12,
     **kwargs,
 ) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
@@ -492,14 +500,14 @@ def plot_cole_cole(
 
     # Resolve axis units from the first available dataset.
     _ref_ds = _first_valid_dataset(experiment_set, dataset_index)
-    x_unit = _get_array_unit(_ref_ds, x_name) if _ref_ds is not None else ''
-    y_unit = _get_array_unit(_ref_ds, y_name) if _ref_ds is not None else ''
+    x_unit = _get_array_unit(_ref_ds, x_name) if _ref_ds is not None else ""
+    y_unit = _get_array_unit(_ref_ds, y_name) if _ref_ds is not None else ""
 
     x_label = f"G' ({x_unit})" if x_unit else "G'"
     y_label = f"G'' ({y_unit})" if y_unit else "G''"
 
     # Default style: markers only, no connecting lines.
-    plot_style = {'linestyle': 'none', 'marker': 'o', 'markersize': 5}
+    plot_style = {"linestyle": "none", "marker": "o", "markersize": 5}
     plot_style.update(kwargs)
 
     plotted = 0
@@ -510,7 +518,7 @@ def plot_cole_cole(
         except (ValueError, AttributeError):
             continue
 
-        label = f'T = {temp:.3g} °C' if isinstance(temp, float) else f'T = {temp}'
+        label = f"T = {temp:.3g} °C" if isinstance(temp, float) else f"T = {temp}"
         ax.plot(x_vals, y_vals, label=label, color=get_color(temp), **plot_style)
         plotted += 1
 
@@ -521,16 +529,21 @@ def plot_cole_cole(
         )
 
     # --- axes formatting ---------------------------------------------------
-    ax.set_xscale('log')
-    ax.set_yscale('log')
+    ax.set_xscale("log")
+    ax.set_yscale("log")
     ax.set_xlabel(x_label, fontsize=13)
     ax.set_ylabel(y_label, fontsize=13)
     ax.set_title("Cole-Cole plot", fontsize=14)
-    ax.tick_params(which='both', direction='in', top=True, right=True)
+    ax.tick_params(which="both", direction="in", top=True, right=True)
 
     _apply_temperature_key(
-        fig, ax, temperatures, colormap, legend, legend_max,
-        legend_title='Temperature',
+        fig,
+        ax,
+        temperatures,
+        colormap,
+        legend,
+        legend_max,
+        legend_title="Temperature",
     )
     fig.tight_layout()
     return fig, ax

@@ -3,6 +3,7 @@
 Check that each linear-viscoelastic model produces measurements with the
 correct column names, units, metadata, and closed-form values.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -19,12 +20,14 @@ from hermes_rheo.synthetic import (
 
 # --- helper ----------------------------------------------------------------
 
+
 def _columns(meas):
     ds = meas.datasets[0]
     return dict(zip(ds.data_array_names, [np.asarray(a) for a in ds.data_arrays]))
 
 
 # --- Maxwell ---------------------------------------------------------------
+
 
 def test_maxwell_stress_relaxation_matches_closed_form():
     G0, tau = 1.0e5, 0.5
@@ -55,9 +58,7 @@ def test_maxwell_frequency_sweep_matches_closed_form():
     np.testing.assert_allclose(cols["angular frequency"], omega)
     np.testing.assert_allclose(cols["storage modulus"], gp_exp, rtol=1e-12)
     np.testing.assert_allclose(cols["loss modulus"], gpp_exp, rtol=1e-12)
-    np.testing.assert_allclose(
-        cols["complex modulus"], np.sqrt(gp_exp**2 + gpp_exp**2), rtol=1e-12
-    )
+    np.testing.assert_allclose(cols["complex modulus"], np.sqrt(gp_exp**2 + gpp_exp**2), rtol=1e-12)
     np.testing.assert_allclose(cols["tan(delta)"], gpp_exp / gp_exp, rtol=1e-12)
 
 
@@ -73,6 +74,7 @@ def test_maxwell_creep_matches_closed_form():
 
 
 # --- Multi-mode Maxwell ----------------------------------------------------
+
 
 def test_multi_mode_maxwell_stress_relaxation():
     g = np.array([1.0e5, 1.0e4])
@@ -104,6 +106,7 @@ def test_multi_mode_maxwell_requires_equal_lengths():
 
 # --- Kelvin-Voigt ----------------------------------------------------------
 
+
 def test_kelvin_voigt_creep_matches_closed_form():
     G, eta = 1.0e5, 5.0e4
     tau = eta / G
@@ -127,6 +130,7 @@ def test_kelvin_voigt_frequency_sweep():
 
 # --- Jeffreys --------------------------------------------------------------
 
+
 def test_jeffreys_frequency_sweep_matches_closed_form():
     G0, tau, eta_s = 1.0e5, 1.0, 10.0
     model = SyntheticRheometry.jeffreys(G0=G0, tau=tau, eta_s=eta_s)
@@ -142,6 +146,7 @@ def test_jeffreys_frequency_sweep_matches_closed_form():
 
 
 # --- factory ---------------------------------------------------------------
+
 
 def test_factory_experiment_set_generates_multiple_experiments():
     model = SyntheticRheometry.maxwell(G0=1e5, tau=1.0)

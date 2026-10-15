@@ -1,4 +1,5 @@
 """Tests for :mod:`hermes_rheo.visualization.units`."""
+
 from __future__ import annotations
 
 import numpy as np

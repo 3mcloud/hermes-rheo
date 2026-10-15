@@ -12,6 +12,7 @@ These tests lock in that:
    integrates with the existing master-curve and temperature-ramp
    transforms.
 """
+
 from __future__ import annotations
 
 import os
@@ -45,16 +46,13 @@ def datadir(tmpdir, request):
 # 1) Numerical equivalence with the deprecated RheoAnalysis alias
 # ---------------------------------------------------------------------------
 
+
 def test_owchirp_analysis_equivalent_to_rheo_analysis_on_owchirp_file(datadir):
     """OWChirpAnalysis and RheoAnalysis produce identical moduli on an OWChirp fixture."""
     filepath = datadir.join("test_owchirp_DHR.txt")
 
-    mset_new = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
-    mset_old = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    mset_new = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    mset_old = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
 
     processed_new = OWChirpAnalysis()(mset_new)
     with warnings.catch_warnings():
@@ -65,8 +63,13 @@ def test_owchirp_analysis_equivalent_to_rheo_analysis_on_owchirp_file(datadir):
     old_ds = processed_old.measurements[0].datasets[0]
 
     # Frequency-space datasets must be numerically identical
-    for name in ("angular frequency", "storage modulus", "loss modulus",
-                  "complex modulus", "tan(delta)"):
+    for name in (
+        "angular frequency",
+        "storage modulus",
+        "loss modulus",
+        "complex modulus",
+        "tan(delta)",
+    ):
         idx_new = new_ds.data_array_names.index(name)
         idx_old = old_ds.data_array_names.index(name)
         np.testing.assert_allclose(
@@ -81,12 +84,11 @@ def test_owchirp_analysis_equivalent_to_rheo_analysis_on_owchirp_file(datadir):
 # 2) Non-chirp measurements are pass-through
 # ---------------------------------------------------------------------------
 
+
 def test_owchirp_analysis_noop_on_temperature_ramp(datadir):
     """A temperature-ramp measurement is unchanged by OWChirpAnalysis."""
     filepath = datadir.join("test_temp_ramp.txt")
-    mset = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
     ds_before = mset.measurements[0].datasets[0]
     n_arrays_before = len(ds_before.data_arrays)
     x_name_before = ds_before.independent_variable_name
@@ -106,9 +108,7 @@ def test_owchirp_analysis_noop_on_temperature_ramp(datadir):
 def test_owchirp_analysis_noop_on_creep(datadir):
     """A creep measurement is unchanged by OWChirpAnalysis."""
     filepath = datadir.join("test_creep_apac.txt")
-    mset = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
     ds_before = mset.measurements[1].datasets[0]  # first Creep step
     x_before = ds_before.independent_variable_name
     y_before = ds_before.dependent_variable_name
@@ -124,6 +124,7 @@ def test_owchirp_analysis_noop_on_creep(datadir):
 # 3) DeprecationWarning on RheoAnalysis construction
 # ---------------------------------------------------------------------------
 
+
 def test_rheo_analysis_emits_deprecation_warning():
     """Constructing RheoAnalysis emits a single DeprecationWarning."""
     with warnings.catch_warnings(record=True) as caught:
@@ -138,9 +139,7 @@ def test_rheo_analysis_emits_deprecation_warning():
 def test_rheo_analysis_still_works_end_to_end(datadir):
     """RheoAnalysis(...) forwards to OWChirpAnalysis and processes an OWChirp fixture."""
     filepath = datadir.join("test_owchirp_DHR.txt")
-    mset = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         processed = RheoAnalysis()(mset)
@@ -151,12 +150,11 @@ def test_rheo_analysis_still_works_end_to_end(datadir):
 # 4) Pipeline integration
 # ---------------------------------------------------------------------------
 
+
 def test_owchirp_analysis_composes_with_master_curve(datadir):
     """OWChirpAnalysis + AutomatedMasterCurve pipeline works on OWChirp TTS data."""
     filepath = datadir.join("test_owchirp_tts_ARES.txt")
-    data = TriosRheoReader().data_from_filepath(
-        str(filepath), create_composite_datasets=True
-    )
+    data = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
     pipeline = OWChirpAnalysis() + AutomatedMasterCurve(
         state="temperature",
         y="storage modulus",
@@ -171,6 +169,7 @@ def test_owchirp_analysis_composes_with_master_curve(datadir):
 # ---------------------------------------------------------------------------
 # 5) _canonicalise_method / helper unit tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "raw,expected",

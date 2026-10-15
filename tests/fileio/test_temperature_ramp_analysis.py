@@ -2,6 +2,7 @@
 
 Fixture file: test_temp_ramp.txt  (one temperature-ramp step, -40 °C → ~200 °C)
 """
+
 import os
 
 import numpy as np
@@ -20,9 +21,7 @@ _USE_TEMPS = [0.0, 50.0, 100.0, 150.0]
 
 def _run(datadir, steps_to_merge=None, use_temps=None):
     filepath = datadir.join("test_temp_ramp.txt")
-    mset = TriosRheoReader().data_from_filepath(
-        filepath=filepath, create_composite_datasets=True
-    )
+    mset = TriosRheoReader().data_from_filepath(filepath=filepath, create_composite_datasets=True)
     exp = ExperimentSet(mset.measurements)
     transform = TemperatureRampAnalysis(
         steps_to_merge=steps_to_merge,
@@ -35,6 +34,7 @@ def _run(datadir, steps_to_merge=None, use_temps=None):
 # ---------------------------------------------------------------------------
 # Result types and attributes
 # ---------------------------------------------------------------------------
+
 
 def test_result_types(datadir):
     """transform.result is a TemperatureRampResult with the correct attribute types."""
@@ -53,6 +53,7 @@ def test_result_types(datadir):
 # Merged dataset
 # ---------------------------------------------------------------------------
 
+
 def test_dataset_has_temperature_sorted_ascending(datadir):
     """Merged dataset contains a temperature variable sorted in ascending order."""
     transform, _ = _run(datadir, steps_to_merge=["Temperature Ramp"])
@@ -68,6 +69,7 @@ def test_dataset_has_temperature_sorted_ascending(datadir):
 # Tg detection
 # ---------------------------------------------------------------------------
 
+
 def test_tg_within_temperature_range(datadir):
     """Detected Tg lies within the measured temperature range."""
     transform, _ = _run(datadir, steps_to_merge=["Temperature Ramp"])
@@ -82,6 +84,7 @@ def test_tg_within_temperature_range(datadir):
 # Extraction at use_temps
 # ---------------------------------------------------------------------------
 
+
 def test_extracted_dataset_size(datadir):
     """Extracted dataset has one point per requested temperature."""
     transform, _ = _run(datadir, steps_to_merge=["Temperature Ramp"], use_temps=_USE_TEMPS)
@@ -92,6 +95,7 @@ def test_extracted_dataset_size(datadir):
 # ---------------------------------------------------------------------------
 # No matching steps (edge case)
 # ---------------------------------------------------------------------------
+
 
 def test_no_matching_steps_returns_none(datadir):
     """When no steps match, tg and both datasets are None."""
@@ -105,6 +109,7 @@ def test_no_matching_steps_returns_none(datadir):
 # ---------------------------------------------------------------------------
 # Excel export
 # ---------------------------------------------------------------------------
+
 
 def test_to_excel(datadir, tmp_path):
     """to_excel() creates a workbook with 'Temperature Series' and 'Extracted Values' sheets."""

@@ -138,8 +138,11 @@ def plot_relaxation_spectrum(
         s = np.asarray(result.s, dtype=float)
         h = np.asarray(result.h, dtype=float)
         (line,) = ax.plot(
-            s, h,
-            "-", color=color_continuous, linewidth=2,
+            s,
+            h,
+            "-",
+            color=color_continuous,
+            linewidth=2,
             label=label_continuous or f"continuous ({result.domain})",
         )
         if show_uncertainty and getattr(result, "dH", None) is not None:
@@ -149,8 +152,12 @@ def plot_relaxation_spectrum(
                 h_low = np.exp(np.log(h) - dH)
                 h_high = np.exp(np.log(h) + dH)
                 ax.fill_between(
-                    s, h_low, h_high,
-                    color=color_continuous, alpha=0.2, linewidth=0,
+                    s,
+                    h_low,
+                    h_high,
+                    color=color_continuous,
+                    alpha=0.2,
+                    linewidth=0,
                     label=r"$\pm dH$",
                 )
         plotted_any = True
@@ -159,14 +166,16 @@ def plot_relaxation_spectrum(
         tau = np.asarray(result.tau, dtype=float)
         g = np.asarray(result.g, dtype=float)
         markerline, stemlines, baseline = ax.stem(
-            tau, g,
+            tau,
+            g,
             linefmt="-",
             markerfmt="o",
             basefmt=" ",
             label=label_discrete or f"discrete N={tau.size}",
         )
-        plt.setp(markerline, markerfacecolor=color_discrete,
-                 markeredgecolor=color_discrete, markersize=7)
+        plt.setp(
+            markerline, markerfacecolor=color_discrete, markeredgecolor=color_discrete, markersize=7
+        )
         plt.setp(stemlines, color=color_discrete, linewidth=1.5)
         plotted_any = True
 
@@ -224,10 +233,7 @@ def plot_spectrum_diagnostics(
 
     # --- L-curve
     ax_l = axes[0]
-    if (
-        getattr(result, "rho", None) is not None
-        and getattr(result, "eta", None) is not None
-    ):
+    if getattr(result, "rho", None) is not None and getattr(result, "eta", None) is not None:
         rho = np.asarray(result.rho, dtype=float)
         eta = np.asarray(result.eta, dtype=float)
         ax_l.plot(rho, eta, "-o", color="tab:blue", markersize=4)
@@ -236,8 +242,14 @@ def plot_spectrum_diagnostics(
         if getattr(result, "lam", None) is not None:
             lam = np.asarray(result.lam, dtype=float)
             idx = int(np.argmin(np.abs(np.log(lam) - np.log(lam_C))))
-            ax_l.plot([rho[idx]], [eta[idx]], "o", color="tab:red", markersize=9,
-                      label=fr"$\lambda_C = {lam_C:.2e}$")
+            ax_l.plot(
+                [rho[idx]],
+                [eta[idx]],
+                "o",
+                color="tab:red",
+                markersize=9,
+                label=rf"$\lambda_C = {lam_C:.2e}$",
+            )
             ax_l.legend(loc="best", frameon=False)
         ax_l.set_xscale("log")
         ax_l.set_yscale("log")
@@ -251,15 +263,16 @@ def plot_spectrum_diagnostics(
 
     # --- Log evidence
     ax_p = axes[1]
-    if (
-        getattr(result, "lam", None) is not None
-        and getattr(result, "log_P", None) is not None
-    ):
+    if getattr(result, "lam", None) is not None and getattr(result, "log_P", None) is not None:
         lam = np.asarray(result.lam, dtype=float)
         log_P = np.asarray(result.log_P, dtype=float)
         ax_p.semilogx(lam, log_P, "-o", color="tab:green", markersize=4)
-        ax_p.axvline(float(result.lam_C), color="tab:red", linestyle="--",
-                     label=fr"$\lambda_C = {result.lam_C:.2e}$")
+        ax_p.axvline(
+            float(result.lam_C),
+            color="tab:red",
+            linestyle="--",
+            label=rf"$\lambda_C = {result.lam_C:.2e}$",
+        )
         ax_p.set_xlabel(r"$\lambda$")
         ax_p.set_ylabel(r"$\log p(\lambda)$")
         ax_p.set_title("Bayesian evidence")
@@ -279,8 +292,14 @@ def plot_spectrum_diagnostics(
         aic = np.asarray(result.AIC_bst, dtype=float)
         ax_a.plot(wt, aic, "-o", color="tab:purple", markersize=4)
         idx = int(np.argmin(aic))
-        ax_a.plot([wt[idx]], [aic[idx]], "o", color="tab:red", markersize=9,
-                  label=fr"$N_\mathrm{{opt}} = {int(result.N_opt)}$")
+        ax_a.plot(
+            [wt[idx]],
+            [aic[idx]],
+            "o",
+            color="tab:red",
+            markersize=9,
+            label=rf"$N_\mathrm{{opt}} = {int(result.N_opt)}$",
+        )
         ax_a.set_xlabel(r"base-weight distance")
         ax_a.set_ylabel("AIC")
         ax_a.set_title(f"AIC scan (domain={result.domain})")

@@ -30,6 +30,7 @@ References
    Original introduction of the three-parameter Jeffreys constitutive
    equation used in :class:`JeffreysModel`.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -125,9 +126,7 @@ class RheologyModel(ABC):
         """
 
     @abstractmethod
-    def frequency_sweep(
-        self, omega: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Return the oscillatory moduli :math:`(G'(\\omega), G''(\\omega))`.
 
         Parameters
@@ -278,7 +277,7 @@ class RheologyModel(ABC):
         gp, gpp = self.frequency_sweep(omega)
         gp = np.asarray(gp, dtype=float)
         gpp = np.asarray(gpp, dtype=float)
-        complex_modulus = np.sqrt(gp ** 2 + gpp ** 2)
+        complex_modulus = np.sqrt(gp**2 + gpp**2)
         # Avoid ``0/0`` when both moduli vanish (e.g. Kelvin-Voigt at omega=0).
         with np.errstate(divide="ignore", invalid="ignore"):
             tan_delta = np.where(gp != 0.0, gpp / gp, np.nan)
@@ -407,8 +406,8 @@ class MaxwellModel(RheologyModel):
     def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         w = np.asarray(omega, dtype=float)
         wt = w * self.tau
-        denom = 1.0 + wt ** 2
-        return self.G0 * (wt ** 2) / denom, self.G0 * wt / denom
+        denom = 1.0 + wt**2
+        return self.G0 * (wt**2) / denom, self.G0 * wt / denom
 
     def creep(self, t: np.ndarray) -> np.ndarray:
         t_arr = np.asarray(t, dtype=float)
@@ -516,16 +515,14 @@ class MultiModeMaxwellModel(RheologyModel):
     def stress_relaxation(self, t: np.ndarray) -> np.ndarray:
         t_arr = np.asarray(t, dtype=float).ravel()
         # Broadcast: (n_t, 1) * (n_modes,) -> (n_t, n_modes)
-        contributions = self.g[None, :] * np.exp(
-            -t_arr[:, None] / self.tau[None, :]
-        )
+        contributions = self.g[None, :] * np.exp(-t_arr[:, None] / self.tau[None, :])
         return contributions.sum(axis=1) + self.G_inf
 
     def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         w = np.asarray(omega, dtype=float).ravel()
         wt = w[:, None] * self.tau[None, :]
-        denom = 1.0 + wt ** 2
-        gp = (self.g[None, :] * wt ** 2 / denom).sum(axis=1) + self.G_inf
+        denom = 1.0 + wt**2
+        gp = (self.g[None, :] * wt**2 / denom).sum(axis=1) + self.G_inf
         gpp = (self.g[None, :] * wt / denom).sum(axis=1)
         return gp, gpp
 
@@ -697,8 +694,8 @@ class JeffreysModel(RheologyModel):
     def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         w = np.asarray(omega, dtype=float)
         wt = w * self.tau
-        denom = 1.0 + wt ** 2
-        gp = self.G0 * (wt ** 2) / denom
+        denom = 1.0 + wt**2
+        gp = self.G0 * (wt**2) / denom
         gpp = self.G0 * wt / denom + self.eta_s * w
         return gp, gpp
 

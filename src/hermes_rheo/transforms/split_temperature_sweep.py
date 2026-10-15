@@ -39,12 +39,12 @@ class SplitTemperatureSweep(MeasurementSetTransform):
     """
 
     def __init__(
-            self,
-            n_steps: int | None = None,
-            temp_step_interval: List[float] | None = None,
-            temp_tolerance: float = 1.0,
-            *args,
-            **kwargs
+        self,
+        n_steps: int | None = None,
+        temp_step_interval: List[float] | None = None,
+        temp_tolerance: float = 1.0,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.n_steps = n_steps
@@ -59,8 +59,8 @@ class SplitTemperatureSweep(MeasurementSetTransform):
 
     @staticmethod
     def _detect_temp_step(
-            dataset: one_d_composite_dataset.OneDimensionalCompositeDataset,
-            temp_tolerance: float,
+        dataset: one_d_composite_dataset.OneDimensionalCompositeDataset,
+        temp_tolerance: float,
     ) -> float:
         """Infer the nominal temperature step size from a dataset.
 
@@ -90,10 +90,10 @@ class SplitTemperatureSweep(MeasurementSetTransform):
         return float(round(raw * 2) / 2)
 
     def split_by_temperature(
-            self,
-            dataset: one_d_composite_dataset.OneDimensionalCompositeDataset,
-            temp_step: float,
-            temp_tolerance: float
+        self,
+        dataset: one_d_composite_dataset.OneDimensionalCompositeDataset,
+        temp_step: float,
+        temp_tolerance: float,
     ) -> List[Dict[str, np.ndarray]]:
         """
         Core splitting logic for one composite dataset.
@@ -113,9 +113,7 @@ class SplitTemperatureSweep(MeasurementSetTransform):
             all_data[n] = all_data[n][order]
 
         temps = all_data["temperature"]
-        sweeps: Dict[float, Dict[str, List[float]]] = defaultdict(
-            lambda: {n: [] for n in names}
-        )
+        sweeps: Dict[float, Dict[str, List[float]]] = defaultdict(lambda: {n: [] for n in names})
         start = 0
 
         # detect block boundaries
@@ -143,10 +141,10 @@ class SplitTemperatureSweep(MeasurementSetTransform):
                 arr = np.array(block[n])[o]
                 # Pa → MPa for moduli/stress
                 if n in (
-                        "storage modulus",
-                        "loss modulus",
-                        "complex modulus",
-                        "oscillation stress",
+                    "storage modulus",
+                    "loss modulus",
+                    "complex modulus",
+                    "oscillation stress",
                 ):
                     if dataset.data_array_units[idx[n]] == "Pa":
                         arr = arr / 1e6
@@ -189,12 +187,16 @@ class SplitTemperatureSweep(MeasurementSetTransform):
 
                 # update Pa → MPa in units
                 for j, n in enumerate(names):
-                    if n in (
+                    if (
+                        n
+                        in (
                             "storage modulus",
                             "loss modulus",
                             "complex modulus",
                             "oscillation stress",
-                    ) and units[j] == "Pa":
+                        )
+                        and units[j] == "Pa"
+                    ):
                         units[j] = "MPa"
 
                 T = blk["nominal_temperature"]

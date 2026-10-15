@@ -73,6 +73,7 @@ import piblin.data.data_collections.experiment_set as experiment_set
 # Result container
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RecoveryRheologyResult:
     """Container for all outputs of a recovery-rheology analysis."""
@@ -126,16 +127,18 @@ class RecoveryRheologyResult:
         sheets: Dict[str, pd.DataFrame] = {}
 
         if self.decomp_waveform is not None:
-            sheets["transient data"] = pd.DataFrame({
-                "t": self.decomp_waveform[:, 0],
-                "total_strain": self.decomp_waveform[:, 1],
-                "unrec_strain": self.decomp_waveform[:, 2],
-                "rec_strain": self.decomp_waveform[:, 3],
-                "total_rate": self.decomp_waveform[:, 4],
-                "unrec_rate": self.decomp_waveform[:, 5],
-                "rec_rate": self.decomp_waveform[:, 6],
-                "stress": self.decomp_waveform[:, 7],
-            })
+            sheets["transient data"] = pd.DataFrame(
+                {
+                    "t": self.decomp_waveform[:, 0],
+                    "total_strain": self.decomp_waveform[:, 1],
+                    "unrec_strain": self.decomp_waveform[:, 2],
+                    "rec_strain": self.decomp_waveform[:, 3],
+                    "total_rate": self.decomp_waveform[:, 4],
+                    "unrec_rate": self.decomp_waveform[:, 5],
+                    "rec_rate": self.decomp_waveform[:, 6],
+                    "stress": self.decomp_waveform[:, 7],
+                }
+            )
 
         if self.mod_fft is not None and self.trad_mod is not None:
             # mod_fft is the windowed average [G'_FT, G''_FT]
@@ -156,7 +159,6 @@ class RecoveryRheologyResult:
                 # FFT moduli
                 "G'_FT": Gp_FT,
                 "G''_FT": Gpp_FT,
-
                 # Energy-based (traditional) moduli – normalised by
                 # total-strain amplitude (MATLAB: mod_trad)
                 "trad_G'_tot": float(trad[0]),
@@ -165,7 +167,6 @@ class RecoveryRheologyResult:
                 "trad_G''_tot": float(trad[3]),
                 "trad_G''_unrec": float(trad[4]),
                 "trad_G''_rec": float(trad[5]),
-
                 # Raw moduli – each component normalised by its own
                 # amplitude (MATLAB: mod_raw)
                 "raw_G'_tot": float(raw[0]),
@@ -174,7 +175,6 @@ class RecoveryRheologyResult:
                 "raw_G''_tot": float(raw[3]),
                 "raw_G''_unrec": float(raw[4]),
                 "raw_G''_rec": float(raw[5]),
-
                 # Amplitudes (fraction for strains, 1/s for rates, Pa for stress)
                 "amp_total_strain": float(amp[0]),
                 "amp_unrec_strain": float(amp[1]),
@@ -183,7 +183,6 @@ class RecoveryRheologyResult:
                 "amp_unrec_rate": float(amp[4]),
                 "amp_rec_rate": float(amp[5]),
                 "amp_stress": float(amp[6]),
-
                 # Analysis metadata
                 "n_halfp_auto": meta.get("n_halfp_auto", np.nan),
                 "n_halfp_est": meta.get("n_halfp_est", np.nan),
@@ -197,8 +196,14 @@ class RecoveryRheologyResult:
         if self.method == "step":
             sheets["step_results"] = pd.DataFrame(
                 self.recov_anal_data,
-                columns=["time", "total_strain", "total_stress",
-                          "rec_time", "unrec_strain", "rec_strain"],
+                columns=[
+                    "time",
+                    "total_strain",
+                    "total_stress",
+                    "rec_time",
+                    "unrec_strain",
+                    "rec_strain",
+                ],
             )
 
         try:
@@ -243,22 +248,24 @@ class RecoveryRheologyResult:
         f_idx = np.arange(0, n_halfp + 1)
         r_idx = np.arange(n_halfp, min(2 * n_halfp + 1, decomp.shape[0]))
 
-        titles = ["Total strain vs Stress",
-                   "Unrecoverable strain vs Stress",
-                   "Recoverable strain vs Stress"]
-        labels = [("Total (forward)", "Total (reverse)"),
-                  ("Unrecoverable (forward)", "Unrecoverable (reverse)"),
-                  ("Recoverable (forward)", "Recoverable (reverse)")]
+        titles = [
+            "Total strain vs Stress",
+            "Unrecoverable strain vs Stress",
+            "Recoverable strain vs Stress",
+        ]
+        labels = [
+            ("Total (forward)", "Total (reverse)"),
+            ("Unrecoverable (forward)", "Unrecoverable (reverse)"),
+            ("Recoverable (forward)", "Recoverable (reverse)"),
+        ]
         cols = [1, 2, 3]
         color_pairs = [("C0", "C1"), ("C2", "C3"), ("C4", "C5")]
 
         figs, axes = [], []
         for col, title, (lf, lr), (cf, cr) in zip(cols, titles, labels, color_pairs):
             fig, ax = plt.subplots(figsize=figsize)
-            ax.plot(decomp[f_idx, col], decomp[f_idx, 7],
-                    lw=1.5, color=cf, label=lf)
-            ax.plot(decomp[r_idx, col], decomp[r_idx, 7],
-                    lw=1.5, color=cr, label=lr)
+            ax.plot(decomp[f_idx, col], decomp[f_idx, 7], lw=1.5, color=cf, label=lf)
+            ax.plot(decomp[r_idx, col], decomp[r_idx, 7], lw=1.5, color=cr, label=lr)
             ax.set_xlabel("Strain [-]")
             ax.set_ylabel("Stress [Pa]")
             ax.set_title(title)
@@ -291,9 +298,9 @@ class RecoveryRheologyResult:
         t = data[:, 0]
 
         fig, ax = plt.subplots(figsize=figsize)
-        ax.plot(t, data[:, 4], 'o-', color="C0", label="Unrecoverable strain")
-        ax.plot(t, data[:, 5], 's-', color="C1", label="Recoverable strain")
-        ax.plot(t, data[:, 1], '^--', color="C2", alpha=0.5, label="Total strain")
+        ax.plot(t, data[:, 4], "o-", color="C0", label="Unrecoverable strain")
+        ax.plot(t, data[:, 5], "s-", color="C1", label="Recoverable strain")
+        ax.plot(t, data[:, 1], "^--", color="C2", alpha=0.5, label="Total strain")
         ax.set_xlabel("Experiment Time [s]")
         ax.set_ylabel("Strain [-]")
         ax.legend(frameon=False)
@@ -388,16 +395,14 @@ class RecoveryRheologyResult:
 
             sign_label = "+" if c["sign"] > 0 else "−"
             label = f"t_creep = {ct:.1f} s ({sign_label})"
-            ax.plot(rec_t_shifted, gamma_rec_transient, color=color,
-                    lw=1.2, alpha=0.8, label=label)
+            ax.plot(rec_t_shifted, gamma_rec_transient, color=color, lw=1.2, alpha=0.8, label=label)
 
         if logx:
             ax.set_xscale("log")
         ax.set_xlabel("Recovery time [s]")
         ax.set_ylabel("Recoverable strain [-]")
         ax.set_title("Transient recoverable strain vs recovery time")
-        ax.legend(fontsize="small", frameon=False, loc="upper left",
-                  bbox_to_anchor=(1.02, 1.0))
+        ax.legend(fontsize="small", frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1.0))
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         return fig, ax
@@ -406,6 +411,7 @@ class RecoveryRheologyResult:
 # ---------------------------------------------------------------------------
 # Main transform class
 # ---------------------------------------------------------------------------
+
 
 class RecoveryRheology(MeasurementSetTransform):
     """
@@ -473,9 +479,7 @@ class RecoveryRheology(MeasurementSetTransform):
         elif self.method in ("step", "step strain", "creep"):
             rr_result = self._run_step(target)
         else:
-            raise ValueError(
-                f"method must be 'oscillatory' or 'step', got '{self.method}'"
-            )
+            raise ValueError(f"method must be 'oscillatory' or 'step', got '{self.method}'")
 
         # Store result on the transform instance for easy access
         self.result = rr_result
@@ -604,9 +608,11 @@ class RecoveryRheology(MeasurementSetTransform):
         # ----------------------------------------------------------
         omega_user = self.omega  # may be None
 
-        (avg_data, recov_anal_data, mod_tot_data,
-         num_pairs, omega_list) = self._ocr_rec_anal_mcr(
-            data_in, num_meas, size_meas, self.n_osc,
+        (avg_data, recov_anal_data, mod_tot_data, num_pairs, omega_list) = self._ocr_rec_anal_mcr(
+            data_in,
+            num_meas,
+            size_meas,
+            self.n_osc,
             omega_override=omega_user,
         )
 
@@ -635,8 +641,7 @@ class RecoveryRheology(MeasurementSetTransform):
         else:
             finite_mask = np.isfinite(omega_list)
             omega_energy = (
-                float(np.nanmedian(omega_list[finite_mask]))
-                if finite_mask.any() else 1.0
+                float(np.nanmedian(omega_list[finite_mask])) if finite_mask.any() else 1.0
             )
             if not np.isfinite(omega_energy) or omega_energy <= 0:
                 omega_energy = 1.0
@@ -706,7 +711,9 @@ class RecoveryRheology(MeasurementSetTransform):
         stress_arr = np.asarray(ds.data_arrays[idx_stress], dtype=float)
 
         # Check if strain is in % and convert
-        strain_unit = ds.data_array_units[idx_strain] if idx_strain < len(ds.data_array_units) else ""
+        strain_unit = (
+            ds.data_array_units[idx_strain] if idx_strain < len(ds.data_array_units) else ""
+        )
         if strain_unit == "%":
             strain_arr = strain_arr * 0.01
 
@@ -719,12 +726,14 @@ class RecoveryRheology(MeasurementSetTransform):
             interval_arr = np.ones_like(time_arr)
 
         n = min(len(time_arr), len(strain_arr), len(stress_arr), len(interval_arr))
-        return np.column_stack([
-            interval_arr[:n],
-            time_arr[:n],
-            strain_arr[:n],
-            stress_arr[:n],
-        ])
+        return np.column_stack(
+            [
+                interval_arr[:n],
+                time_arr[:n],
+                strain_arr[:n],
+                stress_arr[:n],
+            ]
+        )
 
     # ------------------------------------------------------------------
     # Stage 2 – pairing + FFT  (MATLAB: ocr_rec_anal_mcr_modify)
@@ -768,17 +777,15 @@ class RecoveryRheology(MeasurementSetTransform):
         omega_list = np.full(num_pairs, np.nan, dtype=float)
 
         use_fixed_omega = (
-            omega_override is not None
-            and np.isfinite(omega_override)
-            and omega_override > 0
+            omega_override is not None and np.isfinite(omega_override) and omega_override > 0
         )
 
         print(f"num_meas  = {num_meas}")
         print(f"num_pairs = {num_pairs}")
 
         for ii in range(num_pairs):
-            meas_f = 2 * ii          # forward (0-based)
-            meas_r = 2 * ii + 1      # reverse (0-based)
+            meas_f = 2 * ii  # forward (0-based)
+            meas_r = 2 * ii + 1  # reverse (0-based)
             has_reverse = meas_r < num_meas
 
             if has_reverse:
@@ -786,9 +793,7 @@ class RecoveryRheology(MeasurementSetTransform):
                 # interval & time from forward
                 avg_data[:N, 0:2, ii] = data_in[:N, 0:2, meas_f]
                 # strain & stress averaged as (forward - reverse) / 2
-                avg_data[:N, 2:4, ii] = (
-                    data_in[:N, 2:4, meas_f] - data_in[:N, 2:4, meas_r]
-                ) / 2.0
+                avg_data[:N, 2:4, ii] = (data_in[:N, 2:4, meas_f] - data_in[:N, 2:4, meas_r]) / 2.0
             else:
                 N = int(size_meas[meas_f])
                 avg_data[:N, :, ii] = data_in[:N, :, meas_f]
@@ -802,8 +807,7 @@ class RecoveryRheology(MeasurementSetTransform):
             final_osc_idx = np.where(avg_block[:, 0] == (n_int - 2))[0]
             if final_osc_idx.size == 0:
                 warnings.warn(
-                    f"Pair {ii + 1}: final oscillation interval not found. "
-                    f"Skipping pair."
+                    f"Pair {ii + 1}: final oscillation interval not found. Skipping pair."
                 )
                 continue
 
@@ -854,38 +858,44 @@ class RecoveryRheology(MeasurementSetTransform):
                 continue
 
             # MATLAB: strain_AB1 = [2*real(fft[h+1])/n, -2*imag(fft[h+1])/n]
-            strain_AB1 = np.array([
-                2.0 * np.real(Gg[h]) / n_f,
-                -2.0 * np.imag(Gg[h]) / n_f,
-            ])
-            stress_AB1 = np.array([
-                2.0 * np.real(Gs[h]) / n_f,
-                -2.0 * np.imag(Gs[h]) / n_f,
-            ])
+            strain_AB1 = np.array(
+                [
+                    2.0 * np.real(Gg[h]) / n_f,
+                    -2.0 * np.imag(Gg[h]) / n_f,
+                ]
+            )
+            stress_AB1 = np.array(
+                [
+                    2.0 * np.real(Gs[h]) / n_f,
+                    -2.0 * np.imag(Gs[h]) / n_f,
+                ]
+            )
 
             if abs(strain_AB1[1]) < np.finfo(float).eps:
                 warnings.warn(
-                    f"Pair {ii + 1}: strain_AB1[1] too small for stable "
-                    f"modulus calculation."
+                    f"Pair {ii + 1}: strain_AB1[1] too small for stable modulus calculation."
                 )
                 continue
 
             delta_strain = math.atan(strain_AB1[0] / strain_AB1[1])
 
             c_d, s_d = math.cos(delta_strain), math.sin(delta_strain)
-            strain_AB = np.array([
-                strain_AB1[0] * c_d - strain_AB1[1] * s_d,
-                strain_AB1[1] * c_d + strain_AB1[0] * s_d,
-            ])
-            stress_AB = np.array([
-                stress_AB1[0] * c_d - stress_AB1[1] * s_d,
-                stress_AB1[1] * c_d + stress_AB1[0] * s_d,
-            ])
+            strain_AB = np.array(
+                [
+                    strain_AB1[0] * c_d - strain_AB1[1] * s_d,
+                    strain_AB1[1] * c_d + strain_AB1[0] * s_d,
+                ]
+            )
+            stress_AB = np.array(
+                [
+                    stress_AB1[0] * c_d - stress_AB1[1] * s_d,
+                    stress_AB1[1] * c_d + stress_AB1[0] * s_d,
+                ]
+            )
 
             if abs(strain_AB[1]) < np.finfo(float).eps:
                 warnings.warn(
-                    f"Pair {ii + 1}: shifted strain amplitude too small for "
-                    f"modulus calculation."
+                    f"Pair {ii + 1}: shifted strain amplitude too small for modulus calculation."
                 )
                 continue
 
@@ -958,10 +968,7 @@ class RecoveryRheology(MeasurementSetTransform):
         dt_vec = np.diff(rec_anal_mat[:, 0])
         dt_vec = dt_vec[np.isfinite(dt_vec) & ~np.isinf(dt_vec) & (dt_vec > 0)]
         if dt_vec.size == 0:
-            raise ValueError(
-                "Could not determine a valid positive dt from "
-                "rec_anal_mat[:,0]."
-            )
+            raise ValueError("Could not determine a valid positive dt from rec_anal_mat[:,0].")
 
         dt = float(np.median(dt_vec))
         half_period = math.pi / omega
@@ -972,14 +979,11 @@ class RecoveryRheology(MeasurementSetTransform):
         # MATLAB: max_halfp = n_meas - n_use
         max_halfp = n_meas - n_use_init
         if max_halfp < 1:
-            raise ValueError(
-                f"Not enough rows in rec_anal_mat for n_use = {n_use_init}."
-            )
+            raise ValueError(f"Not enough rows in rec_anal_mat for n_use = {n_use_init}.")
 
         n_halfp = min(n_halfp_est, max_halfp)
         print(
-            f"Auto-selected n_halfp = {n_halfp} "
-            f"(estimated {n_halfp_est}, max allowed {max_halfp})"
+            f"Auto-selected n_halfp = {n_halfp} (estimated {n_halfp_est}, max allowed {max_halfp})"
         )
 
         # ---- determine all half-period options ----
@@ -992,8 +996,8 @@ class RecoveryRheology(MeasurementSetTransform):
 
         for nn in range(n_opts):
             diff_cyc = -rec_anal_mat[nn + n_halfp, 4] - rec_anal_mat[nn, 4]
-            meas_opts[nn:nn + n_halfp + 1, nn] = (
-                rec_anal_mat[nn:nn + n_halfp + 1, 4] + diff_cyc / 2.0
+            meas_opts[nn : nn + n_halfp + 1, nn] = (
+                rec_anal_mat[nn : nn + n_halfp + 1, 4] + diff_cyc / 2.0
             )
 
         # ---- auto-select n_use by minimizing discontinuity ----
@@ -1003,14 +1007,18 @@ class RecoveryRheology(MeasurementSetTransform):
         for cand0 in range(n_opts):
             idx = slice(cand0, cand0 + n_halfp)
 
-            first_half = np.column_stack([
-                rec_anal_mat[idx, 1:4],
-                meas_opts[cand0:cand0 + n_halfp, cand0],
-            ])
-            second_half = np.column_stack([
-                -rec_anal_mat[idx, 1:4],
-                -meas_opts[cand0:cand0 + n_halfp, cand0],
-            ])
+            first_half = np.column_stack(
+                [
+                    rec_anal_mat[idx, 1:4],
+                    meas_opts[cand0 : cand0 + n_halfp, cand0],
+                ]
+            )
+            second_half = np.column_stack(
+                [
+                    -rec_anal_mat[idx, 1:4],
+                    -meas_opts[cand0 : cand0 + n_halfp, cand0],
+                ]
+            )
 
             mid_jump = np.linalg.norm(first_half[-1, :] - second_half[0, :])
             close_jump = np.linalg.norm(second_half[-1, :] - first_half[0, :])
@@ -1033,10 +1041,7 @@ class RecoveryRheology(MeasurementSetTransform):
                     f"strain_shift_state requires row {n_use0 + n_halfp + 1}, "
                     f"but rec_anal_mat has only {n_meas} rows."
                 )
-            gamma_shift = (
-                -rec_anal_mat[n_use0 + n_halfp, 1:4]
-                - rec_anal_mat[n_use0, 1:4]
-            ) / 2.0
+            gamma_shift = (-rec_anal_mat[n_use0 + n_halfp, 1:4] - rec_anal_mat[n_use0, 1:4]) / 2.0
         else:
             gamma_shift = np.array([0.0, 0.0, 0.0])
 
@@ -1044,20 +1049,26 @@ class RecoveryRheology(MeasurementSetTransform):
         # MATLAB: idx = n_use:(n_use+(n_halfp-1))
         idx = np.arange(n_use0, n_use0 + n_halfp)
 
-        rec_anal_use = np.vstack([
-            np.column_stack([
-                rec_anal_mat[idx, 0],
-                rec_anal_mat[idx, 1:4] + gamma_shift,
-                np.zeros((n_halfp, 3)),
-                meas_opts[idx, n_use0],
-            ]),
-            np.column_stack([
-                rec_anal_mat[idx, 0] + dt * n_halfp,
-                -rec_anal_mat[idx, 1:4] - gamma_shift,
-                np.zeros((n_halfp, 3)),
-                -meas_opts[idx, n_use0],
-            ]),
-        ])
+        rec_anal_use = np.vstack(
+            [
+                np.column_stack(
+                    [
+                        rec_anal_mat[idx, 0],
+                        rec_anal_mat[idx, 1:4] + gamma_shift,
+                        np.zeros((n_halfp, 3)),
+                        meas_opts[idx, n_use0],
+                    ]
+                ),
+                np.column_stack(
+                    [
+                        rec_anal_mat[idx, 0] + dt * n_halfp,
+                        -rec_anal_mat[idx, 1:4] - gamma_shift,
+                        np.zeros((n_halfp, 3)),
+                        -meas_opts[idx, n_use0],
+                    ]
+                ),
+            ]
+        )
 
         # MATLAB: mod_anal_use = sum(mod_anal_mat(idx,:)) / n_halfp
         # Use nanmean so that NaN entries (skipped pairs) don't poison
@@ -1066,14 +1077,12 @@ class RecoveryRheology(MeasurementSetTransform):
 
         # ---- smooth discontinuities ----
         # Midpoint join: rows n_halfp-1 and n_halfp
-        join_mid = (rec_anal_use[n_halfp - 1, 1:8]
-                    + rec_anal_use[n_halfp, 1:8]) / 2.0
+        join_mid = (rec_anal_use[n_halfp - 1, 1:8] + rec_anal_use[n_halfp, 1:8]) / 2.0
         rec_anal_use[n_halfp - 1, 1:8] = join_mid
         rec_anal_use[n_halfp, 1:8] = join_mid
 
         # End/start closure: row 2*n_halfp-1 and row 0
-        join_end = (rec_anal_use[2 * n_halfp - 1, 1:8]
-                    + rec_anal_use[0, 1:8]) / 2.0
+        join_end = (rec_anal_use[2 * n_halfp - 1, 1:8] + rec_anal_use[0, 1:8]) / 2.0
         rec_anal_use[2 * n_halfp - 1, 1:8] = join_end
         rec_anal_use[0, 1:8] = join_end
 
@@ -1098,13 +1107,9 @@ class RecoveryRheology(MeasurementSetTransform):
 
         for q in range(3):
             # MATLAB: rec_anal_nrg_s(:,q) = strain * stress / 2
-            rec_anal_nrg_s[:, q] = (
-                rec_anal_use[:npts, q + 1] * rec_anal_use[:npts, 7] / 2.0
-            )
+            rec_anal_nrg_s[:, q] = rec_anal_use[:npts, q + 1] * rec_anal_use[:npts, 7] / 2.0
             # MATLAB: rec_anal_nrg_d_dot(:,q) = rate * stress
-            rec_anal_nrg_d_dot[:, q] = (
-                rec_anal_use[:npts, q + 4] * rec_anal_use[:npts, 7]
-            )
+            rec_anal_nrg_d_dot[:, q] = rec_anal_use[:npts, q + 4] * rec_anal_use[:npts, 7]
 
         avg_nrg_s = np.mean(rec_anal_nrg_s, axis=0)
         avg_nrg_d_dot = np.mean(rec_anal_nrg_d_dot, axis=0)
@@ -1114,17 +1119,21 @@ class RecoveryRheology(MeasurementSetTransform):
 
         # MATLAB: mod_trad = [4*avg_nrg_s/rec_anal_amp(1)^2,
         #                     2*avg_nrg_d_dot/(rec_anal_amp(1)*omega)^2]
-        trad_mod = np.concatenate([
-            4.0 * avg_nrg_s / (rec_anal_amp[0] ** 2),
-            2.0 * avg_nrg_d_dot / ((rec_anal_amp[0] * omega) ** 2),
-        ])
+        trad_mod = np.concatenate(
+            [
+                4.0 * avg_nrg_s / (rec_anal_amp[0] ** 2),
+                2.0 * avg_nrg_d_dot / ((rec_anal_amp[0] * omega) ** 2),
+            ]
+        )
 
         # MATLAB: mod_raw = [4*avg_nrg_s./rec_anal_amp(1:3).^2,
         #                    2*avg_nrg_d_dot./rec_anal_amp(4:6).^2]
-        raw_mod = np.concatenate([
-            4.0 * avg_nrg_s / (rec_anal_amp[0:3] ** 2),
-            2.0 * avg_nrg_d_dot / (rec_anal_amp[3:6] ** 2),
-        ])
+        raw_mod = np.concatenate(
+            [
+                4.0 * avg_nrg_s / (rec_anal_amp[0:3] ** 2),
+                2.0 * avg_nrg_d_dot / (rec_anal_amp[3:6] ** 2),
+            ]
+        )
 
         # MATLAB: lump = [mod_anal_use, mod_trad, mod_raw, rec_anal_amp]
         lump = np.concatenate([mod_anal_use, trad_mod, raw_mod, rec_anal_amp])
@@ -1179,9 +1188,8 @@ class RecoveryRheology(MeasurementSetTransform):
         # merged approach (RheoCompass-style: each interval is a
         # separate measurement, need to concatenate).
         # ----------------------------------------------------------
-        all_recovery_nan = (
-            (rows_pos or rows_neg)
-            and all(np.isnan(r[4]) for r in rows_pos + rows_neg)
+        all_recovery_nan = (rows_pos or rows_neg) and all(
+            np.isnan(r[4]) for r in rows_pos + rows_neg
         )
         if not rows_pos and not rows_neg or all_recovery_nan:
             rows_pos, rows_neg = self._extract_step_blocks_merged(measurements)
@@ -1196,14 +1204,16 @@ class RecoveryRheology(MeasurementSetTransform):
         if n == 0:
             # Only one direction available – use what we have
             combined = arr_pos if arr_pos.shape[0] > 0 else arr_neg
-            pair_avg = np.column_stack([
-                combined[:, 1],                     # time
-                np.abs(combined[:, 2]),              # total strain
-                np.abs(combined[:, 3]),              # total stress
-                combined[:, 4],                     # recovery time
-                np.abs(combined[:, 5]),              # unrec strain
-                np.abs(combined[:, 2]) - np.abs(combined[:, 5]),  # rec strain
-            ])
+            pair_avg = np.column_stack(
+                [
+                    combined[:, 1],  # time
+                    np.abs(combined[:, 2]),  # total strain
+                    np.abs(combined[:, 3]),  # total stress
+                    combined[:, 4],  # recovery time
+                    np.abs(combined[:, 5]),  # unrec strain
+                    np.abs(combined[:, 2]) - np.abs(combined[:, 5]),  # rec strain
+                ]
+            )
         else:
             pair_avg = np.full((n, 6), np.nan, dtype=float)
             for j in range(n):
@@ -1215,8 +1225,12 @@ class RecoveryRheology(MeasurementSetTransform):
                 rec_strain = tot_strain - unrec_strain
 
                 pair_avg[j, :] = [
-                    time_nz, tot_strain, tot_stress,
-                    rec_time, unrec_strain, rec_strain,
+                    time_nz,
+                    tot_strain,
+                    tot_stress,
+                    rec_time,
+                    unrec_strain,
+                    rec_strain,
                 ]
 
         return RecoveryRheologyResult(
@@ -1232,9 +1246,7 @@ class RecoveryRheology(MeasurementSetTransform):
             },
         )
 
-    def _extract_step_blocks(
-        self, meas: Measurement
-    ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    def _extract_step_blocks(self, meas: Measurement) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """
         From one measurement, find non-zero stress blocks, classify
         as positive or negative, and extract the recovery point.
@@ -1283,7 +1295,7 @@ class RecoveryRheology(MeasurementSetTransform):
             sgn = np.sign(stress_arr[i1])
             if sgn == 0:
                 continue
-            if np.any(np.sign(stress_arr[i1:i2 + 1]) != sgn):
+            if np.any(np.sign(stress_arr[i1 : i2 + 1]) != sgn):
                 continue
 
             nz_t = time_arr[i2]
@@ -1403,7 +1415,7 @@ class RecoveryRheology(MeasurementSetTransform):
             sgn = np.sign(stress_arr[i1])
             if sgn == 0:
                 continue
-            if np.any(np.sign(stress_arr[i1:i2 + 1]) != sgn):
+            if np.any(np.sign(stress_arr[i1 : i2 + 1]) != sgn):
                 continue
 
             nz_t = time_arr[i2]
@@ -1411,8 +1423,8 @@ class RecoveryRheology(MeasurementSetTransform):
             nz_s = stress_arr[i2]
 
             # Full creep transient (during non-zero stress)
-            creep_t = time_arr[i1:i2 + 1].copy()
-            creep_g = strain_arr[i1:i2 + 1].copy()
+            creep_t = time_arr[i1 : i2 + 1].copy()
+            creep_g = strain_arr[i1 : i2 + 1].copy()
 
             # Look for following zero-stress block
             z1 = i2 + 1
@@ -1428,18 +1440,20 @@ class RecoveryRheology(MeasurementSetTransform):
                 z_g = strain_arr[z2]
                 z_s = stress_arr[z2]
                 # Full recovery transient
-                rec_t_full = time_arr[z1:z2 + 1].copy()
-                rec_g_full = strain_arr[z1:z2 + 1].copy()
+                rec_t_full = time_arr[z1 : z2 + 1].copy()
+                rec_g_full = strain_arr[z1 : z2 + 1].copy()
 
             # Store transient curve data
-            transient_curves.append({
-                "sign": float(sgn),
-                "creep_time": creep_t,
-                "creep_strain": creep_g,
-                "rec_time": rec_t_full,
-                "rec_strain": rec_g_full,
-                "nz_stress": nz_s,
-            })
+            transient_curves.append(
+                {
+                    "sign": float(sgn),
+                    "creep_time": creep_t,
+                    "creep_strain": creep_g,
+                    "rec_time": rec_t_full,
+                    "rec_strain": rec_g_full,
+                    "nz_stress": nz_s,
+                }
+            )
 
             row = np.array([sgn, nz_t, nz_g, nz_s, z_t, z_g, z_s])
             if sgn > 0:
@@ -1483,9 +1497,7 @@ class RecoveryRheology(MeasurementSetTransform):
         return float(freqs[pos][np.argmax(amps)])
 
     @staticmethod
-    def _centered_derivative_periodic(
-        X: np.ndarray, k: int, stencil: int, dt: float
-    ) -> np.ndarray:
+    def _centered_derivative_periodic(X: np.ndarray, k: int, stencil: int, dt: float) -> np.ndarray:
         """
         Periodic centred finite-difference derivative.
 
@@ -1519,14 +1531,19 @@ class RecoveryRheology(MeasurementSetTransform):
             elif stencil == 2:
                 d[p] = (-X[p2] + 8 * X[p1] - 8 * X[pn1] + X[pn2]) / (12.0 * k * dt)
             elif stencil == 3:
-                d[p] = (
-                    X[p3] - 9 * X[p2] + 45 * X[p1]
-                    - 45 * X[pn1] + 9 * X[pn2] - X[pn3]
-                ) / (60.0 * k * dt)
+                d[p] = (X[p3] - 9 * X[p2] + 45 * X[p1] - 45 * X[pn1] + 9 * X[pn2] - X[pn3]) / (
+                    60.0 * k * dt
+                )
             elif stencil == 4:
                 d[p] = (
-                    -3 * X[p4] + 32 * X[p3] - 168 * X[p2] + 672 * X[p1]
-                    - 672 * X[pn1] + 168 * X[pn2] - 32 * X[pn3] + 3 * X[pn4]
+                    -3 * X[p4]
+                    + 32 * X[p3]
+                    - 168 * X[p2]
+                    + 672 * X[p1]
+                    - 672 * X[pn1]
+                    + 168 * X[pn2]
+                    - 32 * X[pn3]
+                    + 3 * X[pn4]
                 ) / (840.0 * k * dt)
             else:
                 raise ValueError("Choose stencil (diff_state) between 1 and 4.")
@@ -1565,4 +1582,3 @@ class RecoveryRheology(MeasurementSetTransform):
             default_dependent_name="stress",
             source="Recovery rheology decomposition",
         )
-

@@ -5,6 +5,7 @@ and the condition-fallback path used to build a Mutation Number
 kymograph (frequency lives in ``measurement.conditions`` rather than in
 the dataset).
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -21,7 +22,7 @@ from hermes_rheo.transforms.kymograph import Kymograph, KymographResult
 def _make_torch_like_measurement(temperature: float) -> Measurement:
     """One OWChirp-like measurement at a fixed temperature — carries all
     three axes as dataset columns."""
-    omega = np.logspace(0, 2, 20)                    # angular frequency, rad/s
+    omega = np.logspace(0, 2, 20)  # angular frequency, rad/s
     g_prime = 1000.0 + 10.0 * omega * (1.0 + 0.01 * temperature)
     temp_arr = np.full_like(omega, float(temperature))
     ds = OneDimensionalCompositeDataset(
@@ -81,9 +82,7 @@ def test_kymograph_axis_falls_back_to_condition():
     column but is present in every measurement's ``conditions`` dict.
     The transform must broadcast that scalar across the time axis."""
     experiment = MeasurementSet(
-        measurements=[
-            _make_mutation_like_measurement(w) for w in (0.1, 1.0, 10.0, 100.0)
-        ]
+        measurements=[_make_mutation_like_measurement(w) for w in (0.1, 1.0, 10.0, 100.0)]
     )
     result = Kymograph(
         quantity="mutation number",
@@ -127,9 +126,7 @@ def test_kymograph_supports_plain_one_dimensional_dataset():
             conditions={"Angular Frequency": float(angular_frequency)},
         )
 
-    experiment = MeasurementSet(
-        measurements=[_make_1d_measurement(w) for w in (0.5, 5.0, 50.0)]
-    )
+    experiment = MeasurementSet(measurements=[_make_1d_measurement(w) for w in (0.5, 5.0, 50.0)])
     result = Kymograph(
         quantity="mutation number",
         x="time",

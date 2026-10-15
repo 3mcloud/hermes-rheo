@@ -21,6 +21,7 @@ unchanged.
 
 The alias will be removed in hermes-rheo 3.0.
 """
+
 from __future__ import annotations
 
 import warnings

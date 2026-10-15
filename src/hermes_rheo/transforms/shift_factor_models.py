@@ -96,9 +96,7 @@ class WLFModel:
         if reference_temperature is not None:
             self.reference_temperature = reference_temperature
         if self.reference_temperature is None:
-            self.reference_temperature = float(
-                temperatures[np.argmin(np.abs(log_shift_factors))]
-            )
+            self.reference_temperature = float(temperatures[np.argmin(np.abs(log_shift_factors))])
 
         t_ref = self.reference_temperature
 
@@ -114,7 +112,7 @@ class WLFModel:
             )
 
         guesses = [
-            [17.44, 51.6],   # universal WLF constants
+            [17.44, 51.6],  # universal WLF constants
             [10.0, 98.0],
             [5.0, 100.0],
             [50.0, 200.0],
@@ -123,7 +121,8 @@ class WLFModel:
         best = None
         for guess in guesses:
             res = minimize(
-                _sse, guess,
+                _sse,
+                guess,
                 bounds=[(0.0, None), (1e-6, None)],
                 method="SLSQP",
             )
@@ -146,8 +145,7 @@ class WLFModel:
     def print_parameters(self):
         """Print the fitted WLF constants."""
         print(
-            f"WLF: C1 = {self.C1:.4g}, C2 = {self.C2:.4g}, "
-            f"Tref = {self.reference_temperature:.4g}"
+            f"WLF: C1 = {self.C1:.4g}, C2 = {self.C2:.4g}, Tref = {self.reference_temperature:.4g}"
         )
 
 
@@ -227,9 +225,7 @@ class ArrheniusModel:
         if reference_temperature is not None:
             self.reference_temperature = reference_temperature
         if self.reference_temperature is None:
-            self.reference_temperature = float(
-                temperatures[np.argmin(np.abs(log_shift_factors))]
-            )
+            self.reference_temperature = float(temperatures[np.argmin(np.abs(log_shift_factors))])
 
         t_kelvin = self._to_kelvin(temperatures)
         t_ref_kelvin = self._to_kelvin(np.asarray(self.reference_temperature, dtype=float))
@@ -372,6 +368,7 @@ class ShiftFactorModel:
         fig, ax = plot_shift_factors(self, show=False, **kwargs)
         if show:
             import matplotlib.pyplot as plt
+
             plt.show()
         return fig, ax
 
