@@ -71,6 +71,11 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"hermes_rheo._vendor" = ["README.md"]
+"hermes_rheo._vendor.pyrespect_time" = ["LICENSE"]
+"hermes_rheo._vendor.pyrespect_freq" = ["LICENSE"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
