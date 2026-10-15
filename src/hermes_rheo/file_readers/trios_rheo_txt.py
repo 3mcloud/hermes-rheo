@@ -1,15 +1,15 @@
-from typing import List, Dict, Union, Any, Tuple
 import logging
 import re
+from typing import Any
+
 import numpy as np
-from piblin.dataio.fileio.read import FileParsingException
-import piblin.data.datasets.abc.split_datasets.one_dimensional_dataset as one_dimensional_dataset
-import piblin.data.datasets.abc.split_datasets.zero_dimensional_dataset as zero_dimensional_dataset
-import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
 import piblin.data.data_collections.measurement as measurement
 import piblin.data.data_collections.measurement_set as measurement_set
+import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
+import piblin.data.datasets.abc.split_datasets.one_dimensional_dataset as one_dimensional_dataset
+import piblin.data.datasets.abc.split_datasets.zero_dimensional_dataset as zero_dimensional_dataset
 import piblin.dataio.fileio.read.file_reader as file_reader
-
+from piblin.dataio.fileio.read import FileParsingException
 
 _logger = logging.getLogger(__name__)
 
@@ -72,9 +72,9 @@ def _canonicalise_method(method_line: str) -> str:
 
 def _lookup_method_defaults(
     method_line: str,
-    variable_names: List[str],
+    variable_names: list[str],
     fallback_independent: str,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Return the natural ``(default_independent, default_dependent)`` pair.
 
     Matches the canonicalised method string against an ordered set of
@@ -192,7 +192,7 @@ def _lookup_method_defaults(
     return default_x, default_y
 
 
-def _first_non(names: List[str], excluded: set) -> str:
+def _first_non(names: list[str], excluded: set) -> str:
     """Return the first entry of *names* not in *excluded* (or names[0])."""
     for name in names:
         if name not in excluded:
@@ -269,7 +269,7 @@ class TriosRheoReader(file_reader.FileReader):
 
     supported_extensions = {"txt"}
 
-    __TOP_LEVEL_PARAMETER_REGEXES: Dict[str, str] = {
+    __TOP_LEVEL_PARAMETER_REGEXES: dict[str, str] = {
         "document_id": r"Document ID\s+(.*)",
         "file_path": r"File path\s+(.*)",
         "instrument_serial_number": r"Instrument serial number\s+(.*)",
@@ -279,7 +279,7 @@ class TriosRheoReader(file_reader.FileReader):
     }
     """Regular expressions for extracting top-level header parameters from the file."""
 
-    __SAMPLE_REGEXES: Dict[str, str] = {
+    __SAMPLE_REGEXES: dict[str, str] = {
         "sample_name": r"Name\s+(.*)",
         "operator": r"Operator\s+(.*)",
         "sample_file_name": r"File name\s+(.*)",
@@ -287,17 +287,17 @@ class TriosRheoReader(file_reader.FileReader):
         "sample_notes_line": r"Notes\s+(.*)",
     }
 
-    __PROCEDURE_REGEXES: Dict[str, str] = {
+    __PROCEDURE_REGEXES: dict[str, str] = {
         "procedure_name": r"Procedure name\s+(.*)",
         "procedure_segment": r"proceduresegments\s+(.*)",
     }
 
-    __FILE_PARAMETER_REGEXES: Dict[str, str] = {
+    __FILE_PARAMETER_REGEXES: dict[str, str] = {
         "trios_version": r"TA Instruments LIMS export format version\s+(.*)",
         "run_date": r"Run date\s+(.*)",  # may overwrite earlier run_date if both dicts are used
     }
 
-    __GEOMETRY_REGEXES: Dict[str, str] = {
+    __GEOMETRY_REGEXES: dict[str, str] = {
         "geometry_type": r"Geometry type\s+(.*)",  # may not exist in all files, harmless if not found
         "geometry_name": r"Name\s+(.*)",
         "geometry_diameter": r"Diameter\s+(.*)",
@@ -307,7 +307,7 @@ class TriosRheoReader(file_reader.FileReader):
         "geometry_material": r"Material\s+(.*)",
     }
 
-    __GEOMETRY_EXT_REGEXES: Dict[str, str] = {
+    __GEOMETRY_EXT_REGEXES: dict[str, str] = {
         "geometry_exp_coefficient": r"Expansion coefficient\s+(.*)",
         "geometry_exp_coefficient_enabled": r"Expansion coefficient enabled\s+(.*)",
         "geometry_compliance": r"Compliance\s+(.*)",
@@ -323,7 +323,7 @@ class TriosRheoReader(file_reader.FileReader):
         "geometry_friction_enabled_legacy": r"Friction Enabled\s+(.*)",
     }
 
-    __CALIBRATION_PARAM_REGEXES: Dict[str, str] = {
+    __CALIBRATION_PARAM_REGEXES: dict[str, str] = {
         "SPFrtScaleLow": r"SPFrtScaleLow\s+(.*)",
         "SPFrtScaleMid": r"SPFrtScaleMid\s+(.*)",
         "transducer_full_scale": r"Transducer full scale\s+(.*)",
@@ -1247,7 +1247,7 @@ class TriosRheoReader(file_reader.FileReader):
         return super().data_from_filepath(filepath, **read_kwargs)
 
     @staticmethod
-    def __extract_wave_data_G2(file_content: List[str]) -> Dict:
+    def __extract_wave_data_G2(file_content: list[str]) -> dict:
         """
         This method processes the file content to extract the arbitrary wave information input by the user in the TRIOS
         software. It identifies and parses information about each wave, such as repeat count, rate, coefficients,
@@ -1262,7 +1262,7 @@ class TriosRheoReader(file_reader.FileReader):
             A dictionary with keys representing each wave step (e.g., 'Arbitrary Wave - 1') and values containing
             detailed wave information such as rate, coefficients, and duration."""
 
-        def extract_wave_coefficients(wave_data: str) -> Dict:
+        def extract_wave_coefficients(wave_data: str) -> dict:
             """
             Extract wave coefficients, durations, and wave forms from the wave data string.
             """
@@ -1381,7 +1381,7 @@ class TriosRheoReader(file_reader.FileReader):
         return data
 
     @staticmethod
-    def __extract_wave_data_DHR(file_content: List[str]) -> Dict:
+    def __extract_wave_data_DHR(file_content: list[str]) -> dict:
         """
         Extract wave data specific to TA DHR instruments from the file content.
 
@@ -1456,7 +1456,7 @@ class TriosRheoReader(file_reader.FileReader):
         return data
 
     @staticmethod
-    def __extract_notes_data(file_content: List[str]) -> str:
+    def __extract_notes_data(file_content: list[str]) -> str:
         """
         Extract notes data from the file content.
         This method processes the file content to extract the value input by the user in TRIOS under the "note" field.
@@ -1492,7 +1492,7 @@ class TriosRheoReader(file_reader.FileReader):
         return notes_string
 
     @classmethod
-    def __parse_geometry_list(cls, file_contents: List[str]) -> List[str]:
+    def __parse_geometry_list(cls, file_contents: list[str]) -> list[str]:
         """Parse the list of signals from the file header.
 
         Parameters
@@ -1520,8 +1520,8 @@ class TriosRheoReader(file_reader.FileReader):
 
     @classmethod
     def __parse_analysis_datasets(
-        cls, file_contents: List[str], dataset_regexes: Dict[str, str]
-    ) -> Dict[str, zero_dimensional_dataset.ZeroDimensionalDataset]:
+        cls, file_contents: list[str], dataset_regexes: dict[str, str]
+    ) -> dict[str, zero_dimensional_dataset.ZeroDimensionalDataset]:
         """Parse any datasets from any existing analyses in the Trios DSC .txt file.
 
         Parameters
@@ -1548,7 +1548,7 @@ class TriosRheoReader(file_reader.FileReader):
         return analysis_datasets
 
     @staticmethod
-    def __extract_frequency_chirp_method(file_content: List[str]) -> Dict[str, Dict[str, float]]:
+    def __extract_frequency_chirp_method(file_content: list[str]) -> dict[str, dict[str, float]]:
         """
         Extract Frequency Chirp parameters from the [Procedure: Steps] block.
         Expected patterns (examples):
@@ -1587,7 +1587,7 @@ class TriosRheoReader(file_reader.FileReader):
 
         # If we didn't find a dedicated block, fall back to scanning all lines
         if not blob_lines:
-            blob_lines = [l.strip() for l in file_content]
+            blob_lines = [line.strip() for line in file_content]
 
         # Build a single blob string (regex-friendly)
         blob = " ".join(blob_lines)
@@ -1596,7 +1596,7 @@ class TriosRheoReader(file_reader.FileReader):
         # Keep the delimiter using a capturing group.
         parts = re.split(r"(Frequency\s+Chirp)", blob, flags=re.IGNORECASE)
 
-        results: Dict[str, Dict[str, float]] = {}
+        results: dict[str, dict[str, float]] = {}
         step_idx = 0
 
         # Iterate over the chunks that follow each "Frequency Chirp"
@@ -1762,7 +1762,7 @@ class TriosRheoReader(file_reader.FileReader):
             else None
         )
 
-        wave_details: Dict[str, Any] = {}
+        wave_details: dict[str, Any] = {}
         if serial_prefix in _DHR_SERIALS:
             wave_details = cls.__extract_wave_data_DHR(file_contents)
         elif serial_prefix in _G2_SERIALS | _G3_SERIALS | _DISCOVERY_SERIALS:
@@ -1780,7 +1780,7 @@ class TriosRheoReader(file_reader.FileReader):
             )
 
         # Now assemble the full details dict
-        details: Dict[str, Any] = {}
+        details: dict[str, Any] = {}
 
         # 1) wave-specific Arbitrary Wave / Frequency Chirp parameters
         details.update(wave_details)
@@ -2014,7 +2014,6 @@ class TriosRheoReader(file_reader.FileReader):
                     continue
 
                 data = line.split("\t")
-                num_columns = len(data)
 
                 # x
                 x_raw = data[x_axis_index]
@@ -2043,7 +2042,7 @@ class TriosRheoReader(file_reader.FileReader):
             if read_kwargs.get("create_composite_datasets", True):
                 datasets = []
                 data_arrays = []
-                for i, column in enumerate(y_axis_index):
+                for column in y_axis_index:
                     data_arrays.append(y_values[:, column])
                 data_arrays.append(x_values)
 
@@ -2080,7 +2079,7 @@ class TriosRheoReader(file_reader.FileReader):
 
             else:
                 datasets = []
-                for i, column in enumerate(y_axis_index):
+                for column in y_axis_index:
                     y_name = select_col_labels[column_labels[column]]
                     dataset = one_dimensional_dataset.OneDimensionalDataset.create(
                         y_values=y_values[:, column],
@@ -2100,7 +2099,7 @@ class TriosRheoReader(file_reader.FileReader):
         return measurement_set.MeasurementSet(measurements, merge_redundant=False)
 
     @staticmethod
-    def __parse_str(value: str) -> Union[int, float, str, bool]:
+    def __parse_str(value: str) -> int | float | str | bool:
         """Convert a string to a numerical value if possible.
 
         Parameters
@@ -2127,7 +2126,7 @@ class TriosRheoReader(file_reader.FileReader):
                     return value
 
     @classmethod
-    def __find_metadata(cls, file_contents: List[str], regex: str) -> Union[int, float, str]:
+    def __find_metadata(cls, file_contents: list[str], regex: str) -> int | float | str:
         """Find and return the value of scalar metadata matching a regex.
 
         Assumes that, if the regex has capture groups, the *last* one is the value.
@@ -2147,8 +2146,8 @@ class TriosRheoReader(file_reader.FileReader):
 
     @classmethod
     def __read_keyed_metadata(
-        cls, file_contents: List[str], regex_dict=None
-    ) -> Dict[str, Union[int, float, str]]:
+        cls, file_contents: list[str], regex_dict=None
+    ) -> dict[str, int | float | str]:
         """Read all scalar metadata from a file.
 
         Parameters
@@ -2173,7 +2172,7 @@ class TriosRheoReader(file_reader.FileReader):
         return details
 
     @staticmethod
-    def __find_regex_position(file_contents: List[str], regex: str) -> int:
+    def __find_regex_position(file_contents: list[str], regex: str) -> int:
         """Find the index of the first appearance of the regex in the file.
 
         Parameters
@@ -2196,7 +2195,7 @@ class TriosRheoReader(file_reader.FileReader):
         raise FileParsingException("Could not locate regex in file.")
 
     @staticmethod
-    def __find_all_regex_position(file_contents: List[str], regex: str):
+    def __find_all_regex_position(file_contents: list[str], regex: str):
         """Find the index of the first appearance of the regex in the file.
 
         Parameters

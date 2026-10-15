@@ -21,7 +21,6 @@ Usage::
 from __future__ import annotations
 
 import copy
-from typing import Optional, Tuple, Union
 
 import matplotlib.axes
 import matplotlib.colors as mcolors
@@ -29,13 +28,12 @@ import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
 
-def _get_temperature(measurement) -> Optional[float]:
+def _get_temperature(measurement) -> float | None:
     """Extract a scalar temperature label from a *Measurement*.
 
     Looks for temperature information in the following order:
@@ -90,7 +88,7 @@ def _extract_xy(
     dataset,
     x_name: str,
     y_name: str,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Return ``(x_values, y_values)`` from a dataset without mutating it.
 
     A deep-copy of the dataset is used so that the caller's dataset is
@@ -259,15 +257,15 @@ def _apply_temperature_key(
 
 def plot_vgp(
     experiment_set,
-    ax: Optional[matplotlib.axes.Axes] = None,
+    ax: matplotlib.axes.Axes | None = None,
     colormap=None,
     x_name: str = "complex modulus",
     y_name: str = "tan(delta)",
     dataset_index: int = 0,
-    legend: Union[str, bool] = "auto",
+    legend: str | bool = "auto",
     legend_max: int = 12,
     **kwargs,
-) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Van Gurp-Palmen (vGP) plot: tan(δ) vs complex modulus |G*|.
 
     Each measurement within the ExperimentSet (typically recorded at a
@@ -412,15 +410,15 @@ def plot_vgp(
 
 def plot_cole_cole(
     experiment_set,
-    ax: Optional[matplotlib.axes.Axes] = None,
+    ax: matplotlib.axes.Axes | None = None,
     colormap=None,
     x_name: str = "storage modulus",
     y_name: str = "loss modulus",
     dataset_index: int = 0,
-    legend: Union[str, bool] = "auto",
+    legend: str | bool = "auto",
     legend_max: int = 12,
     **kwargs,
-) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Cole-Cole plot: loss modulus G'' vs storage modulus G'.
 
     Each measurement within the ExperimentSet (typically recorded at a

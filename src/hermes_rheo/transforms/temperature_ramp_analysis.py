@@ -50,16 +50,14 @@ The result datasets preserve the original names and units exactly.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any
 
 import numpy as np
-from scipy.signal import find_peaks
-
-from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
-from piblin.data import MeasurementSet, Measurement
 import piblin.data.data_collections.experiment_set as experiment_set_module
 import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
-
+from piblin.data import Measurement, MeasurementSet
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+from scipy.signal import find_peaks
 
 # ---------------------------------------------------------------------------
 # Step-type keywords used for auto-detection when steps_to_merge is empty
@@ -142,9 +140,9 @@ class TemperatureRampResult:
     120.3
     """
 
-    dataset: Optional[one_d_composite_dataset.OneDimensionalCompositeDataset]
-    tg: Optional[float]
-    extracted_dataset: Optional[one_d_composite_dataset.OneDimensionalCompositeDataset]
+    dataset: one_d_composite_dataset.OneDimensionalCompositeDataset | None
+    tg: float | None
+    extracted_dataset: one_d_composite_dataset.OneDimensionalCompositeDataset | None
 
     # ------------------------------------------------------------------
     # Export
@@ -285,15 +283,15 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
 
     def __init__(
         self,
-        steps_to_merge: Optional[List[str]] = None,
-        use_temps: Optional[List[float]] = None,
+        steps_to_merge: list[str] | None = None,
+        use_temps: list[float] | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.steps_to_merge: List[str] = list(steps_to_merge) if steps_to_merge else []
-        self.use_temps: List[float] = sorted(use_temps) if use_temps else []
-        self.result: Optional[TemperatureRampResult] = None
+        self.steps_to_merge: list[str] = list(steps_to_merge) if steps_to_merge else []
+        self.use_temps: list[float] = sorted(use_temps) if use_temps else []
+        self.result: TemperatureRampResult | None = None
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -320,8 +318,8 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
 
     @staticmethod
     def _merge_composite_datasets(
-        datasets: List[one_d_composite_dataset.OneDimensionalCompositeDataset],
-    ) -> Optional[one_d_composite_dataset.OneDimensionalCompositeDataset]:
+        datasets: list[one_d_composite_dataset.OneDimensionalCompositeDataset],
+    ) -> one_d_composite_dataset.OneDimensionalCompositeDataset | None:
         """Merge composite datasets into one, sorted by the temperature variable.
 
         Only variable names present in **all** supplied datasets are kept,
@@ -344,19 +342,19 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
 
         # Intersect variable names across all datasets (case-insensitive keys,
         # but preserve the original casing from the first dataset)
-        first_names: List[str] = list(datasets[0].data_array_names)
+        first_names: list[str] = list(datasets[0].data_array_names)
         first_names_lower = [n.lower() for n in first_names]
 
-        common_lower: List[str] = list(first_names_lower)
+        common_lower: list[str] = list(first_names_lower)
         for ds in datasets[1:]:
             ds_lower = {n.lower() for n in ds.data_array_names}
             common_lower = [n for n in common_lower if n in ds_lower]
 
         # Canonical names (original casing from first dataset)
-        common_names: List[str] = [first_names[first_names_lower.index(nl)] for nl in common_lower]
+        common_names: list[str] = [first_names[first_names_lower.index(nl)] for nl in common_lower]
         # Units from the first dataset
-        first_units: List[str] = list(datasets[0].data_array_units)
-        common_units: List[str] = [first_units[first_names_lower.index(nl)] for nl in common_lower]
+        first_units: list[str] = list(datasets[0].data_array_units)
+        common_units: list[str] = [first_units[first_names_lower.index(nl)] for nl in common_lower]
 
         # Identify the temperature variable
         temp_idx_in_common = next(
@@ -367,9 +365,9 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
             return None
 
         # Concatenate arrays for each common variable across all datasets
-        concatenated: List[np.ndarray] = []
+        concatenated: list[np.ndarray] = []
         for nl in common_lower:
-            parts: List[np.ndarray] = []
+            parts: list[np.ndarray] = []
             for ds in datasets:
                 ds_names_lower = [n.lower() for n in ds.data_array_names]
                 idx = ds_names_lower.index(nl)
@@ -401,7 +399,7 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
     @staticmethod
     def _detect_tg(
         ds: one_d_composite_dataset.OneDimensionalCompositeDataset,
-    ) -> Optional[float]:
+    ) -> float | None:
         """Detect Tg from the peak of the tan-delta variable in *ds*.
 
         The tan-delta variable is identified by searching for ``"tan"`` in
@@ -460,7 +458,7 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
     def _extract_at_temps(
         self,
         ds: one_d_composite_dataset.OneDimensionalCompositeDataset,
-    ) -> Optional[one_d_composite_dataset.OneDimensionalCompositeDataset]:
+    ) -> one_d_composite_dataset.OneDimensionalCompositeDataset | None:
         """Build a dataset with every variable interpolated at ``use_temps``.
 
         Parameters
@@ -486,7 +484,7 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         use_arr = np.asarray(self.use_temps, dtype=float)
         temp_arr = np.asarray(ds.data_arrays[temp_idx], dtype=float)
 
-        extracted: List[np.ndarray] = [
+        extracted: list[np.ndarray] = [
             np.interp(use_arr, temp_arr, np.asarray(arr, dtype=float)) for arr in ds.data_arrays
         ]
         # The temperature column should exactly equal use_temps
@@ -502,7 +500,7 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         )
 
     @staticmethod
-    def _get_measurements(target: Any) -> List[Measurement]:
+    def _get_measurements(target: Any) -> list[Measurement]:
         """Return a flat list of all measurements from *target*."""
         if isinstance(target, (experiment_set_module.ExperimentSet, MeasurementSet)):
             return list(target.measurements)
@@ -531,7 +529,7 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         all_measurements = self._get_measurements(target)
 
         # --- 1. Filter to temperature-type steps ---
-        selected: List[Measurement] = [
+        selected: list[Measurement] = [
             m for m in all_measurements if self._method_matches(str(m.conditions.get("method", "")))
         ]
 

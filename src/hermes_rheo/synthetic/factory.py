@@ -34,9 +34,8 @@ Examples
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
-
-import numpy as np
+from collections.abc import Sequence
+from typing import Any
 
 from piblin.data.data_collections import experiment_set as _experiment_set
 from piblin.data.data_collections import measurement_set as _measurement_set
@@ -170,7 +169,7 @@ class SyntheticRheometry:
     def experiment_set(
         cls,
         model: RheologyModel,
-        experiments: Sequence[Dict[str, Any]],
+        experiments: Sequence[dict[str, Any]],
         *,
         merge_redundant: bool = False,
     ) -> _experiment_set.ExperimentSet:

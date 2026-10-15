@@ -34,10 +34,10 @@ References
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
-
 from piblin.data.data_collections import measurement as _measurement
 from piblin.data.datasets.abc.split_datasets import (
     one_dimensional_composite_dataset as _one_d_composite_dataset,
@@ -104,7 +104,7 @@ class RheologyModel(ABC):
 
     #: Constitutive parameters stored on ``details["parameters"]``.
     #: Subclasses override in ``__init__`` and expose them as attributes.
-    parameters: Dict[str, Any] = {}
+    parameters: dict[str, Any] = {}
 
     # -----------------------------------------------------------------
     # Abstract interface
@@ -126,7 +126,7 @@ class RheologyModel(ABC):
         """
 
     @abstractmethod
-    def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def frequency_sweep(self, omega: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Return the oscillatory moduli :math:`(G'(\\omega), G''(\\omega))`.
 
         Parameters
@@ -167,9 +167,9 @@ class RheologyModel(ABC):
         experiment: str,
         x: np.ndarray,
         *,
-        conditions: Optional[Dict[str, Any]] = None,
-        details: Optional[Dict[str, Any]] = None,
-        source: Optional[str] = None,
+        conditions: dict[str, Any] | None = None,
+        details: dict[str, Any] | None = None,
+        source: str | None = None,
     ) -> _measurement.Measurement:
         """Build a piblin ``Measurement`` for a given experiment.
 
@@ -221,14 +221,14 @@ class RheologyModel(ABC):
                 f"got {experiment!r}"
             )
 
-        merged_conditions: Dict[str, Any] = {
+        merged_conditions: dict[str, Any] = {
             "method": method,
             "synthetic": True,
         }
         if conditions:
             merged_conditions.update(conditions)
 
-        merged_details: Dict[str, Any] = {
+        merged_details: dict[str, Any] = {
             "model": self.model_name,
             "parameters": dict(self.parameters),
             "experiment": experiment_key,
@@ -249,8 +249,8 @@ class RheologyModel(ABC):
     def _build_stress_relaxation_dataset(
         self,
         t: np.ndarray,
-        source: Optional[str],
-    ) -> Tuple[
+        source: str | None,
+    ) -> tuple[
         _one_d_composite_dataset.OneDimensionalCompositeDataset,
         str,
     ]:
@@ -269,8 +269,8 @@ class RheologyModel(ABC):
     def _build_frequency_sweep_dataset(
         self,
         omega: np.ndarray,
-        source: Optional[str],
-    ) -> Tuple[
+        source: str | None,
+    ) -> tuple[
         _one_d_composite_dataset.OneDimensionalCompositeDataset,
         str,
     ]:
@@ -301,8 +301,8 @@ class RheologyModel(ABC):
     def _build_creep_dataset(
         self,
         t: np.ndarray,
-        source: Optional[str],
-    ) -> Tuple[
+        source: str | None,
+    ) -> tuple[
         _one_d_composite_dataset.OneDimensionalCompositeDataset,
         str,
     ]:
@@ -403,7 +403,7 @@ class MaxwellModel(RheologyModel):
         t_arr = np.asarray(t, dtype=float)
         return self.G0 * np.exp(-t_arr / self.tau)
 
-    def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def frequency_sweep(self, omega: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         w = np.asarray(omega, dtype=float)
         wt = w * self.tau
         denom = 1.0 + wt**2
@@ -518,7 +518,7 @@ class MultiModeMaxwellModel(RheologyModel):
         contributions = self.g[None, :] * np.exp(-t_arr[:, None] / self.tau[None, :])
         return contributions.sum(axis=1) + self.G_inf
 
-    def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def frequency_sweep(self, omega: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         w = np.asarray(omega, dtype=float).ravel()
         wt = w[:, None] * self.tau[None, :]
         denom = 1.0 + wt**2
@@ -600,7 +600,7 @@ class KelvinVoigtModel(RheologyModel):
         t_arr = np.asarray(t, dtype=float)
         return np.full_like(t_arr, self.G, dtype=float)
 
-    def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def frequency_sweep(self, omega: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         w = np.asarray(omega, dtype=float)
         gp = np.full_like(w, self.G, dtype=float)
         gpp = self.eta * w
@@ -691,7 +691,7 @@ class JeffreysModel(RheologyModel):
         t_arr = np.asarray(t, dtype=float)
         return self.G0 * np.exp(-t_arr / self.tau)
 
-    def frequency_sweep(self, omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def frequency_sweep(self, omega: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         w = np.asarray(omega, dtype=float)
         wt = w * self.tau
         denom = 1.0 + wt**2

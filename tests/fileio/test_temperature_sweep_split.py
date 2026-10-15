@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 from piblin.data import ExperimentSet
+
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
 from hermes_rheo.transforms.split_temperature_sweep import SplitTemperatureSweep
-
 
 # ---------------------------------------------------------------------------
 # Single-step fixture (uniform 5 °C steps, -40 → 50 °C)

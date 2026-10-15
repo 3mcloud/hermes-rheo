@@ -1,6 +1,6 @@
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
-from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
 from hermes_rheo.transforms.automated_mastercurve import AutomatedMasterCurve
+from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
 from hermes_rheo.transforms.split_temperature_sweep import SplitTemperatureSweep
 
 

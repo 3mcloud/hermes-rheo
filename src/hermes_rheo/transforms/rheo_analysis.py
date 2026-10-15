@@ -28,9 +28,9 @@ import warnings
 from typing import Any
 
 from hermes_rheo.transforms.owchirp_analysis import (
+    _UNIT_PREFIXES,  # noqa: F401 — re-exported for downstream callers
     OWChirpAnalysis,
     _canonicalise_method,  # noqa: F401 — re-exported for downstream callers
-    _UNIT_PREFIXES,  # noqa: F401 — re-exported for downstream callers
 )
 
 

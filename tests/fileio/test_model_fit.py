@@ -2,14 +2,16 @@ import pytest
 
 pytest.importorskip("pyRheo")
 
-from piblin.data import ExperimentSet  # noqa: E402
-from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
-from hermes_rheo.transforms.split_temperature_sweep import SplitTemperatureSweep
-from hermes_rheo.transforms.automated_mastercurve import AutomatedMasterCurve, CompositeMasterCurve
-from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
-from hermes_rheo.transforms.fit_model import FitModel
-from pyRheo.oscillation_model import SAOSModel  # noqa: E402
 import warnings
+
+from piblin.data import ExperimentSet  # noqa: E402
+from pyRheo.oscillation_model import SAOSModel  # noqa: E402
+
+from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
+from hermes_rheo.transforms.automated_mastercurve import CompositeMasterCurve
+from hermes_rheo.transforms.fit_model import FitModel
+from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
+from hermes_rheo.transforms.split_temperature_sweep import SplitTemperatureSweep
 
 warnings.filterwarnings("ignore")
 

@@ -10,9 +10,6 @@ Only when :class:`OWChirpAnalysis` is applied to an Arbitrary Wave step
 that has no wave metadata should a targeted error be raised.
 """
 
-import os
-import shutil
-
 import pytest
 
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
@@ -23,7 +20,7 @@ def _copy_and_patch_serial(datadir, src_name: str, replacement: str) -> str:
     """Copy a fixture file, rewriting its ``Instrument serial number`` line."""
     src = datadir.join(src_name)
     dst = datadir.join(f"_patched_{src_name}")
-    with open(str(src), "r") as f:
+    with open(str(src)) as f:
         contents = f.read()
     new_lines = []
     for line in contents.splitlines():

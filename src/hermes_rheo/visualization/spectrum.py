@@ -32,7 +32,7 @@ Examples
 
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import matplotlib.axes
 import matplotlib.figure
@@ -41,14 +41,13 @@ import numpy as np
 
 from hermes_rheo.visualization.units import get_unit, unit_suffix
 
-
 __all__ = [
     "plot_relaxation_spectrum",
     "plot_spectrum_diagnostics",
 ]
 
 
-def _resolve_units(source: Optional[Any]) -> Tuple[str, str]:
+def _resolve_units(source: Any | None) -> tuple[str, str]:
     """Return ``(time_unit, modulus_unit)`` for the axis labels."""
     if source is None:
         return "s", "Pa"
@@ -70,19 +69,19 @@ def _resolve_units(source: Optional[Any]) -> Tuple[str, str]:
 
 def plot_relaxation_spectrum(
     result: Any,
-    ax: Optional[matplotlib.axes.Axes] = None,
+    ax: matplotlib.axes.Axes | None = None,
     *,
     show_discrete: bool = True,
     show_continuous: bool = True,
     show_uncertainty: bool = True,
-    source: Optional[Any] = None,
-    label_continuous: Optional[str] = None,
-    label_discrete: Optional[str] = None,
+    source: Any | None = None,
+    label_continuous: str | None = None,
+    label_discrete: str | None = None,
     color_continuous: str = "tab:blue",
     color_discrete: str = "tab:red",
     unit_style: str = "bracket",
     legend_loc: str = "best",
-) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Plot continuous and/or discrete relaxation spectra on log-log axes.
 
     Parameters
@@ -192,10 +191,10 @@ def plot_relaxation_spectrum(
 
 def plot_spectrum_diagnostics(
     result: Any,
-    axes: Optional[np.ndarray] = None,
+    axes: np.ndarray | None = None,
     *,
     unit_style: str = "bracket",
-) -> Tuple[matplotlib.figure.Figure, np.ndarray]:
+) -> tuple[matplotlib.figure.Figure, np.ndarray]:
     """Three-panel diagnostics for a pyReSpect fit.
 
     Panels (left to right):

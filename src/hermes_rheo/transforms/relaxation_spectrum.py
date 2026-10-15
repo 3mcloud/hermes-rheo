@@ -70,13 +70,11 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import numpy as np
-
-from piblin.transform.abc.measurement_transform import MeasurementTransform
 import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
-
+from piblin.transform.abc.measurement_transform import MeasurementTransform
 
 __all__ = ["RelaxationSpectrum", "RelaxationSpectrumResult"]
 
@@ -195,27 +193,27 @@ class RelaxationSpectrumResult:
     G0: float
     G_fit_cont: np.ndarray
 
-    lam: Optional[np.ndarray] = None
-    rho: Optional[np.ndarray] = None
-    eta: Optional[np.ndarray] = None
-    log_P: Optional[np.ndarray] = None
-    H_lam: Optional[np.ndarray] = None
-    dH: Optional[np.ndarray] = None
+    lam: np.ndarray | None = None
+    rho: np.ndarray | None = None
+    eta: np.ndarray | None = None
+    log_P: np.ndarray | None = None
+    H_lam: np.ndarray | None = None
+    dH: np.ndarray | None = None
 
     # Discrete spectrum
     g: np.ndarray = field(default_factory=lambda: np.array([], dtype=float))
     tau: np.ndarray = field(default_factory=lambda: np.array([], dtype=float))
-    dtau: Optional[np.ndarray] = None
+    dtau: np.ndarray | None = None
     N_opt: int = 0
     G_fit_disc: np.ndarray = field(default_factory=lambda: np.array([], dtype=float))
     G0_disc: float = 0.0
-    wt_base: Optional[np.ndarray] = None
-    AIC_bst: Optional[np.ndarray] = None
-    N_bst: Optional[np.ndarray] = None
+    wt_base: np.ndarray | None = None
+    AIC_bst: np.ndarray | None = None
+    N_bst: np.ndarray | None = None
 
     # Datasets stored back on the target measurement
-    dataset_continuous: Optional[one_d_composite_dataset.OneDimensionalCompositeDataset] = None
-    dataset_discrete: Optional[one_d_composite_dataset.OneDimensionalCompositeDataset] = None
+    dataset_continuous: one_d_composite_dataset.OneDimensionalCompositeDataset | None = None
+    dataset_discrete: one_d_composite_dataset.OneDimensionalCompositeDataset | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -223,14 +221,14 @@ class RelaxationSpectrumResult:
 # ---------------------------------------------------------------------------
 
 
-def _find_first(names: Tuple[str, ...], catalogue: list) -> Optional[str]:
+def _find_first(names: tuple[str, ...], catalogue: list) -> str | None:
     for candidate in names:
         if candidate in catalogue:
             return candidate
     return None
 
 
-def _sanitize_time(t: np.ndarray, g_t: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def _sanitize_time(t: np.ndarray, g_t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     t = np.asarray(t, dtype=float).ravel()
     g_t = np.asarray(g_t, dtype=float).ravel()
     mask = np.isfinite(t) & np.isfinite(g_t) & (t > 0.0) & (g_t > 0.0)
@@ -253,7 +251,7 @@ def _sanitize_time(t: np.ndarray, g_t: np.ndarray) -> Tuple[np.ndarray, np.ndarr
 
 def _sanitize_frequency(
     omega: np.ndarray, gp: np.ndarray, gpp: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     omega = np.asarray(omega, dtype=float).ravel()
     gp = np.asarray(gp, dtype=float).ravel()
     gpp = np.asarray(gpp, dtype=float).ravel()
@@ -283,7 +281,7 @@ def _sanitize_frequency(
     return omega, gp, gpp
 
 
-def _config_kwargs() -> Tuple[str, ...]:
+def _config_kwargs() -> tuple[str, ...]:
     """The full set of ``ReSpectConfig`` kwargs shared by both branches."""
     return (
         "ns",
@@ -398,9 +396,9 @@ class RelaxationSpectrum(MeasurementTransform):
         freq_end: str = "lenient",
         lam_min: float = 1e-10,
         lam_max: float = 1e3,
-        lam_C: Optional[float] = None,
+        lam_C: float | None = None,
         SmFacLam: float = 0.0,
-        max_num_modes: Optional[int] = None,
+        max_num_modes: int | None = None,
         delta_base_weight_dist: float = 0.2,
         min_tau_spacing: float = 1.25,
         resample: bool = True,
@@ -437,14 +435,14 @@ class RelaxationSpectrum(MeasurementTransform):
         self.storage_name = storage_name
         self.loss_name = loss_name
 
-        self._result: Optional[RelaxationSpectrumResult] = None
+        self._result: RelaxationSpectrumResult | None = None
 
     # ------------------------------------------------------------------
     # Public accessors
     # ------------------------------------------------------------------
 
     @property
-    def result(self) -> Optional[RelaxationSpectrumResult]:
+    def result(self) -> RelaxationSpectrumResult | None:
         """Most recent :class:`RelaxationSpectrumResult` produced by ``_apply``."""
         return self._result
 
@@ -495,7 +493,7 @@ class RelaxationSpectrum(MeasurementTransform):
     # Domain-specific branches
     # ------------------------------------------------------------------
 
-    def _apply_time(self, dataset: Any, names: list) -> Optional[RelaxationSpectrumResult]:
+    def _apply_time(self, dataset: Any, names: list) -> RelaxationSpectrumResult | None:
         time_col = self.time_name if self.time_name in names else _find_first(_TIME_ALIASES, names)
         modulus_col = (
             self.relaxation_name
@@ -527,7 +525,7 @@ class RelaxationSpectrum(MeasurementTransform):
             disc=disc,
         )
 
-    def _apply_frequency(self, dataset: Any, names: list) -> Optional[RelaxationSpectrumResult]:
+    def _apply_frequency(self, dataset: Any, names: list) -> RelaxationSpectrumResult | None:
         for required in (self.omega_name, self.storage_name, self.loss_name):
             if required not in names:
                 return None  # silent no-op
@@ -564,11 +562,11 @@ class RelaxationSpectrum(MeasurementTransform):
     # Config plumbing
     # ------------------------------------------------------------------
 
-    def _build_config(self, pr_mod: Any, kwarg_names: Tuple[str, ...]):
+    def _build_config(self, pr_mod: Any, kwarg_names: tuple[str, ...]):
         payload = {name: getattr(self, name) for name in kwarg_names}
         return pr_mod.ReSpectConfig(**payload)
 
-    def _config_snapshot(self, config: Any, kwarg_names: Tuple[str, ...]) -> dict:
+    def _config_snapshot(self, config: Any, kwarg_names: tuple[str, ...]) -> dict:
         return {name: getattr(config, name) for name in kwarg_names}
 
     # ------------------------------------------------------------------
@@ -674,7 +672,7 @@ class RelaxationSpectrum(MeasurementTransform):
         s: np.ndarray,
         H: np.ndarray,
         h: np.ndarray,
-        dH: Optional[np.ndarray],
+        dH: np.ndarray | None,
         domain: str,
     ) -> one_d_composite_dataset.OneDimensionalCompositeDataset:
         arrays = [s, H, h]
@@ -697,9 +695,9 @@ class RelaxationSpectrum(MeasurementTransform):
         self,
         tau: np.ndarray,
         g: np.ndarray,
-        dtau: Optional[np.ndarray],
+        dtau: np.ndarray | None,
         domain: str,
-    ) -> Optional[one_d_composite_dataset.OneDimensionalCompositeDataset]:
+    ) -> one_d_composite_dataset.OneDimensionalCompositeDataset | None:
         if tau.size == 0:
             return None
         arrays = [tau, g]

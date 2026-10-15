@@ -1,12 +1,11 @@
-from typing import Dict, List
-import numpy as np
 import copy
 from collections import defaultdict
 
-from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+import numpy as np
+import piblin.data.data_collections.experiment_set as experiment_set
 import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
 from piblin.data import Measurement, MeasurementSet
-import piblin.data.data_collections.experiment_set as experiment_set
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
 
 
 class SplitTemperatureSweep(MeasurementSetTransform):
@@ -41,7 +40,7 @@ class SplitTemperatureSweep(MeasurementSetTransform):
     def __init__(
         self,
         n_steps: int | None = None,
-        temp_step_interval: List[float] | None = None,
+        temp_step_interval: list[float] | None = None,
         temp_tolerance: float = 1.0,
         *args,
         **kwargs,
@@ -94,7 +93,7 @@ class SplitTemperatureSweep(MeasurementSetTransform):
         dataset: one_d_composite_dataset.OneDimensionalCompositeDataset,
         temp_step: float,
         temp_tolerance: float,
-    ) -> List[Dict[str, np.ndarray]]:
+    ) -> list[dict[str, np.ndarray]]:
         """
         Core splitting logic for one composite dataset.
         Groups contiguous data by jumps > temp_tolerance, then rounds each block’s
@@ -113,7 +112,7 @@ class SplitTemperatureSweep(MeasurementSetTransform):
             all_data[n] = all_data[n][order]
 
         temps = all_data["temperature"]
-        sweeps: Dict[float, Dict[str, List[float]]] = defaultdict(lambda: {n: [] for n in names})
+        sweeps: dict[float, dict[str, list[float]]] = defaultdict(lambda: {n: [] for n in names})
         start = 0
 
         # detect block boundaries
@@ -132,11 +131,11 @@ class SplitTemperatureSweep(MeasurementSetTransform):
             sweeps[nominal][n].extend(all_data[n][start:])
 
         # build list of sorted blocks
-        sweep_list: List[Dict[str, np.ndarray]] = []
+        sweep_list: list[dict[str, np.ndarray]] = []
         for nominal_T, block in sweeps.items():
             freq = np.array(block["angular frequency"])
             o = np.argsort(freq)
-            entry: Dict[str, np.ndarray] = {}
+            entry: dict[str, np.ndarray] = {}
             for n in names:
                 arr = np.array(block[n])[o]
                 # Pa → MPa for moduli/stress
@@ -168,7 +167,7 @@ class SplitTemperatureSweep(MeasurementSetTransform):
                 f"Expected {self.n_steps} measurements, got {len(target.measurements)}"
             )
 
-        out_measurements: List[Measurement] = []
+        out_measurements: list[Measurement] = []
         for i, meas in enumerate(target.measurements):
             ds = meas.datasets[0]
             if self.temp_step_interval is not None:

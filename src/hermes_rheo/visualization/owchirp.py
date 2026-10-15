@@ -37,7 +37,8 @@ from __future__ import annotations
 
 import copy
 import os
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Any
 
 import matplotlib.axes
 import matplotlib.figure
@@ -45,8 +46,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-StepSelector = Union[int, str, Sequence[int], None]
+StepSelector = int | str | Sequence[int] | None
 
 
 class OWChirpVisualizer:
@@ -81,27 +81,27 @@ class OWChirpVisualizer:
     def __init__(
         self,
         processed_experiment: Any,
-        moduli_ylim: Tuple[float, float] = (1e3, 5e8),
+        moduli_ylim: tuple[float, float] = (1e3, 5e8),
     ) -> None:
         self._experiment = processed_experiment
         self.moduli_ylim = moduli_ylim
         self._meas = list(processed_experiment.measurements)
         self.n_waves = len(self._meas)
-        self._data: Optional[Dict[str, List[np.ndarray]]] = None
+        self._data: dict[str, list[np.ndarray]] | None = None
 
     # ------------------------------------------------------------------
     # Data extraction
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _xy(dataset, x_name: str, y_name: str) -> Tuple[np.ndarray, np.ndarray]:
+    def _xy(dataset, x_name: str, y_name: str) -> tuple[np.ndarray, np.ndarray]:
         """Return ``(x, y)`` for two named arrays without mutating *dataset*."""
         ds = copy.deepcopy(dataset)
         ds.switch_coordinates(independent_name=x_name, dependent_name=y_name)
         return copy.deepcopy(ds.x_values), copy.deepcopy(ds.y_values)
 
     @property
-    def data(self) -> Dict[str, List[np.ndarray]]:
+    def data(self) -> dict[str, list[np.ndarray]]:
         """Per-wave extracted arrays (lazily computed and cached).
 
         Returns
@@ -128,7 +128,7 @@ class OWChirpVisualizer:
             "stresses",
             "temperatures",
         ]
-        data: Dict[str, List[np.ndarray]] = {k: [] for k in keys}
+        data: dict[str, list[np.ndarray]] = {k: [] for k in keys}
 
         for step in range(self.n_waves):
             freq = self._meas[step].datasets[0]
@@ -159,7 +159,7 @@ class OWChirpVisualizer:
     # Step selection
     # ------------------------------------------------------------------
 
-    def _resolve_steps(self, steps: StepSelector) -> List[int]:
+    def _resolve_steps(self, steps: StepSelector) -> list[int]:
         """Turn a step selector into a concrete, sorted list of indices.
 
         Parameters
@@ -196,9 +196,9 @@ class OWChirpVisualizer:
     def plot_wave(
         self,
         step: int,
-        figsize: Tuple[float, float] = (12, 5),
-        save_dir: Optional[str] = None,
-    ) -> Tuple[matplotlib.figure.Figure, Sequence[matplotlib.axes.Axes]]:
+        figsize: tuple[float, float] = (12, 5),
+        save_dir: str | None = None,
+    ) -> tuple[matplotlib.figure.Figure, Sequence[matplotlib.axes.Axes]]:
         """Plot the moduli and time-domain signal for a single wave.
 
         The layout is a moduli panel (``G'``/``G''`` vs angular frequency)
@@ -277,9 +277,9 @@ class OWChirpVisualizer:
     def plot_waves(
         self,
         steps: StepSelector = "first-middle-last",
-        figsize: Tuple[float, float] = (12, 5),
-        save_dir: Optional[str] = None,
-    ) -> Tuple[List[matplotlib.figure.Figure], List[Sequence[matplotlib.axes.Axes]]]:
+        figsize: tuple[float, float] = (12, 5),
+        save_dir: str | None = None,
+    ) -> tuple[list[matplotlib.figure.Figure], list[Sequence[matplotlib.axes.Axes]]]:
         """Plot a selection of waves.
 
         Parameters
@@ -305,7 +305,7 @@ class OWChirpVisualizer:
             axes.append(ax)
         return figs, axes
 
-    def save_frames(self, output_dir: str) -> List[str]:
+    def save_frames(self, output_dir: str) -> list[str]:
         """Render and save every wave as a PNG frame (no inline display).
 
         Parameters
@@ -370,7 +370,7 @@ class OWChirpVisualizer:
                 "`pip install opencv-python`."
             ) from exc
 
-        def _frame_paths() -> List[str]:
+        def _frame_paths() -> list[str]:
             return sorted(
                 (
                     os.path.join(output_dir, f)
@@ -400,8 +400,8 @@ class OWChirpVisualizer:
     def plot_fourier(
         self,
         step: int = 0,
-        figsize: Tuple[float, float] = (10, 7),
-    ) -> Tuple[matplotlib.figure.Figure, Sequence[matplotlib.axes.Axes]]:
+        figsize: tuple[float, float] = (10, 7),
+    ) -> tuple[matplotlib.figure.Figure, Sequence[matplotlib.axes.Axes]]:
         """Plot the time- and Fourier-domain strain/stress for one wave.
 
         The 2x2 layout shows the input strain (top-left) and output stress

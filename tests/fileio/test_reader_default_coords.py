@@ -20,16 +20,15 @@ from __future__ import annotations
 
 import pytest
 
+from hermes_rheo.file_readers.rheo_compass_csv import (
+    RheoCompassReader,
+    _lookup_rheocompass_defaults,
+)
 from hermes_rheo.file_readers.trios_rheo_txt import (
     TriosRheoReader,
     _canonicalise_method,
     _lookup_method_defaults,
 )
-from hermes_rheo.file_readers.rheo_compass_csv import (
-    RheoCompassReader,
-    _lookup_rheocompass_defaults,
-)
-
 
 # ---------------------------------------------------------------------------
 # TriosRheoReader — per-method natural defaults from real fixtures

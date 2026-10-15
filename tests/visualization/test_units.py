@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
+from piblin.data.data_collections.measurement import Measurement
+from piblin.data.data_collections.measurement_set import MeasurementSet
 from piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset import (
     OneDimensionalCompositeDataset,
 )
-from piblin.data.data_collections.measurement import Measurement
-from piblin.data.data_collections.measurement_set import MeasurementSet
-from hermes_rheo.visualization import get_unit, unit_suffix
 
+from hermes_rheo.visualization import get_unit, unit_suffix
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -19,8 +19,9 @@ imported only when a pyRheo model is requested.  Install it with::
 """
 
 import copy
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize, nnls
 
@@ -458,7 +459,7 @@ class FitModel:
         curve.  Defaults to ``100``.
     domain : {"oscillation", "relaxation"}, optional
         Fitting domain. ``"oscillation"`` (default) fits
-        :math:`G'(\omega), G''(\omega)`. ``"relaxation"`` fits
+        :math:`G'(\\omega), G''(\\omega)`. ``"relaxation"`` fits
         :math:`G(t)`.
     time_name, relaxation_name : str, optional
         Data-array names used in ``domain="relaxation"`` mode.

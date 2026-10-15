@@ -39,14 +39,12 @@ import copy
 import logging
 import math
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
-from scipy.fftpack import fft, fftshift
-
-from piblin.transform.abc.measurement_transform import MeasurementTransform
 import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
-
+from piblin.transform.abc.measurement_transform import MeasurementTransform
+from scipy.fftpack import fft, fftshift
 
 _logger = logging.getLogger(__name__)
 
@@ -54,7 +52,7 @@ _logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Unit-prefix table used by :meth:`OWChirpAnalysis.parse_value_with_prefix`
 # ---------------------------------------------------------------------------
-_UNIT_PREFIXES: Dict[str, float] = {
+_UNIT_PREFIXES: dict[str, float] = {
     "m": 1e-3,
     "µ": 1e-6,
     "u": 1e-6,  # ASCII substitute for µ
@@ -199,7 +197,7 @@ class OWChirpAnalysis(MeasurementTransform):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def parse_value_with_prefix(text: Optional[str]) -> float:
+    def parse_value_with_prefix(text: str | None) -> float:
         """Parse a numeric string with an SI unit prefix into SI base units.
 
         Handles inputs like ``"2.02 mrad/N.m"``, ``"1.85047 µN.m.s²"``,
@@ -256,7 +254,7 @@ class OWChirpAnalysis(MeasurementTransform):
         stress: str,
         temperature: str,
         cutoff_points: float,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Extract time, strain, stress and temperature arrays from a raw dataset.
 
         Switches the composite dataset's coordinates in turn to pull each
@@ -346,7 +344,7 @@ class OWChirpAnalysis(MeasurementTransform):
             ) from exc
 
     @staticmethod
-    def average_until_tw(t_w: float, time: List[float], signal: List[float]) -> np.ndarray:
+    def average_until_tw(t_w: float, time: list[float], signal: list[float]) -> np.ndarray:
         """Subtract the mean of *signal* over ``time <= t_w`` from *signal*.
 
         Best default for the *strain* channel: the pre-chirp waiting window
@@ -358,7 +356,7 @@ class OWChirpAnalysis(MeasurementTransform):
         return signal - initial_value
 
     @staticmethod
-    def average_over_chirp(t_w: float, time: List[float], signal: List[float]) -> np.ndarray:
+    def average_over_chirp(t_w: float, time: list[float], signal: list[float]) -> np.ndarray:
         """Subtract the mean of *signal* AFTER the waiting window.
 
         Best default for the stress controlled instruments.
@@ -369,7 +367,7 @@ class OWChirpAnalysis(MeasurementTransform):
         return signal - avg_signal
 
     @staticmethod
-    def average_over_all(t_w: float, time: List[float], signal: List[float]) -> np.ndarray:
+    def average_over_all(t_w: float, time: list[float], signal: list[float]) -> np.ndarray:
         """Subtract the sum of pre-``t_w`` and post-``t_w`` means from *signal*."""
         signal = np.asarray(signal)
         index_tw = OWChirpAnalysis._find_tw_index(t_w, time)
@@ -378,10 +376,10 @@ class OWChirpAnalysis(MeasurementTransform):
     def filter_signal(
         self,
         t_w: float,
-        time: List[float],
-        signal: List[float],
+        time: list[float],
+        signal: list[float],
         method: str = "tw",
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         """Return *signal* baseline-corrected with the chosen *method*.
 
         Parameters
@@ -415,10 +413,10 @@ class OWChirpAnalysis(MeasurementTransform):
     def select_best_filter_method(
         self,
         t_w: float,
-        time: List[float],
-        signal: List[float],
+        time: list[float],
+        signal: list[float],
         criterion: str = "symmetry",
-    ) -> Tuple[np.ndarray, str]:
+    ) -> tuple[np.ndarray, str]:
         """Try every baseline filter and return the one that best matches *criterion*.
 
         Parameters
@@ -474,8 +472,8 @@ class OWChirpAnalysis(MeasurementTransform):
 
     @staticmethod
     def calculate_wave_parameters(
-        wave_data: Dict[str, dict],
-    ) -> Tuple[float, float, float, float, float]:
+        wave_data: dict[str, dict],
+    ) -> tuple[float, float, float, float, float]:
         """Extract ``(tw, T, r, w0, w1)`` from a TRIOS Arbitrary Wave block.
 
         Parameters
@@ -561,7 +559,7 @@ class OWChirpAnalysis(MeasurementTransform):
         fs: float,
         om1: float,
         om2: float,
-    ) -> Tuple[np.ndarray, ...]:
+    ) -> tuple[np.ndarray, ...]:
         """Compute :math:`G'`, :math:`G''` and :math:`G^{*}` from strain-controlled data.
 
         Both signals are zero-padded to ``n = 2**(floor(log2(N)) + 1)`` points
@@ -665,7 +663,7 @@ class OWChirpAnalysis(MeasurementTransform):
         I: float,
         c: float,
         mu: float,
-    ) -> Tuple[np.ndarray, ...]:
+    ) -> tuple[np.ndarray, ...]:
         r"""Inertia- and compliance-corrected stress-controlled OWChirp moduli.
 
         For stress-controlled instruments (e.g. TA instrument DHR series) the strain
@@ -799,7 +797,7 @@ class OWChirpAnalysis(MeasurementTransform):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_frequency_chirp_params(details: Dict[str, Any]) -> Dict[str, float]:
+    def _extract_frequency_chirp_params(details: dict[str, Any]) -> dict[str, float]:
         """Parse a Frequency Chirp step's parameters from a measurement's details dict.
 
         The preferred path uses the structured per-step dict written by newer
@@ -842,7 +840,7 @@ class OWChirpAnalysis(MeasurementTransform):
             except Exception:
                 return float("nan")
 
-        def _to_bool_flag(s: str) -> Optional[bool]:
+        def _to_bool_flag(s: str) -> bool | None:
             if not isinstance(s, str):
                 return None
             s_norm = s.strip().lower()
@@ -852,7 +850,7 @@ class OWChirpAnalysis(MeasurementTransform):
                 return False
             return None
 
-        def _attach_geometry_metadata(result: Dict[str, Any], details: Dict[str, Any]) -> None:
+        def _attach_geometry_metadata(result: dict[str, Any], details: dict[str, Any]) -> None:
             extra_keys = [
                 "geometry_compliance",
                 "geometry_inertia",
@@ -866,7 +864,7 @@ class OWChirpAnalysis(MeasurementTransform):
                     result[key] = details[key]
 
         # ---------- 1) Preferred: structured per-step dict(s) ----------
-        step_items: List[Tuple[str, Dict[str, Any]]] = []
+        step_items: list[tuple[str, dict[str, Any]]] = []
         for k, v in details.items():
             if isinstance(k, str) and re.search(
                 r"^Frequency\s*Chirp\s*-\s*\d+\s*$", k, flags=re.IGNORECASE
@@ -892,7 +890,7 @@ class OWChirpAnalysis(MeasurementTransform):
             taper_pct = _to_float(step.get("tapering_percent"))
             fs = _to_float(step.get("fs"))
 
-            result: Dict[str, Any] = {
+            result: dict[str, Any] = {
                 "waiting_time": waiting_time,
                 "chirp_length": chirp_length,
                 "oscillation_period": chirp_length,

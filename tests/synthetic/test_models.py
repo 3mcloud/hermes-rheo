@@ -10,13 +10,9 @@ import numpy as np
 import pytest
 
 from hermes_rheo.synthetic import (
-    SyntheticRheometry,
-    MaxwellModel,
     MultiModeMaxwellModel,
-    KelvinVoigtModel,
-    JeffreysModel,
+    SyntheticRheometry,
 )
-
 
 # --- helper ----------------------------------------------------------------
 

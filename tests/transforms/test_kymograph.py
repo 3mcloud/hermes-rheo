@@ -9,7 +9,6 @@ the dataset).
 from __future__ import annotations
 
 import numpy as np
-
 from piblin.data import (
     Measurement,
     MeasurementSet,

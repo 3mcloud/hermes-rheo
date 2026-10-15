@@ -1,7 +1,8 @@
-import matplotlib.pyplot as plt
 import math
-import numpy as np
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class OWChirpGeneration:

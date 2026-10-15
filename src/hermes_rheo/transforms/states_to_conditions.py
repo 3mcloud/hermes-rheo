@@ -1,6 +1,5 @@
-from piblin.transform.abc.measurement_transform import MeasurementTransform
-
 import numpy as np
+from piblin.transform.abc.measurement_transform import MeasurementTransform
 
 
 class StatesToConditions(MeasurementTransform):

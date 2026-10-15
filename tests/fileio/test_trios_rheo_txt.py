@@ -1,7 +1,8 @@
+import numpy as np
 from piblin.data import ExperimentSet
+
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
-import numpy as np
 
 
 def test_trios_lims_export_file_single_step(datadir):
@@ -26,4 +27,4 @@ def test_temperature_ramp(datadir):
     pipeline = OWChirpAnalysis()
     processed_experiment = pipeline(experiment)
     assert len(processed_experiment.measurements) == 1
-    assert type(processed_experiment.measurements[0].datasets[0].x_values) == np.ndarray
+    assert isinstance(processed_experiment.measurements[0].datasets[0].x_values, np.ndarray)

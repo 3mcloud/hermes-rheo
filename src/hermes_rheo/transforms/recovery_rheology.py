@@ -57,17 +57,15 @@ import re
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+import piblin.data.data_collections.experiment_set as experiment_set
 import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
 from piblin.data import Measurement, MeasurementSet
-import piblin.data.data_collections.experiment_set as experiment_set
-
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -81,17 +79,17 @@ class RecoveryRheologyResult:
     method: str
     recov_anal_data: np.ndarray
     pair_indices: np.ndarray
-    mod_fft: Optional[np.ndarray] = None
-    amplitudes: Optional[np.ndarray] = None
-    trad_mod: Optional[np.ndarray] = None
-    raw_mod: Optional[np.ndarray] = None
-    decomp_waveform: Optional[np.ndarray] = None
-    omega: Optional[float] = None
-    metadata: Optional[Dict[str, Any]] = field(default_factory=dict)
+    mod_fft: np.ndarray | None = None
+    amplitudes: np.ndarray | None = None
+    trad_mod: np.ndarray | None = None
+    raw_mod: np.ndarray | None = None
+    decomp_waveform: np.ndarray | None = None
+    omega: float | None = None
+    metadata: dict[str, Any] | None = field(default_factory=dict)
 
     # ---- convenience --------------------------------------------------------
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "method": self.method,
             "recov_anal_data": self.recov_anal_data,
@@ -124,7 +122,7 @@ class RecoveryRheologyResult:
         str
             The path that was written.
         """
-        sheets: Dict[str, pd.DataFrame] = {}
+        sheets: dict[str, pd.DataFrame] = {}
 
         if self.decomp_waveform is not None:
             sheets["transient data"] = pd.DataFrame(
@@ -155,7 +153,7 @@ class RecoveryRheologyResult:
             amp = self.amplitudes
             meta = self.metadata or {}
 
-            row: Dict[str, float] = {
+            row: dict[str, float] = {
                 # FFT moduli
                 "G'_FT": Gp_FT,
                 "G''_FT": Gpp_FT,
@@ -448,11 +446,11 @@ class RecoveryRheology(MeasurementSetTransform):
         self,
         method: str = "oscillatory",
         n_osc: int = 2,
-        n_use: Optional[int] = None,
+        n_use: int | None = None,
         diff_state: int = 4,
         k_step: int = 1,
         strain_shift_state: bool = False,
-        omega: Optional[float] = None,
+        omega: float | None = None,
         stress_zero_tol: float = 1e-10,
         *args,
         **kwargs,
@@ -466,8 +464,8 @@ class RecoveryRheology(MeasurementSetTransform):
         self.strain_shift_state = strain_shift_state
         self.omega = omega
         self.stress_zero_tol = stress_zero_tol
-        self.result: Optional[RecoveryRheologyResult] = None
-        self._transient_curves: List[Dict[str, Any]] = []
+        self.result: RecoveryRheologyResult | None = None
+        self._transient_curves: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # piblin transform hook
@@ -537,12 +535,12 @@ class RecoveryRheology(MeasurementSetTransform):
         # into a single stacked array so the pairing logic can find the
         # oscillation / pre-load / recovery interval structure.
         # ----------------------------------------------------------
-        stacks: List[np.ndarray] = []
+        stacks: list[np.ndarray] = []
 
         # Try to detect RheoCompass-style method labels like
         # "Interval 1 (Forward - 17)" and group by the part after "Interval N"
-        grouped: Dict[str, List[Tuple[int, np.ndarray]]] = defaultdict(list)
-        ungrouped: List[np.ndarray] = []
+        grouped: dict[str, list[tuple[int, np.ndarray]]] = defaultdict(list)
+        ungrouped: list[np.ndarray] = []
 
         for meas in measurements:
             arr = self._extract_oscillatory_arrays(meas)
@@ -682,7 +680,7 @@ class RecoveryRheology(MeasurementSetTransform):
     # Extract arrays from a single measurement
     # ------------------------------------------------------------------
 
-    def _extract_oscillatory_arrays(self, meas: Measurement) -> Optional[np.ndarray]:
+    def _extract_oscillatory_arrays(self, meas: Measurement) -> np.ndarray | None:
         """
         Return an (N, 4) array  [interval_id, time, strain, stress]
         from *meas.datasets[0]*.
@@ -745,8 +743,8 @@ class RecoveryRheology(MeasurementSetTransform):
         num_meas: int,
         size_meas: np.ndarray,
         n_osc: int,
-        omega_override: Optional[float] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int, np.ndarray]:
+        omega_override: float | None = None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, np.ndarray]:
         """
         Pair measurements as (1,2), (3,4), … and compute per-pair
         recovery data and FFT moduli.
@@ -807,7 +805,8 @@ class RecoveryRheology(MeasurementSetTransform):
             final_osc_idx = np.where(avg_block[:, 0] == (n_int - 2))[0]
             if final_osc_idx.size == 0:
                 warnings.warn(
-                    f"Pair {ii + 1}: final oscillation interval not found. Skipping pair."
+                    f"Pair {ii + 1}: final oscillation interval not found. Skipping pair.",
+                    stacklevel=2,
                 )
                 continue
 
@@ -827,7 +826,8 @@ class RecoveryRheology(MeasurementSetTransform):
             if osc_end_idx.size == 0 or rec_end_idx.size == 0:
                 warnings.warn(
                     f"Pair {ii + 1}: recovery interval endpoints not found. "
-                    f"Skipping recovery extraction."
+                    f"Skipping recovery extraction.",
+                    stacklevel=2,
                 )
             else:
                 i_osc_end = osc_end_idx[-1]
@@ -853,7 +853,8 @@ class RecoveryRheology(MeasurementSetTransform):
             if h >= n_f:
                 warnings.warn(
                     f"Pair {ii + 1}: n_osc={n_osc} too large for n_fosc={n_f}. "
-                    f"Skipping modulus calculation."
+                    f"Skipping modulus calculation.",
+                    stacklevel=2,
                 )
                 continue
 
@@ -873,7 +874,8 @@ class RecoveryRheology(MeasurementSetTransform):
 
             if abs(strain_AB1[1]) < np.finfo(float).eps:
                 warnings.warn(
-                    f"Pair {ii + 1}: strain_AB1[1] too small for stable modulus calculation."
+                    f"Pair {ii + 1}: strain_AB1[1] too small for stable modulus calculation.",
+                    stacklevel=2,
                 )
                 continue
 
@@ -895,7 +897,8 @@ class RecoveryRheology(MeasurementSetTransform):
 
             if abs(strain_AB[1]) < np.finfo(float).eps:
                 warnings.warn(
-                    f"Pair {ii + 1}: shifted strain amplitude too small for modulus calculation."
+                    f"Pair {ii + 1}: shifted strain amplitude too small for modulus calculation.",
+                    stacklevel=2,
                 )
                 continue
 
@@ -925,7 +928,7 @@ class RecoveryRheology(MeasurementSetTransform):
         rec_anal_mat: np.ndarray,
         mod_anal_mat: np.ndarray,
         omega: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Build the closed half-period loop, differentiate, compute
         energy-based moduli.
@@ -1087,7 +1090,6 @@ class RecoveryRheology(MeasurementSetTransform):
         rec_anal_use[0, 1:8] = join_end
 
         # ---- differentiate (periodic centred stencil) ----
-        L = rec_anal_use.shape[0]  # = 2 * n_halfp
 
         for col in range(3):
             rec_anal_use[:, 4 + col] = self._centered_derivative_periodic(
@@ -1173,8 +1175,8 @@ class RecoveryRheology(MeasurementSetTransform):
         # Try per-measurement block detection first (Trios-style: each
         # measurement contains a full stress+recovery sequence).
         # ----------------------------------------------------------
-        rows_pos: List[np.ndarray] = []
-        rows_neg: List[np.ndarray] = []
+        rows_pos: list[np.ndarray] = []
+        rows_neg: list[np.ndarray] = []
 
         for meas in measurements:
             pos, neg = self._extract_step_blocks(meas)
@@ -1246,7 +1248,7 @@ class RecoveryRheology(MeasurementSetTransform):
             },
         )
 
-    def _extract_step_blocks(self, meas: Measurement) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    def _extract_step_blocks(self, meas: Measurement) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
         From one measurement, find non-zero stress blocks, classify
         as positive or negative, and extract the recovery point.
@@ -1323,8 +1325,8 @@ class RecoveryRheology(MeasurementSetTransform):
         return rows_pos, rows_neg
 
     def _extract_step_blocks_merged(
-        self, measurements: List[Measurement]
-    ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+        self, measurements: list[Measurement]
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
         Merge all measurements into a single continuous time series and
         then run block detection.
@@ -1348,15 +1350,15 @@ class RecoveryRheology(MeasurementSetTransform):
         non-zero stress block, containing the full recovery transient:
         ``{'sign', 'creep_time', 'creep_strain', 'rec_time', 'rec_strain'}``.
         """
-        time_parts: List[np.ndarray] = []
-        strain_parts: List[np.ndarray] = []
-        stress_parts: List[np.ndarray] = []
+        time_parts: list[np.ndarray] = []
+        strain_parts: list[np.ndarray] = []
+        stress_parts: list[np.ndarray] = []
 
         for meas in measurements:
             ds = meas.datasets[0]
             names_lower = [n.lower() for n in ds.data_array_names]
 
-            def _find(candidates):
+            def _find(candidates, names_lower=names_lower):
                 for c in candidates:
                     for i, n in enumerate(names_lower):
                         if c == n:
@@ -1402,14 +1404,9 @@ class RecoveryRheology(MeasurementSetTransform):
         starts = np.where(d == 1)[0]
         ends = np.where(d == -1)[0] - 1
 
-        # Also find zero blocks for transient extraction
-        d_z = np.diff(np.r_[False, check_zero, False].astype(int))
-        z_starts = np.where(d_z == 1)[0]
-        z_ends = np.where(d_z == -1)[0] - 1
-
-        rows_pos: List[np.ndarray] = []
-        rows_neg: List[np.ndarray] = []
-        transient_curves: List[Dict[str, Any]] = []
+        rows_pos: list[np.ndarray] = []
+        rows_neg: list[np.ndarray] = []
+        transient_curves: list[dict[str, Any]] = []
 
         for i1, i2 in zip(starts, ends):
             sgn = np.sign(stress_arr[i1])
@@ -1554,7 +1551,7 @@ class RecoveryRheology(MeasurementSetTransform):
     # Utility
     # ------------------------------------------------------------------
 
-    def _get_measurements(self, target) -> List[Measurement]:
+    def _get_measurements(self, target) -> list[Measurement]:
         if isinstance(target, experiment_set.ExperimentSet):
             return list(target.measurements)
         if isinstance(target, MeasurementSet):

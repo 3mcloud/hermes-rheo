@@ -14,14 +14,13 @@ import os
 import shutil
 
 import numpy as np
-import pytest
-
-from piblin.data import Measurement
 import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
+import pytest
+from piblin.data import Measurement
 
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
-from hermes_rheo.transforms.frequency_to_time import FrequencyToTime
 from hermes_rheo.transforms.fit_model import FitModel
+from hermes_rheo.transforms.frequency_to_time import FrequencyToTime
 from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
 from hermes_rheo.transforms.split_temperature_sweep import SplitTemperatureSweep
 

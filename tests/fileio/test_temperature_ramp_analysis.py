@@ -6,9 +6,8 @@ Fixture file: test_temp_ramp.txt  (one temperature-ramp step, -40 °C → ~200 �
 import os
 
 import numpy as np
-import pytest
-
 from piblin.data import ExperimentSet, OneDimensionalCompositeDataset
+
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
 from hermes_rheo.transforms.temperature_ramp_analysis import (

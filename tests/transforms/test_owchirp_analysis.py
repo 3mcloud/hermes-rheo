@@ -23,12 +23,12 @@ import numpy as np
 import pytest
 
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
+from hermes_rheo.transforms.automated_mastercurve import AutomatedMasterCurve
 from hermes_rheo.transforms.owchirp_analysis import (
     OWChirpAnalysis,
     _canonicalise_method,
 )
 from hermes_rheo.transforms.rheo_analysis import RheoAnalysis
-from hermes_rheo.transforms.automated_mastercurve import AutomatedMasterCurve
 
 
 # Reuse the fixture-copy pattern from tests/fileio/conftest.py — this test

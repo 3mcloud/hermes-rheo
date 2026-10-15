@@ -55,20 +55,18 @@ References
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
-import numpy as np
-from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-
-from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+import matplotlib.pyplot as plt
+import numpy as np
 import piblin.data.data_collections.measurement_set as measurement_set_mod
 import piblin.data.datasets.abc.split_datasets.two_dimensional_dataset as two_dimensional_dataset_mod
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+from scipy.interpolate import griddata
 
 # ---------------------------------------------------------------------------
 # Quantity catalogue
 # ---------------------------------------------------------------------------
-QUANTITY_ALIASES: dict[str, List[str]] = {
+QUANTITY_ALIASES: dict[str, list[str]] = {
     "complex modulus": ["|complex modulus|", "complex modulus", "g*", "|g*|"],
     "storage modulus": ["storage modulus", "g'", "g′"],
     "loss modulus": ["loss modulus", "g''", "g″", 'g"'],
@@ -92,7 +90,7 @@ _DEFAULT_UNITS: dict[str, str] = {
 }
 
 
-def _resolve_column(column_names: List[str], quantity: str) -> Optional[str]:
+def _resolve_column(column_names: list[str], quantity: str) -> str | None:
     """Return the first column name that matches *quantity* (case-insensitive).
 
     Searches the :data:`QUANTITY_ALIASES` look-up first, then falls back to a
@@ -200,7 +198,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         self.log_y = log_y
 
     @property
-    def grid(self) -> "KymographResult":
+    def grid(self) -> KymographResult:
         """The interpolated grid — returns *self* (this object IS the grid)."""
         return self
 
@@ -210,10 +208,10 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
     def slice_at_x(
         self,
-        x_values: Union[float, List[float]],
+        x_values: float | list[float],
         *,
         use_raw: bool = False,
-    ) -> dict[float, Tuple[np.ndarray, np.ndarray]]:
+    ) -> dict[float, tuple[np.ndarray, np.ndarray]]:
         """Return z vs y at one or more fixed x (e.g. temperature) values.
 
         Parameters
@@ -238,7 +236,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         if np.ndim(x_values) == 0:
             x_values = [float(x_values)]
 
-        out: dict[float, Tuple[np.ndarray, np.ndarray]] = {}
+        out: dict[float, tuple[np.ndarray, np.ndarray]] = {}
 
         x_grid = self.x_values
         y_grid = self.y_values
@@ -257,10 +255,10 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
     def slice_at_y(
         self,
-        y_values: Union[float, List[float]],
+        y_values: float | list[float],
         *,
         use_raw: bool = False,
-    ) -> dict[float, Tuple[np.ndarray, np.ndarray]]:
+    ) -> dict[float, tuple[np.ndarray, np.ndarray]]:
         """Return z vs x at one or more fixed y (e.g. frequency) values.
 
         Parameters
@@ -285,7 +283,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         if np.ndim(y_values) == 0:
             y_values = [float(y_values)]
 
-        out: dict[float, Tuple[np.ndarray, np.ndarray]] = {}
+        out: dict[float, tuple[np.ndarray, np.ndarray]] = {}
 
         x_grid = self.x_values
         y_grid = self.y_values
@@ -309,16 +307,16 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
     def plot(
         self,
         *,
-        ax: Optional["plt.Axes"] = None,
+        ax: plt.Axes | None = None,
         colormap: str = "RdYlBu_r",
         log_z: bool = False,
         add_scatter: bool = False,
         add_contours: bool = False,
-        contour_levels: Optional[Union[int, List[float]]] = None,
+        contour_levels: int | list[float] | None = None,
         contour_colors: str = "k",
-        figsize: Tuple[float, float] = (8, 5),
-        title: Optional[str] = None,
-    ) -> Tuple["plt.Figure", "plt.Axes"]:
+        figsize: tuple[float, float] = (8, 5),
+        title: str | None = None,
+    ) -> tuple[plt.Figure, plt.Axes]:
         """Plot the 2-D kymograph (heatmap).
 
         Parameters
@@ -357,7 +355,7 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         y_grid = self.y_values  # (n_y,)
         z_grid = self.z_values.T  # (n_y, n_x) for pcolormesh
 
-        norm: Optional[mcolors.Normalize] = None
+        norm: mcolors.Normalize | None = None
         if log_z:
             pos = z_grid[z_grid > 0]
             if pos.size:
@@ -399,13 +397,13 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
     def plot_slice_at_x(
         self,
-        x_values: Union[float, List[float]],
+        x_values: float | list[float],
         *,
-        ax: Optional["plt.Axes"] = None,
+        ax: plt.Axes | None = None,
         log_x: bool = False,
         log_y_axis: bool = True,
-        figsize: Tuple[float, float] = (7, 4),
-    ) -> Tuple["plt.Figure", "plt.Axes"]:
+        figsize: tuple[float, float] = (7, 4),
+    ) -> tuple[plt.Figure, plt.Axes]:
         """Plot z vs y (frequency) at fixed x (temperature) values.
 
         Parameters
@@ -450,12 +448,12 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
     def plot_slice_at_y(
         self,
-        y_values: Union[float, List[float]],
+        y_values: float | list[float],
         *,
-        ax: Optional["plt.Axes"] = None,
+        ax: plt.Axes | None = None,
         log_y_axis: bool = True,
-        figsize: Tuple[float, float] = (7, 4),
-    ) -> Tuple["plt.Figure", "plt.Axes"]:
+        figsize: tuple[float, float] = (7, 4),
+    ) -> tuple[plt.Figure, plt.Axes]:
         """Plot z vs x (temperature) at fixed y (frequency) values.
 
         Parameters
@@ -671,7 +669,7 @@ class Kymograph(MeasurementSetTransform):
         n_y: int = 80,
         interpolation: str = "cubic",
         log_y: bool = True,
-        x_min: Optional[float] = None,
+        x_min: float | None = None,
         fill_nearest: bool = True,
         **kwargs,
     ) -> None:
@@ -692,9 +690,9 @@ class Kymograph(MeasurementSetTransform):
 
     def _apply(
         self,
-        target: "measurement_set_mod.MeasurementSet",
+        target: measurement_set_mod.MeasurementSet,
         **kwargs,
-    ) -> "KymographResult":
+    ) -> KymographResult:
         """Extract scatter data from *target* and return a :class:`KymographResult`.
 
         Parameters
@@ -712,9 +710,9 @@ class Kymograph(MeasurementSetTransform):
             If the requested quantity, x- or y-variable cannot be found in
             any dataset.
         """
-        x_all: List[float] = []
-        y_all: List[float] = []
-        z_all: List[float] = []
+        x_all: list[float] = []
+        y_all: list[float] = []
+        z_all: list[float] = []
 
         x_unit = ""
         y_unit = ""
@@ -872,7 +870,7 @@ class Kymograph(MeasurementSetTransform):
         raw_x: np.ndarray,
         raw_y: np.ndarray,
         raw_z: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Scatter → regular grid interpolation.
 
         Returns

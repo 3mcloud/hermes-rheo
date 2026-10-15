@@ -1,11 +1,12 @@
-from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
-import piblin.data.datasets.abc.split_datasets.one_dimensional_dataset as one_dimensional_dataset
-from piblin.data import Measurement, MeasurementSet
-import numpy as np
 import copy
-from collections import defaultdict
-from matplotlib import pyplot as plt
 import re
+from collections import defaultdict
+
+import numpy as np
+import piblin.data.datasets.abc.split_datasets.one_dimensional_dataset as one_dimensional_dataset
+from matplotlib import pyplot as plt
+from piblin.data import Measurement, MeasurementSet
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
 
 
 class MutationNumberMeasurementSet(MeasurementSet):
@@ -272,15 +273,12 @@ class MutationNumber(MeasurementSetTransform):
                 step_names_lower.append(method_cond)
 
         has_arbitrary_wave = any("arbitrary wave" in s for s in step_names_lower)
-        has_correlated = any("correlated" in s for s in step_names_lower)
 
         # Preserve backwards compatibility: an explicit top-level method
         # condition (older calling code / tests) still wins.
         top_level_method = str(target.conditions.get("method", ""))
         if "Arbitrary Wave" in top_level_method:
             has_arbitrary_wave = True
-        if "Correlated" in top_level_method:
-            has_correlated = True
 
         # ------------------------------------------------------------------
         # Branch 1: Arbitrary Wave logic (kept intact)
@@ -495,12 +493,10 @@ class MutationNumber(MeasurementSetTransform):
 
         # Mu vs time, Mu vs temperature
         Mu_vs_time = OWCh_length / dt_dlnG  # shape: (n_steps - 1, n_freq)
-        Mu_vs_temperature = OWCh_length / dT_dlnG  # same shape; not used downstream yet
 
         # Time and temperature arrays corresponding to these mutation values:
         # They start at OWCh 2 (index 1), as in your script
         time_Mu = OWCh_time[1:]  # shape: (n_steps - 1,)
-        temperature_Mu = OWCh_temperature[1:]  # shape: (n_steps - 1,)
 
         # ---- Build MeasurementSet: one Measurement per frequency index ----
         measurements_out = []

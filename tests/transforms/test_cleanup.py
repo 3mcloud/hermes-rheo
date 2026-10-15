@@ -14,16 +14,14 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from piblin.data import (
     Measurement,
     MeasurementSet,
     OneDimensionalCompositeDataset,
 )
 
-from hermes_rheo.transforms.states_to_conditions import StatesToConditions
 from hermes_rheo.transforms.mutation_number import MutationNumber
-
+from hermes_rheo.transforms.states_to_conditions import StatesToConditions
 
 # ---------------------------------------------------------------------------
 # StatesToConditions — fixed hardcoded independent-name bug

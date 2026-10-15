@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from hermes_rheo.synthetic import SyntheticRheometry
 from hermes_rheo.transforms.relaxation_spectrum import (
     RelaxationSpectrum,
     RelaxationSpectrumResult,
 )
-
 
 G_TRUE = np.array([1.0e5, 1.0e4])
 TAU_TRUE = np.array([0.1, 1.0])

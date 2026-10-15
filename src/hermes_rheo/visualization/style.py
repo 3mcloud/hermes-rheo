@@ -33,7 +33,7 @@ Add the ``grid`` and ``ieee`` variants::
 from __future__ import annotations
 
 import logging
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 import matplotlib.pyplot as plt
 
@@ -48,7 +48,7 @@ DEFAULT_STYLES: tuple[str, ...] = ("science", "notebook", "no-latex")
 
 def use_science_style(
     latex: bool = False,
-    extras: Optional[Iterable[str]] = None,
+    extras: Iterable[str] | None = None,
 ) -> list[str]:
     """Apply the SciencePlots ``science + notebook`` style-sheet globally.
 

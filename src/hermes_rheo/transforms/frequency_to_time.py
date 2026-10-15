@@ -1,7 +1,7 @@
 """Frequency-to-time reconstruction of relaxation modulus using iRheoTempo V9
 
 This transform reconstructs the time-domain relaxation modulus :math:`G(t)`
-from frequency-domain oscillatory data :math:`G'(\omega), G''(\omega)`
+from frequency-domain oscillatory data :math:`G'(\\omega), G''(\\omega)`
 through the interval-slope Fourier reconstruction used in iRheoTempo V9
 (Tassieri and Ramirez, 2026) [1]_.
 
@@ -12,25 +12,25 @@ or after :class:`~hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`.
 
 Notes
 -----
-Given :math:`\eta^*(\omega) = G^*(\omega)/(i\omega)` with
-:math:`\eta^*(\omega)=\eta'(\omega)-i\eta''(\omega)`, the reconstruction
+Given :math:`\\eta^*(\\omega) = G^*(\\omega)/(i\\omega)` with
+:math:`\\eta^*(\\omega)=\\eta'(\\omega)-i\\eta''(\\omega)`, the reconstruction
 uses piecewise-linear interval slopes in frequency space:
 
 .. math::
 
-   a_{1,k}=\frac{\eta'_{k+1}-\eta'_k}{\omega_{k+1}-\omega_k},\quad
-   a_{2,k}=\frac{\eta''_{k+1}-\eta''_k}{\omega_{k+1}-\omega_k}
+   a_{1,k}=\frac{\\eta'_{k+1}-\\eta'_k}{\\omega_{k+1}-\\omega_k},\\quad
+   a_{2,k}=\frac{\\eta''_{k+1}-\\eta''_k}{\\omega_{k+1}-\\omega_k}
 
 .. math::
 
-   G_{\eta'}(t)=\frac{2}{\pi t^2}\sum_k
-   \left[\cos(\omega_{R,k}t)-\cos(\omega_{L,k}t)\right]a_{1,k}
+   G_{\\eta'}(t)=\frac{2}{\\pi t^2}\\sum_k
+   \\left[\\cos(\\omega_{R,k}t)-\\cos(\\omega_{L,k}t)\right]a_{1,k}
 
 .. math::
 
-   G_{\eta''}(t)=\frac{2}{\pi t^2}\sum_k
-   \left[\sin(\omega_{R,k}t)-\sin(\omega_{L,k}t)\right]a_{2,k}
-   +\frac{2}{\pi}\frac{\eta''(0)}{t}
+   G_{\\eta''}(t)=\frac{2}{\\pi t^2}\\sum_k
+   \\left[\\sin(\\omega_{R,k}t)-\\sin(\\omega_{L,k}t)\right]a_{2,k}
+   +\frac{2}{\\pi}\frac{\\eta''(0)}{t}
 
 References
 ----------
@@ -42,17 +42,17 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Tuple
 import importlib
 import warnings
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
+import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
+from piblin.transform.abc.measurement_transform import MeasurementTransform
 from scipy.interpolate import CubicSpline, PchipInterpolator, interp1d
 from scipy.optimize import fmin
-
-from piblin.transform.abc.measurement_transform import MeasurementTransform
-import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
 
 
 def _sanitize_omega_moduli(
@@ -60,7 +60,7 @@ def _sanitize_omega_moduli(
     g_prime: np.ndarray,
     g_double_prime: np.ndarray,
     units: str,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return sorted, finite, unique arrays in angular-frequency units
 
     Parameters
@@ -110,7 +110,7 @@ def _estimate_eta10_polynomial(
     lf_poly_order: int,
     lf_fit_decades: float,
 ) -> float:
-    """Estimate :math:`\eta'(0)` from a low-frequency log-log polynomial fit"""
+    r"""Estimate :math:`\eta'(0)` from a low-frequency log-log polynomial fit"""
     wmin = float(np.min(omega))
     wmax = float(np.max(omega))
     lf_fit_decades = float(lf_fit_decades)
@@ -147,7 +147,7 @@ def _build_interpolation_dataset(
     hf_poly_order: int,
     hf_fit_decades: float,
     hf_ext_decades: float,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Build LF anchor + experimental + HF extension interpolation arrays"""
     wmin = float(np.min(omega))
     wmax = float(np.max(omega))
@@ -206,7 +206,7 @@ def _build_interpolants(
     y2: np.ndarray,
     interpolation_method: str,
     csaps_smoothing: float,
-) -> Tuple[Callable[[np.ndarray], np.ndarray], Callable[[np.ndarray], np.ndarray]]:
+) -> tuple[Callable[[np.ndarray], np.ndarray], Callable[[np.ndarray], np.ndarray]]:
     """Create interpolant callables for eta1 and eta2"""
     method = interpolation_method.strip().lower()
     if method == "pchip":
@@ -217,7 +217,7 @@ def _build_interpolants(
 
     if method == "csaps":
         try:
-            csaps = getattr(importlib.import_module("csaps"), "csaps")
+            csaps = importlib.import_module("csaps").csaps
 
             p = float(np.clip(csaps_smoothing, 0.0, 1.0))
 
@@ -246,7 +246,7 @@ def _resample(
     eta10_fit: float,
     eta20: float,
     resample_points: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Evaluate interpolants on the dense V9 processing grid"""
     nres = max(int(resample_points), 50)
     w_lf_min = 1e-15
@@ -269,7 +269,7 @@ def _compute_delta_a(
     w: np.ndarray,
     eta1: np.ndarray,
     eta2: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return slope-jump diagnostics for eta1 and eta2"""
     dw = np.diff(w)
     a1 = np.diff(eta1) / dw
@@ -289,7 +289,7 @@ def _compute_gt_v8(
     wmax_exp: float,
     n_time_points: int,
     eta20: float,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Reconstruct G(t) from interval slopes of eta1 and eta2"""
     d_w = np.diff(w)
     a1 = np.diff(eta1) / d_w
@@ -338,7 +338,7 @@ def _compute_mrae(
     g_model: np.ndarray,
     t_exp: np.ndarray,
     g_exp: np.ndarray,
-) -> Optional[float]:
+) -> float | None:
     """Compute mean relative absolute error on the overlapping log-time domain"""
     t_model = np.asarray(t_model, dtype=float).ravel()
     g_model = np.asarray(g_model, dtype=float).ravel()
@@ -393,7 +393,7 @@ def _find_lowest_frequency_crossover(
     omega: np.ndarray,
     g_prime: np.ndarray,
     g_double_prime: np.ndarray,
-) -> Tuple[float, Optional[int]]:
+) -> tuple[float, int | None]:
     """Locate the lowest-frequency :math:`G'=G''` crossover
 
     A single sign change of ``G'-G''`` is bracketed and the crossover
@@ -463,7 +463,7 @@ def _fit_maxwell_tail(
     g_prime: np.ndarray,
     g_double_prime: np.ndarray,
     n_tail_points: int = 200,
-) -> Tuple[bool, float, float, float, np.ndarray, np.ndarray]:
+) -> tuple[bool, float, float, float, np.ndarray, np.ndarray]:
     """Fit a single-mode Maxwell to the low-frequency region
 
     Selects all measured frequencies at or below the first
@@ -557,8 +557,8 @@ class FrequencyToTimeResult:
     W_raw: np.ndarray
 
     G_threshold_const: float
-    mrae_eta1: Optional[float]
-    mrae_eta2: Optional[float]
+    mrae_eta1: float | None
+    mrae_eta2: float | None
 
     dataset: one_d_composite_dataset.OneDimensionalCompositeDataset
 
@@ -583,7 +583,7 @@ class FrequencyToTime(MeasurementTransform):
     units : {"rad/s", "Hz"}, default "rad/s"
         Units of the input frequency axis
     lf_poly_order : int, default 1
-        Polynomial order for low-frequency :math:`\eta'(0)` fit
+        Polynomial order for low-frequency :math:`\\eta'(0)` fit
     lf_fit_decades : float, default 0.1
         Width of low-frequency fitting window in decades
     hf_poly_order : int, default 1
@@ -599,9 +599,9 @@ class FrequencyToTime(MeasurementTransform):
     resample_points : int, default 5000
         Number of dense resampling points in frequency space
     enforce_eta2_zero : bool, default True
-        If True, force :math:`\eta''(0)` to ``eta2_zero``
+        If True, force :math:`\\eta''(0)` to ``eta2_zero``
     eta2_zero : float, default 0.0
-        Zero-frequency anchor value for :math:`\eta''(0)`
+        Zero-frequency anchor value for :math:`\\eta''(0)`
     n_time_points : int, default 600
         Number of time points in the reconstructed output window
     experimental_gt : tuple[np.ndarray, np.ndarray] or None, default None
@@ -645,7 +645,7 @@ class FrequencyToTime(MeasurementTransform):
         enforce_eta2_zero: bool = True,
         eta2_zero: float = 0.0,
         n_time_points: int = 600,
-        experimental_gt: Optional[Tuple[np.ndarray, np.ndarray]] = None,
+        experimental_gt: tuple[np.ndarray, np.ndarray] | None = None,
         fit_maxwell_tail: bool = False,
         use_maxwell_eta10: bool = False,
         n_maxwell_tail_points: int = 200,
@@ -669,10 +669,10 @@ class FrequencyToTime(MeasurementTransform):
         self.fit_maxwell_tail = fit_maxwell_tail
         self.use_maxwell_eta10 = use_maxwell_eta10
         self.n_maxwell_tail_points = n_maxwell_tail_points
-        self._result: Optional[FrequencyToTimeResult] = None
+        self._result: FrequencyToTimeResult | None = None
 
     @property
-    def result(self) -> Optional[FrequencyToTimeResult]:
+    def result(self) -> FrequencyToTimeResult | None:
         """Most recent processed result"""
         return self._result
 

@@ -19,8 +19,6 @@ Both helpers follow the ``hermes_rheo`` plotting conventions:
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 import matplotlib.axes
 import matplotlib.figure
 import matplotlib.pyplot as plt
@@ -29,13 +27,13 @@ import numpy as np
 
 def plot_model_fit(
     fit_model,
-    ax: Optional[matplotlib.axes.Axes] = None,
+    ax: matplotlib.axes.Axes | None = None,
     show_residuals: bool = False,
-    data_label: Optional[str] = None,
-    fit_label: Optional[str] = None,
+    data_label: str | None = None,
+    fit_label: str | None = None,
     show: bool = False,
     **kwargs,
-) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     r"""Plot a fitted :class:`FitModel` (moduli data + model prediction).
 
     Parameters
@@ -137,16 +135,16 @@ def plot_model_fit(
 
 def plot_shift_factors(
     shift_model,
-    ax: Optional[matplotlib.axes.Axes] = None,
+    ax: matplotlib.axes.Axes | None = None,
     n_curve: int = 200,
     data_label: str = "shift factors",
-    fit_label: Optional[str] = None,
+    fit_label: str | None = None,
     color: str = "k",
     linestyle: str = "-",
     show_data: bool = True,
     show: bool = False,
     **kwargs,
-) -> Tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     r"""Plot a fitted :class:`ShiftFactorModel` (``a_T`` on a log axis vs temperature).
 
     Parameters

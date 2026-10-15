@@ -8,18 +8,16 @@ RheoCompassReader - Reader for files in the RheoCompass .csv format.
 
 from __future__ import annotations
 
-import logging
-from typing import List, Dict, Tuple, Union
-from io import StringIO
-import numpy as np
 import codecs
+import logging
+from io import StringIO
 
-from piblin.dataio.fileio.read import FileParsingException
-import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
-from piblin.data.data_collections import measurement
+import numpy as np
 import piblin.data.data_collections.measurement_set as measurement_set
+import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset as one_d_composite_dataset
 import piblin.dataio.fileio.read.file_reader as file_reader
-
+from piblin.data.data_collections import measurement
+from piblin.dataio.fileio.read import FileParsingException
 
 _logger = logging.getLogger(__name__)
 
@@ -39,7 +37,7 @@ _logger = logging.getLogger(__name__)
 # stress)`` matches the historical default and applies to genuinely
 # ambiguous cases (e.g. creep vs stress relaxation cannot be told apart
 # from the columns alone).
-_DEFAULT_COORD_RULES: List[Tuple[Tuple[str, ...], str, str]] = [
+_DEFAULT_COORD_RULES: list[tuple[tuple[str, ...], str, str]] = [
     # Oscillatory sweep (frequency, amplitude, TTS)
     (("angular frequency", "storage modulus"), "angular frequency", "storage modulus"),
     # Rotational / flow sweep
@@ -50,9 +48,9 @@ _DEFAULT_COORD_RULES: List[Tuple[Tuple[str, ...], str, str]] = [
 
 
 def _lookup_rheocompass_defaults(
-    variable_names: List[str],
+    variable_names: list[str],
     fallback_independent: str = "time",
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Choose ``(default_x, default_y)`` for a RheoCompass measurement.
 
     Walks :data:`_DEFAULT_COORD_RULES` in order and returns the first rule
@@ -96,7 +94,7 @@ class RheoCompassReader(file_reader.FileReader):
     def default_mode(self) -> str:
         return "r"
 
-    def _parse_metadata(self, lines: List[str]) -> Dict[str, Union[str, List[str]]]:
+    def _parse_metadata(self, lines: list[str]) -> dict[str, str | list[str]]:
         metadata, current_key, buf = {}, None, []
         for ln in lines:
             if not ln.strip():
@@ -180,7 +178,7 @@ class RheoCompassReader(file_reader.FileReader):
             end_idx = min(end_candidates) if end_candidates else len(lines)
 
             # data starts after units line
-            data_rows: List[List[str]] = []
+            data_rows: list[list[str]] = []
             data_start = header_idx + 3
 
             for j in range(data_start, end_idx):
