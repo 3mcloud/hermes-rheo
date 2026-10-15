@@ -1,0 +1,45 @@
+version: 1
+project:
+  title: hermes-rheo — Tutorials
+  description: >-
+    Interactive tutorials for the hermes-rheo package (v2.0).
+    Read, transform and visualise rheological data with piblin +
+    hermes-rheo transforms.
+  authors:
+    - name: Alessandro Perego
+      orcid: 0000-0002-0570-3210
+      affiliations:
+        - Corporate Research Analytical Laboratory, 3M
+  github: https://github.com/3mcloud/hermes-rheo
+  license: MIT
+  keywords:
+    - rheology
+    - OWChirp
+    - time-temperature superposition
+    - viscoelasticity
+  toc:
+    - file: index.md
+    - file: 1_read and visualize common rheological datasets.ipynb
+    - file: 2_owchirp wave design.ipynb
+    - file: 3_read and visualize data from OWChirp experiments.ipynb
+    - file: 4_time temperature superposition.ipynb
+    - file: 5_time curing superposition.ipynb
+    - file: 6_mutation number calculation.ipynb
+    - file: 7_visualization.ipynb
+    - file: 8_temperature ramp analysis.ipynb
+    - file: 9_kymographs tutorial.ipynb
+    - file: 10_recovery rheology.ipynb
+    - file: 11_rheological model fitting.ipynb
+    - file: 12_frequency to time relaxation modulus.ipynb
+    - file: 13_relaxation spectrum via pyrespect.ipynb
+  # Notebooks are committed with outputs; the docs build does not execute them.
+  jupyter: false
+  # Drop the ``<matplotlib.axes... at 0x...>`` repr strings that
+  # sometimes leak into cell outputs.
+  settings:
+    output_matplotlib_strings: remove
+site:
+  template: book-theme
+  options:
+    logo_text: hermes-rheo
+    hide_outline: false
