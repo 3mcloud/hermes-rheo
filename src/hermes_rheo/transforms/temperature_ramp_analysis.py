@@ -127,10 +127,11 @@ class TemperatureRampResult:
         tan-delta variable (identified by searching for ``"tan"`` in
         variable names, case-insensitively).  ``None`` when unavailable.
     extracted_dataset : OneDimensionalCompositeDataset or None
-        Dataset containing all variables interpolated at the temperatures
-        supplied in *use_temps*.  Has the same variable names and units as
-        *dataset*.  ``None`` when no temperatures were requested or no
-        matching data was found.
+        Dataset containing temperature and the properties selected with
+        *properties*, interpolated at the temperatures supplied in
+        *use_temps*.  Has the same variable names and units as *dataset*.
+        ``None`` when no temperatures were requested or no matching data was
+        found.
 
     Examples
     --------
@@ -239,9 +240,9 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
     3. **Tg detection** – the glass transition temperature is located at the
        peak of the variable whose name contains ``"tan"``
        (case-insensitive), using prominence-based peak finding.
-    4. **Property extraction** – every variable in the merged dataset is
-       interpolated at each temperature in *use_temps*, producing a second
-       ``OneDimensionalCompositeDataset``.
+    4. **Property extraction** – temperature and the properties requested in
+       *properties* are interpolated at each temperature in *use_temps*,
+       producing a second ``OneDimensionalCompositeDataset``.
 
     Parameters
     ----------
@@ -253,8 +254,11 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         ``None`` or ``[]``, temperature-ramp/sweep steps are detected
         automatically via keyword matching.
     use_temps : list of float or None, optional
-        Temperatures at which all variables are extracted by interpolation.
+        Temperatures at which properties are extracted by interpolation.
         Must be in the same unit as the data (typically °C).
+    properties : list of str or None, optional
+        Variable names to extract. Temperature is always included. When
+        ``None``, every available property is extracted.
 
     Attributes
     ----------
@@ -274,6 +278,7 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
     >>> pipeline = RheoAnalysis() + TemperatureRampAnalysis(
     ...     steps_to_merge=["Temperature Ramp"],
     ...     use_temps=[25.0, 100.0],
+    ...     properties=["storage modulus", "loss modulus", "tan(delta)"],
     ... )
     >>> result_exp = pipeline(exp)
     >>> ramp = result_exp.result
@@ -285,12 +290,14 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         self,
         steps_to_merge: list[str] | None = None,
         use_temps: list[float] | None = None,
+        properties: list[str] | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.steps_to_merge: list[str] = list(steps_to_merge) if steps_to_merge else []
         self.use_temps: list[float] = sorted(use_temps) if use_temps else []
+        self.properties: list[str] | None = list(properties) if properties is not None else None
         self.result: TemperatureRampResult | None = None
 
     # ------------------------------------------------------------------
@@ -459,7 +466,7 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         self,
         ds: one_d_composite_dataset.OneDimensionalCompositeDataset,
     ) -> one_d_composite_dataset.OneDimensionalCompositeDataset | None:
-        """Build a dataset with every variable interpolated at ``use_temps``.
+        """Build a dataset with selected variables interpolated at ``use_temps``.
 
         Parameters
         ----------
@@ -469,9 +476,9 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         Returns
         -------
         OneDimensionalCompositeDataset or None
-            Dataset with ``len(use_temps)`` rows.  Variable names and units
-            are identical to *ds*.  Returns ``None`` when ``use_temps`` is
-            empty.
+            Dataset with ``len(use_temps)`` rows. It always includes
+            temperature and includes every property when ``properties`` is
+            ``None``. Returns ``None`` when ``use_temps`` is empty.
         """
         if not self.use_temps:
             return None
@@ -484,18 +491,47 @@ class TemperatureRampAnalysis(MeasurementSetTransform):
         use_arr = np.asarray(self.use_temps, dtype=float)
         temp_arr = np.asarray(ds.data_arrays[temp_idx], dtype=float)
 
-        extracted: list[np.ndarray] = [
-            np.interp(use_arr, temp_arr, np.asarray(arr, dtype=float)) for arr in ds.data_arrays
+        selected_indices = list(range(len(ds.data_arrays)))
+        if self.properties is not None:
+            if not self.properties:
+                raise ValueError("properties must contain at least one variable name")
+            indices_by_name = {name.lower(): index for index, name in enumerate(names_lower)}
+            unknown_properties = [
+                property_name
+                for property_name in self.properties
+                if property_name.lower() not in indices_by_name
+            ]
+            if unknown_properties:
+                raise ValueError(
+                    f"Requested properties are not available: {unknown_properties}. "
+                    f"Available properties: {list(ds.data_array_names)}"
+                )
+            selected_indices = [temp_idx]
+            for property_name in self.properties:
+                property_index = indices_by_name[property_name.lower()]
+                if property_index not in selected_indices:
+                    selected_indices.append(property_index)
+
+        extracted = [
+            use_arr.copy()
+            if index == temp_idx
+            else np.interp(use_arr, temp_arr, np.asarray(ds.data_arrays[index], dtype=float))
+            for index in selected_indices
         ]
-        # The temperature column should exactly equal use_temps
-        extracted[temp_idx] = use_arr.copy()
 
         return one_d_composite_dataset.OneDimensionalCompositeDataset(
             data_arrays=extracted,
-            data_array_names=list(ds.data_array_names),
-            data_array_units=list(ds.data_array_units),
+            data_array_names=[ds.data_array_names[index] for index in selected_indices],
+            data_array_units=[ds.data_array_units[index] for index in selected_indices],
             default_independent_name=ds.data_array_names[temp_idx],
-            default_dependent_name=ds.dependent_variable_name,
+            default_dependent_name=(
+                ds.dependent_variable_name
+                if ds.dependent_variable_name
+                in [ds.data_array_names[index] for index in selected_indices]
+                else ds.data_array_names[
+                    next(index for index in selected_indices if index != temp_idx)
+                ]
+            ),
             source="Values at selected temperatures",
         )
 

@@ -18,13 +18,14 @@ from hermes_rheo.transforms.temperature_ramp_analysis import (
 _USE_TEMPS = [0.0, 50.0, 100.0, 150.0]
 
 
-def _run(datadir, steps_to_merge=None, use_temps=None):
+def _run(datadir, steps_to_merge=None, use_temps=None, properties=None):
     filepath = datadir.join("test_temp_ramp.txt")
     mset = TriosRheoReader().data_from_filepath(filepath=filepath, create_composite_datasets=True)
     exp = ExperimentSet(mset.measurements)
     transform = TemperatureRampAnalysis(
         steps_to_merge=steps_to_merge,
         use_temps=use_temps if use_temps is not None else _USE_TEMPS,
+        properties=properties,
     )
     result_exp = (OWChirpAnalysis() + transform)(exp)
     return transform, result_exp
@@ -89,6 +90,29 @@ def test_extracted_dataset_size(datadir):
     transform, _ = _run(datadir, steps_to_merge=["Temperature Ramp"], use_temps=_USE_TEMPS)
     ext = transform.result.extracted_dataset
     assert len(ext.data_arrays[0]) == len(_USE_TEMPS)
+
+
+def test_extracted_dataset_contains_requested_properties_only(datadir):
+    """Property extraction retains temperature and the explicitly requested variables."""
+    transform, _ = _run(
+        datadir,
+        steps_to_merge=["Temperature Ramp"],
+        use_temps=_USE_TEMPS,
+    )
+    available_names = {name.lower(): name for name in transform.result.dataset.data_array_names}
+    properties = [available_names["storage modulus"], available_names["loss modulus"]]
+
+    transform, _ = _run(
+        datadir,
+        steps_to_merge=["Temperature Ramp"],
+        use_temps=_USE_TEMPS,
+        properties=properties,
+    )
+
+    assert transform.result.extracted_dataset.data_array_names == [
+        available_names["temperature"],
+        *properties,
+    ]
 
 
 # ---------------------------------------------------------------------------
