@@ -66,9 +66,11 @@ class AutomatedMasterCurve(MeasurementSetTransform):
     for the master curve creation and allows for optional vertical shift if needed.
 
     The algorithm was developed by the Swan and McKinley lab at MIT. For more information, see:
-    "A data-driven method for automated data superposition with applications in soft matter science"
-    Data-Centric Engineering, Volume 4, 2023, e13
-    DOI: https://doi.org/10.1017/dce.2023.3
+    Lennon, K. R., McKinley, G. H. and Swan, J. W.,
+    "A data-driven method for automated data superposition with applications in soft matter science",
+    Data-Centric Engineering, Volume 4, 2023, e13.
+    DOI: https://doi.org/10.1017/dce.2023.3 —
+    preprint: https://arxiv.org/abs/2204.09521.
 
     The implementation in this class is based on an open-source Python package developed by Kyle Lennon. For
     source code, visit: https://github.com/krlennon/mastercurves. Documentation for the package can be found at:
@@ -100,8 +102,19 @@ class AutomatedMasterCurve(MeasurementSetTransform):
             before applying the master curve algorithm.
     """
 
-    def __init__(self, state='temperature', state_mode='average', x='angular frequency', y='storage modulus',
-                 vertical_shift=False, reverse_data=False, measurements=None, *args, **kwargs):
+    def __init__(
+        self,
+        state='temperature',
+        state_mode='average',
+        x='angular frequency',
+        y='storage modulus',
+        vertical_shift=False,
+        reverse_data=False,
+        measurements=None,
+        sort_states=True,
+        *args,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.state = state
         self.state_mode = state_mode
@@ -110,6 +123,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         self.vertical_shift = vertical_shift
         self.reverse_data = reverse_data
         self.measurements = measurements
+        self.sort_states = sort_states
 
     def _state_to_condition(self, target):
         """
@@ -128,7 +142,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
             state_found = False
             for dataset in measurement.datasets:
                 if self.state in dataset._data_array_names:
-                    dataset.switch_coordinates(independent_name='temperature', dependent_name=self.state)
+                    dataset.switch_coordinates(independent_name=self.state, dependent_name=self.state)
                     if self.state_mode == 'average':
                         value = np.average(dataset.y_values)
                     elif self.state_mode == 'first point':
@@ -189,10 +203,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
             log_x_values = np.log(x_values)
             log_y_values = np.log(y_values)
 
-            # Create a mask that keeps only non-NaN values in y_data
             valid_indices = ~np.isnan(log_y_values)
-
-            # Apply the mask to both x_values and y_values
             filtered_x_values = log_x_values[valid_indices]
             filtered_y_values = log_y_values[valid_indices]
 
@@ -200,11 +211,19 @@ class AutomatedMasterCurve(MeasurementSetTransform):
             x_data.append(filtered_x_values)
             y_data.append(filtered_y_values)
 
-        # Reverse the data if the reverse_data flag is True
+        # sort by state (e.g. temperature) in ascending order
+        if self.sort_states:
+            # argsort gives indices that would sort 'states'
+            order = np.argsort(states)
+            states = [states[i] for i in order]
+            x_data = [x_data[i] for i in order]
+            y_data = [y_data[i] for i in order]
+
+        # Optional: reverse final order after sorting
         if self.reverse_data:
-            states.reverse()
-            x_data.reverse()
-            y_data.reverse()
+            states = states[::-1]
+            x_data = x_data[::-1]
+            y_data = y_data[::-1]
 
         master_curve = MasterCurveExtended()
         master_curve.add_data(x_data, y_data, states)
@@ -216,3 +235,87 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         master_curve.superpose()
 
         return master_curve
+
+class CompositeMasterCurve(MeasurementSetTransform):
+    """
+    Pipeline step that generates master curves for multiple y-quantities and returns itself,
+    so downstream steps (FitModel) receive an object exposing:
+      - available_quantities
+      - get_mastercurve(quantity)
+    """
+
+    def __init__(
+        self,
+        n_curves=2,
+        y_quantities=None,
+        quantities=None,
+        x="angular frequency",
+        state="temperature",
+        state_mode="average",
+        vertical_shift=False,
+        reverse_data=False,
+        measurements=None,
+        sort_states=True,
+        ref_temp_idx=None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        if y_quantities is None:
+            y_quantities = quantities
+
+        if y_quantities is None or len(y_quantities) != n_curves:
+            raise ValueError("y_quantities must be a list of length n_curves")
+
+        self.n_curves = n_curves
+        self.y_quantities = y_quantities
+        self.x = x
+        self.state = state
+        self.state_mode = state_mode
+        self.vertical_shift = vertical_shift
+        self.reverse_data = reverse_data
+        self.measurements = measurements
+        self.sort_states = sort_states
+        self.ref_temp_idx = ref_temp_idx
+
+        self.mastercurves = {}  # {quantity: mastercurve_obj}
+
+    def _apply(self, target, **kwargs):
+        # Build mastercurves dict
+        self.mastercurves = {}
+
+        for yq in self.y_quantities:
+            mc = AutomatedMasterCurve(
+                state=self.state,
+                state_mode=self.state_mode,
+                x=self.x,
+                y=yq,
+                vertical_shift=self.vertical_shift,
+                reverse_data=self.reverse_data,
+                measurements=self.measurements,
+                sort_states=self.sort_states,
+            ).apply_to(target, make_copy=False, **kwargs)
+
+            if self.ref_temp_idx is not None:
+                mc.change_ref(mc.states[self.ref_temp_idx])
+
+            self.mastercurves[yq] = mc
+
+        # IMPORTANT: return self so FitModel sees CompositeMasterCurve-like API
+        return self
+
+    def get_mastercurve(self, quantity):
+        # FitModel seems to ask for lowercase keys like 'storage modulus'
+        # so normalize lookup.
+        if quantity in self.mastercurves:
+            return self.mastercurves[quantity]
+        q_norm = str(quantity).strip().lower()
+        for k, v in self.mastercurves.items():
+            if str(k).strip().lower() == q_norm:
+                return v
+        return None
+
+    @property
+    def available_quantities(self):
+        return [str(k).strip().lower() for k in self.mastercurves.keys()]

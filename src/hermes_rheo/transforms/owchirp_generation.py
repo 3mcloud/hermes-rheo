@@ -177,7 +177,7 @@ class OWChirpGeneration:
                        header="Time(s)\tStrain", fmt='%.5e', delimiter='\t')
 
             # Plot the chirp signal
-            plt.plot(time_values_filtered, strain_values_filtered, 'b-', label='Chirp Signal')
+            plt.plot(time_values_filtered, strain_values_filtered, 'b-', label='OWChirp Signal')
 
         if display_r0:
             # Temporarily set tapering parameter to 0 to compute the r=0 chirp
