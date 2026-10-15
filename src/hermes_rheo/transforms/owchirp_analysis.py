@@ -109,7 +109,7 @@ class OWChirpAnalysis(MeasurementTransform):
     Consumes a
     :class:`~piblin.data.data_collections.measurement.Measurement`
     whose ``conditions["method"]`` contains ``"Arbitrary Wave"`` or
-    ``"Frequency Chirp"``.  The raw time-domain strain/stress signal is:
+    ``"Frequency Chirp"`` (Geri *et al.* [1]_; Perego *et al.* [2]_).  The raw time-domain strain/stress signal is:
 
     1. Optionally trimmed to the region of interest (``owchirp_waiting_time``).
     2. Baseline-corrected using one of several candidate filters

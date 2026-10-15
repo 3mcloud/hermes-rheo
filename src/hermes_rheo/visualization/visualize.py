@@ -3,7 +3,7 @@ Rheology-specific visualisation functions for ExperimentSet.
 
 Two plot functions are provided:
 
-* :func:`plot_vgp`       – van Gurp-Palmen plot:  tan(δ) vs |G*|
+* :func:`plot_vgp`       – van Gurp-Palmen plot:  tan(δ) vs ``|G*|``
 * :func:`plot_cole_cole` – Cole-Cole plot:          G'' vs G'
 
 Both functions iterate over every measurement in an
@@ -266,7 +266,7 @@ def plot_vgp(
     legend_max: int = 12,
     **kwargs,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
-    """Van Gurp-Palmen (vGP) plot: tan(δ) vs complex modulus |G*|.
+    """Van Gurp-Palmen (vGP) plot: tan(δ) vs complex modulus ``|G*|``.
 
     Each measurement within the ExperimentSet (typically recorded at a
     distinct temperature) is drawn as an individual trace.  Traces are

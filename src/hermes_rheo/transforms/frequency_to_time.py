@@ -1,9 +1,9 @@
-"""Frequency-to-time reconstruction of relaxation modulus using iRheoTempo V9
+r"""Frequency-to-time reconstruction of relaxation modulus using iRheoTempo V9
 
 This transform reconstructs the time-domain relaxation modulus :math:`G(t)`
-from frequency-domain oscillatory data :math:`G'(\\omega), G''(\\omega)`
+from frequency-domain oscillatory data :math:`G'(\omega), G''(\omega)`
 through the interval-slope Fourier reconstruction used in iRheoTempo V9
-(Tassieri and Ramirez, 2026) [1]_.
+(Tassieri and Ramirez, 2026) [TassieriRamirez2026]_.
 
 The transform is designed to compose with existing hermes-rheo pipelines,
 for example on raw frequency sweeps, after
@@ -12,30 +12,30 @@ or after :class:`~hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`.
 
 Notes
 -----
-Given :math:`\\eta^*(\\omega) = G^*(\\omega)/(i\\omega)` with
-:math:`\\eta^*(\\omega)=\\eta'(\\omega)-i\\eta''(\\omega)`, the reconstruction
+Given :math:`\eta^*(\omega) = G^*(\omega)/(i\omega)` with
+:math:`\eta^*(\omega)=\eta'(\omega)-i\eta''(\omega)`, the reconstruction
 uses piecewise-linear interval slopes in frequency space:
 
 .. math::
 
-   a_{1,k}=\frac{\\eta'_{k+1}-\\eta'_k}{\\omega_{k+1}-\\omega_k},\\quad
-   a_{2,k}=\frac{\\eta''_{k+1}-\\eta''_k}{\\omega_{k+1}-\\omega_k}
+   a_{1,k}=\frac{\eta'_{k+1}-\eta'_k}{\omega_{k+1}-\omega_k},\quad
+   a_{2,k}=\frac{\eta''_{k+1}-\eta''_k}{\omega_{k+1}-\omega_k}
 
 .. math::
 
-   G_{\\eta'}(t)=\frac{2}{\\pi t^2}\\sum_k
-   \\left[\\cos(\\omega_{R,k}t)-\\cos(\\omega_{L,k}t)\right]a_{1,k}
+   G_{\eta'}(t)=\frac{2}{\pi t^2}\sum_k
+   \left[\cos(\omega_{R,k}t)-\cos(\omega_{L,k}t)\right]a_{1,k}
 
 .. math::
 
-   G_{\\eta''}(t)=\frac{2}{\\pi t^2}\\sum_k
-   \\left[\\sin(\\omega_{R,k}t)-\\sin(\\omega_{L,k}t)\right]a_{2,k}
-   +\frac{2}{\\pi}\frac{\\eta''(0)}{t}
+   G_{\eta''}(t)=\frac{2}{\pi t^2}\sum_k
+   \left[\sin(\omega_{R,k}t)-\sin(\omega_{L,k}t)\right]a_{2,k}
+   +\frac{2}{\pi}\frac{\eta''(0)}{t}
 
 References
 ----------
-.. [1] Tassieri, M. and Ramirez, J., *i-Rheo Tempo: Open-Access
-   Analytical Tool for Broadband Viscoelastic Characterisation* (2026).
+.. [TassieriRamirez2026] Tassieri, M. and Ramirez, J., *i-Rheo Tempo:
+   Open-Access Analytical Tool for Broadband Viscoelastic Characterisation* (2026).
    DOI: `10.5525/gla.researchdata.2230
    <https://doi.org/10.5525/gla.researchdata.2230>`_.
 """

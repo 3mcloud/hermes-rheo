@@ -5,7 +5,7 @@ from a :class:`piblin.data.data_collections.measurement_set.MeasurementSet`
 that has been read by :class:`hermes_rheo.file_readers.trios_rheo_txt.TriosRheoReader`.
 
 The TORCh methodology itself was introduced by Vadillo, Perego *et al.*
-(2026) [1]_.
+(2026) [Vadillo2026]_.
 
 The transform is not restricted to TORCh data: any per-measurement
 axis can be resolved either from a dataset column (e.g. ``temperature``
@@ -46,7 +46,7 @@ Mutation Number kymograph::
 
 References
 ----------
-.. [1] Vadillo, D. C., Perego, A. *et al.*, *TORCh: Thermally
+.. [Vadillo2026] Vadillo, D. C., Perego, A. *et al.*, *TORCh: Thermally
    Optimised Ramped Chirp for time-temperature spectroscopy of
    polymers*, Macromolecules (2026).
    DOI: `10.1021/acs.macromol.6c00679

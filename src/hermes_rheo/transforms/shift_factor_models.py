@@ -49,7 +49,7 @@ class WLFModel:
     ----------
     .. [WLF1955] Williams, M. L., Landel, R. F. and Ferry, J. D., *The
        temperature dependence of relaxation mechanisms in amorphous polymers
-       and other glass-forming liquids*, J. Am. Chem. Soc. **77**(14),
+       and other glass-forming liquids*, J. Am. Chem. Soc. **77**\ (14),
        3701-3707 (1955).  DOI: `10.1021/ja01619a008
        <https://doi.org/10.1021/ja01619a008>`_.
     """

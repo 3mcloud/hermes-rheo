@@ -1,26 +1,44 @@
-Welcome to hermes's documentation!
-==================================
+hermes-rheo
+===========
 
-`hermes <https://github.com/3mcloud/hermes-rheo>`_ is a Python package developed at `3M <https://www.3m.com/3M/en_US/company-us/about-3m/research-development/>`_ designed to complement and extend the `piblin <https://github.com/3mcloud/piblin>`_ library, offering a set of transforms tailored for analysis of rheological data.
+`hermes-rheo <https://github.com/3mcloud/hermes-rheo>`_ is a Python
+package developed at
+`3M <https://www.3m.com/3M/en_US/company-us/about-3m/research-development/>`_
+that layers rheology-specific file readers and transforms on top of the
+generic data abstractions of
+`piblin <https://github.com/3mcloud/piblin>`_.
 
-Check out the :doc:`quickstart` section for more information on getting started.
+Highlights
+----------
 
-.. image:: https://img.shields.io/pypi/v/hermes-rheo
-   :target: https://pypi.org/project/hermes-rheo
-   :alt: PyPI Version
-
-.. image:: https://img.shields.io/pypi/dm/hermes-rheo
-   :target: https://pypi.org/project/hermes-rheo
-   :alt: PyPI Downloads
-
-.. image:: https://zenodo.org/badge/851879885.svg
-   :target: https://doi.org/10.5281/zenodo.14182224
-   :alt: DOI
-
+* **File readers** for
+  `TA Instruments <https://www.tainstruments.com/>`_ TRIOS ``.txt``
+  (via *Export to LIMS* on TRIOS ≤5 or *Export to .txt (Full)* on
+  TRIOS 6.0+; the plain *Export to .txt* option omits step metadata
+  and is unsupported),
+  and `Anton Paar <https://www.anton-paar.com/us-en/>`_ RheoCompass
+  ``.csv``.
+* **Reader-driven per-method default coordinates**: every measurement
+  arrives with its scientifically-natural ``(independent, dependent)``
+  pair (e.g. ``strain=f(time)`` for Creep, ``storage modulus=f(angular
+  frequency)`` for a Frequency Sweep).
+* **OWChirp analysis** — time-resolved viscoelastic-moduli extraction
+  from Optimally Windowed Chirp signals (Geri *et al.* 2018,
+  DOI `10.1103/PhysRevX.8.041042
+  <https://doi.org/10.1103/PhysRevX.8.041042>`_).
+* **Automated master curves** using the data-driven Gaussian-process
+  method of Lennon, McKinley and Swan (2023,
+  DOI `10.1017/dce.2023.3 <https://doi.org/10.1017/dce.2023.3>`_).
+* **Recovery rheology**, **mutation number**, **temperature-ramp
+  analysis**, **model fitting**, **kymographs** and a variety of
+  utility transforms.
+* Composable pipelines via the ``+`` operator inherited from
+  :mod:`piblin`.
 
 .. note::
 
-   This project is under active development. Check back for updates!
+   This project is under active development.  See :doc:`quickstart` to
+   get started or :doc:`transforms` for the full API.
 
 Contents
 --------
@@ -41,7 +59,9 @@ Contents
 
 .. toctree::
    :maxdepth: 2
-   :caption: API
+   :caption: API Reference
 
    file_readers
    transforms
+   synthetic
+   visualization

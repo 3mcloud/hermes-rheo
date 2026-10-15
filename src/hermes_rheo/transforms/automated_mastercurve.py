@@ -96,7 +96,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         reverse_data (bool): Whether to reverse the data order. Defaults to False.
         measurements (list, optional): A list of specific measurement indices to use. If not provided, all measurements
                                        in the target dataset will be used. Defaults to None.
-        *args, **kwargs: Additional arguments and keyword arguments for superclass initialization.
+        ``*args, **kwargs``: Additional arguments and keyword arguments for superclass initialization.
 
     Methods:
         _apply(self, target, **kwargs):
@@ -258,6 +258,7 @@ class CompositeMasterCurve(MeasurementSetTransform):
     """
     Pipeline step that generates master curves for multiple y-quantities and returns itself,
     so downstream steps (FitModel) receive an object exposing:
+
       - available_quantities
       - get_mastercurve(quantity)
     """
