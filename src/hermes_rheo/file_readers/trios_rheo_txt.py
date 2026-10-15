@@ -1,4 +1,5 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any, Tuple
+import logging
 import re
 import numpy as np
 from piblin.dataio.fileio.read import FileParsingException
@@ -10,28 +11,272 @@ import piblin.data.data_collections.measurement_set as measurement_set
 import piblin.dataio.fileio.read.file_reader as file_reader
 
 
-class TriosRheoReader(file_reader.FileReader):
-    """
-    This class provides a reader for TA Rheometers files that have been exported as .txt format using
-    the TRIOS export to LIMS functionality.
+_logger = logging.getLogger(__name__)
 
-    By default, both the independent and dependent variables are set to "Temperature." This setting is chosen as
-    temperature is the only rheological variable consistently present across the various measurements provided by
-    TRIOS software. For users seeking to further analyze or manipulate the rheological measurements, the TriosRheoReader
-    class is compatible with a range of transformations available through the hermes package (https://github.com/3mcloud/hermes-rheo).
+
+# ---------------------------------------------------------------------------
+# Per-method default (independent, dependent) coordinates
+# ---------------------------------------------------------------------------
+#
+# Every rheological method has a natural view — e.g. a Creep test is best
+# plotted as ``strain vs time`` and a Frequency Sweep as
+# ``storage modulus vs angular frequency``.  This module records that choice
+# so the reader can build each ``OneDimensionalCompositeDataset`` with
+# sensible defaults instead of the historical ``Temperature=f(Temperature)``
+# fallback.
+#
+# Defaults are selected by canonicalising the ``[Step]`` name (the string
+# stored in ``conditions["method"]``) and matching substrings in the order
+# below.  This is more reliable than matching by column-schema because
+# several TRIOS instrument profiles share column sets — e.g. a DMA
+# Temperature Ramp file has every column expected by an Amplitude sweep, so
+# schema-based matching would silently mis-classify the file.  The rules
+# below reproduce the ``switch_coordinates()`` calls that used to live in
+# the ``RheoAnalysis._apply`` elif cascade, so migrating pipelines from
+# ``RheoAnalysis`` to the reader-driven defaults is a no-op.
+
+
+def _canonicalise_method(method_line: str) -> str:
+    """Return the canonical, lower-cased form of a TRIOS step-name line.
+
+    TRIOS exports the step name as ``"Step name\\t<name>"`` and often
+    appends a repetition tag (``" Repeat"``) or a trailing ``- N`` counter.
+    All three variants collapse to the same canonical form here.
+
+    Parameters
+    ----------
+    method_line : str
+        The raw value stored in ``measurement.conditions["method"]``.
+
+    Returns
+    -------
+    str
+        The lowercase, prefix-stripped, tag-stripped canonical method name.
+
+    Examples
+    --------
+    >>> _canonicalise_method("Step name\\tTemperature Ramp - 1")
+    'temperature ramp'
+    >>> _canonicalise_method("Frequency sweep Repeat - 3")
+    'frequency sweep'
+    """
+    s = str(method_line).strip()
+    if s.lower().startswith("step name"):
+        parts = s.split("\t", 1)
+        if len(parts) == 2:
+            s = parts[1]
+    s = s.replace(" Repeat", "")
+    s = re.sub(r"\s*-\s*\d+\s*$", "", s)
+    return s.strip().lower()
+
+
+def _lookup_method_defaults(
+    method_line: str,
+    variable_names: List[str],
+    fallback_independent: str,
+) -> Tuple[str, str]:
+    """Return the natural ``(default_independent, default_dependent)`` pair.
+
+    Matches the canonicalised method string against an ordered set of
+    substring rules and returns the corresponding coordinates.  When the
+    chosen names are not both present in *variable_names* (some TRIOS
+    exports omit columns), a safe fallback is returned:
+
+    * *default_independent* → *fallback_independent* (usually the appended
+      ``"Temperature"`` column).
+    * *default_dependent*   → the first entry of *variable_names* that is
+      neither the fallback nor equal to the chosen independent.
+
+    Parameters
+    ----------
+    method_line : str
+        The raw method-line string from
+        ``measurement.conditions["method"]``.
+    variable_names : list of str
+        Names of the data arrays that will make up the composite dataset,
+        in construction order.
+    fallback_independent : str
+        Column name to use as the independent variable when the natural
+        default is not present in *variable_names*.
+
+    Returns
+    -------
+    default_independent : str
+    default_dependent : str
+    """
+    m = _canonicalise_method(method_line)
+
+    # Order matches RheoAnalysis._apply's elif cascade.
+    if 'arbitrary wave' in m:
+        default_x, default_y = 'step time', 'strain'
+    elif 'frequency chirp' in m:
+        default_x, default_y = 'step time', 'strain'
+    elif 'creep' in m:
+        default_x, default_y = 'time', 'strain'
+    elif 'amplitude sweep' in m:
+        default_x, default_y = 'oscillation strain (cmd)', 'storage modulus'
+    elif ('frequency sweep' in m) or ('frequenz' in m) or (m == 'frequency') or (m.startswith('frequency') and 'chirp' not in m):
+        default_x, default_y = 'angular frequency', 'storage modulus'
+    elif 'multiwave' in m:
+        default_x, default_y = 'angular frequency', 'storage modulus'
+    elif 'stress relaxation' in m:
+        default_x, default_y = 'step time', 'modulus'
+    elif 'temperature ramp iso force' in m:
+        default_x, default_y = 'temperature', 'modulus'
+    elif ('temperature ramp' in m) or ('temperaturrampe' in m):
+        default_x, default_y = 'temperature', 'storage modulus'
+    elif 'temperature sweep' in m:
+        default_x, default_y = 'temperature', 'storage modulus'
+    elif 'frequency dma' in m:
+        default_x, default_y = 'angular frequency', 'storage modulus'
+    elif ('shift factors' in m) and ('master curve' not in m):
+        default_x, default_y = '1/temperature', 'aT'
+    elif 'master curve - shift factors' in m:
+        default_x, default_y = '1/temperature', 'aT'
+    elif 'master curve - master curve' in m:
+        default_x, default_y = 'angular frequency', 'storage modulus'
+    elif ('master curve' in m) and ('master curve -' not in m):
+        default_x, default_y = 'angular frequency', 'storage modulus'
+    elif 'fast sampling' in m:
+        default_x, default_y = 'step time', 'storage modulus'
+    elif 'recovery' in m:
+        default_x, default_y = 'step time', 'modulus'
+    elif 'nanodma' in m:
+        default_x, default_y = 'frequency', 'storage modulus'
+    elif 'axial' in m:
+        default_x, default_y = 'step time', 'axial force'
+    elif 'correlated' in m:
+        default_x, default_y = 'angular frequency', 'storage modulus'
+    elif 'stress control' in m:
+        default_x, default_y = 'time', 'storage modulus'
+    elif 'amplitude' in m:
+        default_x, default_y = 'oscillation strain', 'storage modulus'
+    elif 'flow sweep' in m or 'flow ramp' in m:
+        default_x, default_y = 'shear rate', 'viscosity'
+    elif 'sine strain' in m:
+        default_x, default_y = 'stress', 'strain'
+    elif 'time' in m:
+        default_x, default_y = 'step time', 'storage modulus'
+    else:
+        _logger.debug(
+            "No default-coordinate rule matched method %r; falling back to "
+            "(%r, first-dependent).", method_line, fallback_independent,
+        )
+        default_x = fallback_independent
+        default_y = _first_non(variable_names, {fallback_independent})
+
+    # Safety fallbacks when a chosen name is not in this file's columns.
+    if default_x not in variable_names:
+        _logger.debug(
+            "Default independent %r for method %r not in columns; "
+            "falling back to %r.",
+            default_x, method_line, fallback_independent,
+        )
+        default_x = fallback_independent
+    if default_y not in variable_names:
+        _logger.debug(
+            "Default dependent %r for method %r not in columns; "
+            "falling back to first available dependent.",
+            default_y, method_line,
+        )
+        default_y = _first_non(variable_names, {fallback_independent, default_x})
+
+    return default_x, default_y
+
+
+def _first_non(names: List[str], excluded: set) -> str:
+    """Return the first entry of *names* not in *excluded* (or names[0])."""
+    for name in names:
+        if name not in excluded:
+            return name
+    return names[0]
+
+
+class TriosRheoReader(file_reader.FileReader):
+    """Reader for TA rheometer ``.txt`` exports produced by TRIOS.
+
+    Two TRIOS export paths write the full step-header metadata this
+    reader needs:
+
+    * **TRIOS ≤5** — *Export* → *Export to LIMS*.
+    * **TRIOS 6.0+** — *Export* → *Export to .txt (Full)*.  The plain
+      *Export to .txt* option strips the geometry, calibration and
+      wave parameters and will raise a
+      :class:`~piblin.dataio.fileio.read.FileParsingException`.
+
+    The latest TRIOS is available free of charge from
+    `TA Instruments <https://www.tainstruments.com/support/software-downloads-support/downloads/>`_.
+
+    Each ``[Step]`` in the file becomes one
+    :class:`~piblin.data.data_collections.measurement.Measurement`.  When
+    ``create_composite_datasets=True`` (the default) each measurement holds a
+    single
+    :class:`~piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset.OneDimensionalCompositeDataset`
+    containing every column mapped by
+    :attr:`Y_VALUES_COLUMN_LABELS` plus the appended ``"Temperature"``
+    coordinate.
+
+    The active (independent, dependent) coordinate pair for each measurement
+    is controlled by the ``default_coords`` read-time keyword argument:
+
+    ``"natural"`` (default)
+        Use the scientifically meaningful pair for each method — see
+        :data:`_METHOD_DEFAULTS`.  For example a *Creep* step becomes
+        ``strain=f(time)`` and a *Frequency Sweep* becomes
+        ``storage modulus=f(angular frequency)``.  This yields clean
+        ``print(measurement_set)`` output but *individual measurements from a
+        mixed-method file will have different active coordinates*, so wrapping
+        the resulting ``MeasurementSet`` directly in an ``ExperimentSet``
+        (which enforces consistency across measurements) can raise
+        ``InconsistentMeasurementsError``.
+
+    ``"legacy-temperature"``
+        Reproduces the historical behaviour: every measurement gets
+        ``Temperature=f(Temperature)`` regardless of method.  Ugly but
+        consistent, so mixed-method files can be wrapped directly in
+        ``ExperimentSet``.  Provided for backwards compatibility with code
+        written against hermes-rheo 1.x.
+
+    Users can always override the active coordinates on any measurement with
+    :meth:`~piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset.OneDimensionalCompositeDataset.switch_coordinates`.
+
+    Examples
+    --------
+    >>> from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
+    >>> mset = TriosRheoReader().data_from_filepath(
+    ...     "creep.txt", create_composite_datasets=True
+    ... )  # doctest: +SKIP
+    >>> ds = mset.measurements[0].datasets[0]  # doctest: +SKIP
+    >>> ds.independent_variable_name, ds.dependent_variable_name  # doctest: +SKIP
+    ('time', 'strain')
+
+    Legacy behaviour for mixed-method files intended for ``ExperimentSet``:
+
+    >>> mset = TriosRheoReader().data_from_filepath(
+    ...     "mixed.txt",
+    ...     create_composite_datasets=True,
+    ...     default_coords="legacy-temperature",
+    ... )  # doctest: +SKIP
     """
     supported_extensions = {'txt'}
 
     __TOP_LEVEL_PARAMETER_REGEXES: Dict[str, str] = {
-        "filename": r"Filename\s+(.*)",
+        "document_id": r"Document ID\s+(.*)",
+        "file_path": r"File path\s+(.*)",
         "instrument_serial_number": r"Instrument serial number\s+(.*)",
         "instrument_name": r"Instrument name\s+(.*)",
-        "operator": r"operator\s+(.*)",
-        "run_date": r"rundate\s+(.*)",
-        "sample_name": r"Sample name\s+(.*)",
-        "geometry": r"Geometry name\s+(.*)",\
+        "logged_in_user": r"Logged-in user at run start\s+(.*)",
+        "run_date": r"Run date\s+(.*)",
     }
-    """Regular expressions for extracting version parameters from the file."""
+    """Regular expressions for extracting top-level header parameters from the file."""
+
+    __SAMPLE_REGEXES: Dict[str, str] = {
+        "sample_name": r"Name\s+(.*)",
+        "operator": r"Operator\s+(.*)",
+        "sample_file_name": r"File name\s+(.*)",
+        "sample_project": r"Project\s+(.*)",
+        "sample_notes_line": r"Notes\s+(.*)",
+    }
 
     __PROCEDURE_REGEXES: Dict[str, str] = {
         "procedure_name": r"Procedure name\s+(.*)",
@@ -39,33 +284,34 @@ class TriosRheoReader(file_reader.FileReader):
     }
 
     __FILE_PARAMETER_REGEXES: Dict[str, str] = {
-        "trios_version": r"Trios version\s+(.*)",
-        "run_date": r"Run date\s+(.*)",
+        "trios_version": r"TA Instruments LIMS export format version\s+(.*)",
+        "run_date": r"Run date\s+(.*)",  # may overwrite earlier run_date if both dicts are used
     }
 
     __GEOMETRY_REGEXES: Dict[str, str] = {
-        "geometry_type": r"Geometry type\s+(.*)",
-        "geometry_name": r"name\s+(.*)",
+        "geometry_type": r"Geometry type\s+(.*)",  # may not exist in all files, harmless if not found
+        "geometry_name": r"Name\s+(.*)",
         "geometry_diameter": r"Diameter\s+(.*)",
         "geometry_gap": r"Gap\s+(.*)",
-        "geometry_load_gap": r"Loading Gap\s+(.*)",
-        "geometry_trim_gap_off": r"Trim gap offset",
-        "geometry_material": r"Stainless steel",
+        "geometry_load_gap": r"Loading gap\s+(.*)",
+        "geometry_trim_gap_off": r"Trim gap offset\s+(.*)",
+        "geometry_material": r"Material\s+(.*)",
     }
 
     __GEOMETRY_EXT_REGEXES: Dict[str, str] = {
         "geometry_exp_coefficient": r"Expansion coefficient\s+(.*)",
-        "geometry_up_compliance": r"Upper Compliance\s+(.*)",
-        "geometry_low_compliance": r"Lower Compliance\s+(.*)",
+        "geometry_exp_coefficient_enabled": r"Expansion coefficient enabled\s+(.*)",
+        "geometry_compliance": r"Compliance\s+(.*)",
         "geometry_inertia": r"Geometry Inertia\s+(.*)",
-        "geometry_up_mass": r"Upper Geometry Mass\s+(.*)",
-        "geometry_friction": r"Friction Enabled\s+(.*)",
-        "geometry_stress": r"Stress constant\s+(.*)",
-        "geometry_strain": r"Strain constant\s+(.*)",
-        "geometry_stress_linear": r"stress constant (linear)\s+(.*)",
-        "geometry_strain_linear": r"strain constant (linear)\s+(.*)",
-        "geometry_stress_constant": r"Normal Stress Constant\s+(.*)"
-
+        "geometry_friction": r"Friction\s+(.*)",
+        "geometry_friction_enabled": r"Friction correction enabled\s+(.*)",
+        "geometry_stress_constant": r"Stress constant\s+(.*)",
+        "geometry_strain_constant": r"Strain constant\s+(.*)",
+        "geometry_normal_stress_constant": r"Normal Stress Constant\s+(.*)",
+        "geometry_fluid_density_constant": r"Fluid Density Constant\s+(.*)",
+        "geometry_upper_compliance": r"Upper Compliance\s+(.*)",
+        "geometry_lower_compliance": r"Lower Compliance\s+(.*)",
+        "geometry_friction_enabled_legacy": r"Friction Enabled\s+(.*)",
     }
 
     __CALIBRATION_PARAM_REGEXES: Dict[str, str] = {
@@ -76,7 +322,7 @@ class TriosRheoReader(file_reader.FileReader):
         "SPXducerMass": r"SPXducerMass\s+(.*)",
         "SPXducerNormDamping": r"SPXducerNormDamping\s+(.*)",
         "SPXducerNormSpringConst": r"SPXducerNormSpringConst\s+(.*)",
-
+        "instrument_inertia": r"Instrument inertia\s+(.*)",
     }
 
     __REGEX_DICTS = [__PROCEDURE_REGEXES,
@@ -194,7 +440,8 @@ class TriosRheoReader(file_reader.FileReader):
             'Storage modulus': 'storage modulus',
             'Loss modulus': 'loss modulus',
             'Strain ratio': 'strain ratio',
-            'Oscillation strain rate': 'oscillation strain rate'
+            'Oscillation strain rate': 'oscillation strain rate',
+            'Gap': 'gap',
         },
         'Flow ramp': {
             'Torque': 'torque',
@@ -224,18 +471,38 @@ class TriosRheoReader(file_reader.FileReader):
             '1/temperature': '1/temperature'
         },
         'Creep': {
+            'Run time': 'run time',
             'Temperature': 'temperature',
+            'Torque': 'torque',
             'Velocity': 'velocity',
-            'Strain': 'strain',
-            'Stress': 'stress',
-            'Time': 'time',
-            'Compliance': 'compliance',
-            'Modulus': 'modulus',
             'Displacement': 'displacement',
-            'Shear rate': 'shear rate',
-            'Step time': 'step time',
+            'Normal force': 'normal force',
             'Axial force': 'axial force',
             'Gap': 'gap',
+            'Delta length': 'delta length',
+            'TransXducerDisplacement': 'transducer displacement',
+            'TransientMotorTorque': 'transient motor torque',
+            'Strain': 'strain',
+            'Strain (step)': 'strain (step)',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Shear rate': 'shear rate',
+            'Normal stress': 'normal stress',
+            'Status bits': 'status bits',
+            'Torque transducer': 'torque transducer',
+            'Normal transducer': 'normal transducer',
+            'Transducer range': 'transducer range',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Displacement (step)': 'displacement (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Normal stress coefficient': 'normal stress coefficient',
+            'Compliance': 'compliance',
+            'Modulus': 'modulus',
         },
         'Arbitrary Wave': {
             'Temperature': 'temperature',
@@ -319,7 +586,8 @@ class TriosRheoReader(file_reader.FileReader):
             'Storage modulus': 'storage modulus',
             'Loss modulus': 'loss modulus',
             'Strain ratio': 'strain ratio',
-            'Oscillation strain rate': 'oscillation strain rate'
+            'Oscillation strain rate': 'oscillation strain rate',
+            'Gap': 'gap',
         },
         'Temperature ramp ISO Force': {
             'Temperature': 'temperature',
@@ -366,6 +634,47 @@ class TriosRheoReader(file_reader.FileReader):
             'Storage compliance': 'storage compliance',
             'Loss compliance': 'loss compliance'
         },
+
+        'Temperature Sweep (Multifrequency)': {
+            'Variables': 'variables',
+            'Run time': 'run time',
+            'Temperature': 'temperature',
+            'Angular frequency': 'angular frequency',
+            'Oscillation force (cmd)': 'oscillation force (cmd)',
+            'Axial force': 'axial force',
+            'Oscillation force': 'oscillation force',
+            'Oscillation displacement': 'oscillation displacement',
+            'Raw phase (displacement)': 'raw phase (displacement)',
+            'Delta length': 'delta length',
+            'Oscillation Force (Drive)': 'oscillation force (drive)',
+            'Drive Position': 'drive position',
+            'Temperature set point': 'temperature set point',
+            'Oscillation strain': 'oscillation strain',
+            'Oscillation stress': 'oscillation stress',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Status bits': 'status bits',
+            'Status bits 2': 'status bits 2',
+            'Normal transducer': 'normal transducer',
+            'Storage modulus': 'storage modulus',
+            'Loss modulus': 'loss modulus',
+            'Phase angle': 'phase angle',
+            'Pretension ratio': 'pretension ratio',
+            'Stiffness': 'stiffness',
+            'Oscillation displacement (drive': 'oscillation displacement (drive',  # note: no closing ')'
+            'Position': 'position',
+            'Length': 'length',
+            'Strain constant (linear)': 'strain constant (linear)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Frequency': 'frequency',
+            'Tan(delta)': 'tan(delta)',
+            'Complex modulus': 'complex modulus',
+            'Complex compliance': 'complex compliance',
+            'Storage compliance': 'storage compliance',
+            'Loss compliance': 'loss compliance'
+        },
+
         'Frequency DMA': {
             'Run time': 'run time',
             'Temperature': 'temperature',
@@ -417,6 +726,33 @@ class TriosRheoReader(file_reader.FileReader):
             'bT delta': 'bT delta',
             'bT (y variables)': 'bT',
         },
+        # Frequency sweep steps exported from ARES-G3 (TRIOS 6+) that carry
+        # oscillation columns and Time alongside the full complex modulus set.
+        # Must be checked BEFORE 'Master Curve - master curve' because the MC
+        # schema is a strict subset of these columns and would match first.
+        'Frequency sweep (ARES-G3)': {
+            'Angular frequency': 'angular frequency',
+            'Oscillation strain': 'oscillation strain',
+            'Oscillation stress': 'oscillation stress',
+            'Time': 'time',
+            'Storage modulus': 'storage modulus',
+            'Loss modulus': 'loss modulus',
+            '1/temperature': '1/temperature',
+            'Phase angle': 'phase angle',
+            'Frequency': 'frequency',
+            'Tan(delta)': 'tan(delta)',
+            'Complex modulus': 'complex modulus',
+            'Dynamic viscosity': 'dynamic viscosity',
+            'Out of phase component of η*': 'out of phase component of η*',
+            'Complex viscosity': 'complex viscosity',
+            'Complex compliance': 'complex compliance',
+            'Storage compliance': 'storage compliance',
+            'Loss compliance': 'loss compliance',
+            'G*/sin(delta)': 'G*/sin(delta)',
+            'G*.sin(delta)': 'G*.sin(delta)',
+            'Oscillation strain rate': 'oscillation strain rate',
+            'Gap': 'gap',
+        },
         'Master Curve - master curve': {
             'Angular frequency': 'angular frequency',
             'Storage modulus': 'storage modulus',
@@ -466,7 +802,411 @@ class TriosRheoReader(file_reader.FileReader):
             'Date and time': 'data and time',
             '1/temperature': '1/temperature',
             'Modulus': 'modulus'
-        }
+        },
+        "Axial": {
+            'Variables': 'variables',
+            'Torque': 'torque',
+            'Velocity': 'velocity',
+            'Step time': 'step time',
+            'Temperature': 'temperature',
+            'Axial force': 'axial force',
+            'Gap': 'gap',
+            'Displacement': 'displacement',
+            'Termination reason': 'termination reason',
+            'Run time': 'run time',
+            'Time': 'time',
+            'Stress': 'stress',
+            'Normal stress': 'normal stress',
+            'Shear rate': 'shear rate',
+            'Strain': 'strain',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Normal stress coefficient': 'normal stress coefficient',
+            'Compliance': 'compliance',
+            'Modulus': 'modulus'
+        },
+        "Time": {
+            'Variables': 'variables',
+            'Run time': 'run time',
+            'Temperature': 'temperature',
+            'Angular frequency': 'angular frequency',
+            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
+            'Oscillation normal force average': 'oscillation normal force average',
+            'Axial force': 'axial force',
+            'Oscillation torque': 'oscillation torque',
+            'Raw phase (torque)': 'raw phase (torque)',
+            'Oscillation displacement': 'oscillation displacement',
+            'Gap': 'gap',
+            'Delta length': 'delta length',
+            'X-ducer Displacement': 'x-ducer displacement',
+            'Raw Phase (Xducer displacement)': 'raw phase (xducer displacement)',
+            'Oscillation normal force': 'oscillation normal force',
+            'Raw phase (normal force)': 'raw phase (normal force)',
+            'Velocity': 'velocity',
+            'Torque': 'torque',
+            'ScaleTorqWaveData': 'scaletorqwavedata',
+            'ScaleStrnWaveData': 'scalestrnwavedata',
+            'ScaleNormWaveData': 'scalenormwavedata',
+            'Oscillation strain': 'oscillation strain',
+            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
+            'Oscillation stress': 'oscillation stress',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Complex viscosity': 'complex viscosity',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Shear rate': 'shear rate',
+            'Oscillation normal stress': 'oscillation normal stress',
+            'Phase angle': 'phase angle',
+            'Status bits': 'status bits',
+            'Status bits 2': 'status bits 2',
+            'Torque transducer': 'torque transducer',
+            'Normal transducer': 'normal transducer',
+            'Transducer range': 'transducer range',
+            'X-ducer stiffness': 'x-ducer stiffness',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Frequency': 'frequency',
+            'Tan(delta)': 'tan(delta)',
+            'Complex modulus': 'complex modulus',
+            'Dynamic viscosity': 'dynamic viscosity',
+            'Out of phase component of η*': 'out of phase component of η*',
+            'Complex compliance': 'complex compliance',
+            'Storage compliance': 'storage compliance',
+            'Loss compliance': 'loss compliance',
+            'G*/sin(delta)': 'g*/sin(delta)',
+            'G*.sin(delta)': 'g*.sin(delta)',
+            'Storage modulus': 'storage modulus',
+            'Loss modulus': 'loss modulus',
+            'Strain ratio': 'strain ratio',
+            'Stiffness': 'stiffness',
+            'Oscillation strain rate': 'oscillation strain rate'
+        },
+        'Frequency Chirp': {
+            'Torque': 'torque',
+            'Step time': 'step time',
+            'Temperature': 'temperature',
+            'Axial force': 'axial force',
+            'Gap': 'gap',
+            'Displacement': 'displacement',
+            'Run time': 'run time',
+            'Time': 'time',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Normal stress': 'normal stress',
+            'Strain': 'strain',
+            'Strain (step)': 'strain (step)',
+            'Strain constant': 'strain constant',
+            'Torque (step)': 'torque (step)',
+            'Displacement (step)': 'displacement (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Compliance': 'compliance',
+            'Modulus': 'modulus',
+        },
+
+        'Correlated': {
+            'Angular frequency': 'angular frequency',
+            'Step time': 'step time',
+            'Temperature': 'temperature',
+            'Axial force': 'axial force',
+            'Gap': 'gap',
+            'Raw phase': 'raw phase',
+            'Torque': 'torque',
+            'Velocity': 'velocity',
+            'Oscillation torque': 'oscillation torque',
+            'Oscillation displacement': 'oscillation displacement',
+            'Run time': 'run time',
+            'Time': 'time',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Oscillation stress': 'oscillation stress',
+            'Oscillation torque (sample)': 'oscillation torque (sample)',
+            'Oscillation strain': 'oscillation strain',
+            'Oscillation stress (cmd)': 'oscillation stress (cmd)',
+            'Loss modulus': 'loss modulus',
+            'Storage modulus': 'storage modulus',
+            'Normal stress': 'normal stress',
+            'Shear rate': 'shear rate',
+            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Normal stress coefficient': 'normal stress coefficient',
+            'Phase angle': 'phase angle',
+            'Frequency': 'frequency',
+            'Tan(delta)': 'tan(delta)',
+            'Complex modulus': 'complex modulus',
+            'Dynamic viscosity': 'dynamic viscosity',
+            'Out of phase component of η*': 'out of phase component of η*',
+            'Complex viscosity': 'complex viscosity',
+            'Complex compliance': 'complex compliance',
+            'Storage compliance': 'storage compliance',
+            'Loss compliance': 'loss compliance',
+            'G*/sin(delta)': 'G*/sin(delta)',
+            'G*.sin(delta)': 'G*.sin(delta)',
+            'Stiffness': 'stiffness',
+            'Oscillation strain rate': 'oscillation strain rate',
+        },
+        'Stress Control': {
+            'Run time': 'run time',
+            'Temperature': 'temperature',
+            'Angular frequency': 'angular frequency',
+            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
+            'Oscillation normal force average': 'oscillation normal force average',
+            'Axial force': 'axial force',
+            'Oscillation torque': 'oscillation torque',
+            'Raw phase (torque)': 'raw phase (torque)',
+            'Oscillation displacement': 'oscillation displacement',
+            'Gap': 'gap',
+            'Delta length': 'delta length',
+            'X-ducer Displacement': 'x-ducer displacement',
+            'Raw Phase (Xducer displacement)': 'raw phase (xducer displacement)',
+            'Oscillation normal force': 'oscillation normal force',
+            'Raw phase (normal force)': 'raw phase (normal force)',
+            'Velocity': 'velocity',
+            'Torque': 'torque',
+            'ScaleTorqWaveData': 'scaletorqwavedata',
+            'ScaleStrnWaveData': 'scalestrnwavedata',
+            'ScaleNormWaveData': 'scalenormwavedata',
+            'Oscillation strain': 'oscillation strain',
+            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
+            'Oscillation stress': 'oscillation stress',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Complex viscosity': 'complex viscosity',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Shear rate': 'shear rate',
+            'Oscillation normal stress': 'oscillation normal stress',
+            'Phase angle': 'phase angle',
+            'Status bits': 'status bits',
+            'Status bits 2': 'status bits 2',
+            'Torque transducer': 'torque transducer',
+            'Normal transducer': 'normal transducer',
+            'Transducer range': 'transducer range',
+            'X-ducer stiffness': 'x-ducer stiffness',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Frequency': 'frequency',
+            'Tan(delta)': 'tan(delta)',
+            'Complex modulus': 'complex modulus',
+            'Dynamic viscosity': 'dynamic viscosity',
+            'Out of phase component of η*': 'out of phase component of η*',
+            'Complex compliance': 'complex compliance',
+            'Storage compliance': 'storage compliance',
+            'Loss compliance': 'loss compliance',
+            'G*/sin(delta)': 'g*/sin(delta)',
+            'G*.sin(delta)': 'g*.sin(delta)',
+            'Storage modulus': 'storage modulus',
+            'Loss modulus': 'loss modulus',
+            'Strain ratio': 'strain ratio',
+            'Stiffness': 'stiffness',
+            'Oscillation strain rate': 'oscillation strain rate',
+        },
+        'Creep (Recoverable)': {
+            'Run time': 'run time',
+            'Temperature': 'temperature',
+            'Torque': 'torque',
+            'Velocity': 'velocity',
+            'Displacement': 'displacement',
+            'Normal force': 'normal force',
+            'Axial force': 'axial force',
+            'Gap': 'gap',
+            'Delta length': 'delta length',
+            'TransXducerDisplacement': 'transducer displacement',
+            'TransientMotorTorque': 'transient motor torque',
+            'Strain': 'strain',
+            'Strain (step)': 'strain (step)',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Recoverable compliance': 'recoverable compliance',
+            'Recoverable strain': 'recoverable strain',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Shear rate': 'shear rate',
+            'Normal stress': 'normal stress',
+            'Status bits': 'status bits',
+            'Torque transducer': 'torque transducer',
+            'Normal transducer': 'normal transducer',
+            'Transducer range': 'transducer range',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Displacement (step)': 'displacement (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Normal stress coefficient': 'normal stress coefficient',
+            'Modulus': 'modulus',
+        },
+
+        'Amplitude': {
+            'Run time': 'run time',
+            'Temperature': 'temperature',
+            'Angular frequency': 'angular frequency',
+            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
+            'Oscillation normal force average': 'oscillation normal force average',
+            'Axial force': 'axial force',
+            'Oscillation torque': 'oscillation torque',
+            'Raw phase (torque)': 'raw phase (torque)',
+            'Oscillation displacement': 'oscillation displacement',
+            'Gap': 'gap',
+            'Delta length': 'delta length',
+            'X-ducer Displacement': 'x-ducer displacement',
+            'Raw Phase (Xducer displacement)': 'raw phase (xducer displacement)',
+            'Oscillation normal force': 'oscillation normal force',
+            'Raw phase (normal force)': 'raw phase (normal force)',
+            'Velocity': 'velocity',
+            'Torque': 'torque',
+            'ScaleTorqWaveData': 'scaletorqwavedata',
+            'ScaleStrnWaveData': 'scalestrnwavedata',
+            'ScaleNormWaveData': 'scalenormwavedata',
+            'Oscillation strain': 'oscillation strain',
+            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
+            'Oscillation stress': 'oscillation stress',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Complex viscosity': 'complex viscosity',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Shear rate': 'shear rate',
+            'Oscillation normal stress': 'oscillation normal stress',
+            'Phase angle': 'phase angle',
+            'Status bits': 'status bits',
+            'Status bits 2': 'status bits 2',
+            'Torque transducer': 'torque transducer',
+            'Normal transducer': 'normal transducer',
+            'Transducer range': 'transducer range',
+            'X-ducer stiffness': 'x-ducer stiffness',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Frequency': 'frequency',
+            'Tan(delta)': 'tan(delta)',
+            'Complex modulus': 'complex modulus',
+            'Dynamic viscosity': 'dynamic viscosity',
+            'Out of phase component of η*': 'out of phase component of η*',
+            'Complex compliance': 'complex compliance',
+            'Storage compliance': 'storage compliance',
+            'Loss compliance': 'loss compliance',
+            'G*/sin(delta)': 'G*/sin(delta)',
+            'G*.sin(delta)': 'G*.sin(delta)',
+            'Storage modulus': 'storage modulus',
+            'Loss modulus': 'loss modulus',
+            'Strain ratio': 'strain ratio',
+            'Stiffness': 'stiffness',
+            'Oscillation strain rate': 'oscillation strain rate',
+        },
+        # in Y_VALUES_COLUMN_LABELS
+        'Flow Sweep': {
+            'Torque': 'torque',
+            'Velocity': 'velocity',
+            'Step time': 'step time',
+            'Temperature': 'temperature',
+            'Axial force': 'axial force',
+            'Gap': 'gap',
+            'Displacement': 'displacement',
+            'Termination reason': 'termination reason',
+            'Run time': 'run time',
+            'Time': 'time',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Normal stress': 'normal stress',
+            'Shear rate': 'shear rate',
+            'Strain': 'strain',
+            'Strain (step)': 'strain (step)',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Displacement (step)': 'displacement (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Normal stress coefficient': 'normal stress coefficient',
+            'Compliance': 'compliance',
+            'Modulus': 'modulus',
+        },
+        'Temperature Sweep DMA': {
+            'Run time': 'run time',
+            'Temperature': 'temperature',
+            'Angular frequency': 'angular frequency',
+            'Oscillation displacement (cmd)': 'oscillation displacement (cmd)',
+            'Oscillation normal force average': 'oscillation normal force average',
+            'Axial force': 'axial force',
+            'Oscillation force': 'oscillation force',
+            'Oscillation displacement': 'oscillation displacement',
+            'Raw phase (Axial displacement)': 'raw phase (axial displacement)',
+            'Gap': 'gap',
+            'Delta length': 'delta length',
+            'Axial Xducer compliance': 'axial xducer compliance',
+            'Oscillation Force (Drive)': 'oscillation force (drive)',
+            'Drive Position': 'drive position',
+            'Oscillation strain': 'oscillation strain',
+            'Oscillation strain (cmd)': 'oscillation strain (cmd)',
+            'Oscillation stress': 'oscillation stress',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Status bits': 'status bits',
+            'Status bits 2': 'status bits 2',
+            'Normal transducer': 'normal transducer',
+            'Transducer range': 'transducer range',
+            'Storage modulus': 'storage modulus',
+            'Loss modulus': 'loss modulus',
+            'Phase angle': 'phase angle',
+            'Strain ratio': 'strain ratio',
+            'Pretension ratio': 'pretension ratio',
+            'X-ducer stiffness': 'x-ducer stiffness',
+            'Stiffness': 'stiffness',
+            'Oscillation displacement (drive': 'oscillation displacement (drive',
+            'Strain constant (linear)': 'strain constant (linear)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Frequency': 'frequency',
+            'Tan(delta)': 'tan(delta)',
+            'Complex modulus': 'complex modulus',
+            'Complex compliance': 'complex compliance',
+            'Storage compliance': 'storage compliance',
+            'Loss compliance': 'loss compliance'
+        },
+        'Sine Strain': {
+            'Run time': 'run time',
+            'Temperature': 'temperature',
+            'Torque': 'torque',
+            'Velocity': 'velocity',
+            'Displacement': 'displacement',
+            'Normal force': 'normal force',
+            'Axial force': 'axial force',
+            'Gap': 'gap',
+            'Delta length': 'delta length',
+            'TransXducerDisplacement': 'transducer displacement',
+            'TransientMotorTorque': 'transient motor torque',
+            'Strain': 'strain',
+            'Strain (step)': 'strain (step)',
+            'Stress': 'stress',
+            'Stress (step)': 'stress (step)',
+            'Step time': 'step time',
+            'Time': 'time',
+            'Shear rate': 'shear rate',
+            'Normal stress': 'normal stress',
+            'Strain constant': 'strain constant',
+            'Viscosity': 'viscosity',
+            'Torque (step)': 'torque (step)',
+            'Displacement (step)': 'displacement (step)',
+            'Date and time': 'date and time',
+            '1/temperature': '1/temperature',
+            'Normal stress coefficient': 'normal stress coefficient',
+        },
     }
 
     """The comprehensive sets of traces present in each of the types of supported file."""
@@ -522,7 +1262,7 @@ class TriosRheoReader(file_reader.FileReader):
             """
             wave_info = {}
             for wave_match in re.finditer(
-                    r"Wave ([\d]+)\s+((?:[\d.]*\*?[a-z()^*+\-./\d\s]+)+)\s+([\d.]*\s[a-zA-Z]+)",
+                    r"Wave (\d+)\s+(.+?)\s{2,}([\d.]+\s[a-zA-Z]+)",
                     wave_data):
                 wave_num = 'wave ' + wave_match.group(1)
                 coef = wave_match.group(2)
@@ -777,11 +1517,131 @@ class TriosRheoReader(file_reader.FileReader):
                                                                                unit=unit,
                                                                                label=dataset_name)
         return analysis_datasets
+    @staticmethod
+    def __extract_frequency_chirp_method(file_content: List[str]) -> Dict[str, Dict[str, float]]:
+        """
+        Extract Frequency Chirp parameters from the [Procedure: Steps] block.
+        Expected patterns (examples):
+            - "Frequency 0.1 Hz to 10.0 Hz"
+            - "Total length of chirp 10.0 s"
+            - "Baseline time 2.5 s"
+            - "... (976 points/s approximately)"
+            - "Tapering parameter % 5.0"
+
+        Returns
+        -------
+        Dict[str, Dict[str, float]]
+            {
+              "Frequency Chirp - 1": {
+                  "waiting_time": 2.5,
+                  "chirp_length": 10.0,
+                  "f_lo_hz": 0.1,
+                  "f_hi_hz": 10.0,
+                  "tapering_percent": 5.0,
+                  "fs": 976.0
+              },
+              ...
+            }
+        """
+        blob_lines = []
+        in_procedure = False
+        for line in file_content:
+            # Capture the whole [Procedure: Steps] paragraph as one blob
+            if "[Procedure: Steps]" in line:
+                in_procedure = True
+                continue
+            if in_procedure:
+                if line.startswith("["):  # next section begins
+                    break
+                blob_lines.append(line.strip())
+
+        # If we didn't find a dedicated block, fall back to scanning all lines
+        if not blob_lines:
+            blob_lines = [l.strip() for l in file_content]
+
+        # Build a single blob string (regex-friendly)
+        blob = " ".join(blob_lines)
+
+        # Split by each occurrence of "Frequency Chirp" to count steps robustly
+        # Keep the delimiter using a capturing group.
+        parts = re.split(r"(Frequency\s+Chirp)", blob, flags=re.IGNORECASE)
+
+        results: Dict[str, Dict[str, float]] = {}
+        step_idx = 0
+
+        # Iterate over the chunks that follow each "Frequency Chirp"
+        for i in range(1, len(parts), 2):
+            # parts[i] is "Frequency Chirp" (matched text), parts[i+1] is the following text chunk
+            chunk = parts[i] + parts[i + 1] if i + 1 < len(parts) else parts[i]
+            # Only treat it as a real step if it’s indeed a Frequency Chirp section
+            if not re.search(r"Frequency\s+Chirp", chunk, flags=re.IGNORECASE):
+                continue
+
+            step_idx += 1
+            step_key = f"Frequency Chirp - {step_idx}"
+
+            # Parse baseline time (waiting time)
+            m_baseline = re.search(r"Baseline\s+time\s+([\d.,]+)\s*s", chunk, flags=re.IGNORECASE)
+            # Parse chirp total length
+            m_len = re.search(r"Total\s+length\s+of\s+chirp\s+([\d.,]+)\s*s", chunk, flags=re.IGNORECASE)
+            # Parse frequency range "Frequency 0.1 Hz to 10.0 Hz"
+            m_freq = re.search(r"Frequency\s+([\d.,]+)\s*Hz\s*to\s*([\d.,]+)\s*Hz", chunk, flags=re.IGNORECASE)
+            # Parse sampling rate " (976 points/s approximately)"
+            m_fs = re.search(r"\(([\d.,]+)\s*points/s\s*approximately\)", chunk, flags=re.IGNORECASE)
+            # Parse tapering parameter "% 5.0"
+            m_taper = re.search(r"Tapering\s+parameter\s*%?\s*([\d.,]+)", chunk, flags=re.IGNORECASE)
+
+            def _to_float(s: str) -> float:
+                s = (s or "").strip()
+                if s == "":
+                    return float("nan")
+                s = s.replace("\u00A0", "").replace(" ", "")
+                if "," in s and "." in s:
+                    s = s.replace(".", "").replace(",", ".")
+                elif "," in s:
+                    s = s.replace(",", ".")
+                return float(s)
+
+            waiting_time = _to_float(m_baseline.group(1)) if m_baseline else float("nan")
+            chirp_length = _to_float(m_len.group(1)) if m_len else float("nan")
+            f_lo_hz = _to_float(m_freq.group(1)) if m_freq else float("nan")
+            f_hi_hz = _to_float(m_freq.group(2)) if m_freq else float("nan")
+            fs = _to_float(m_fs.group(1)) if m_fs else float("nan")
+            tapering_percent = _to_float(m_taper.group(1)) if m_taper else float("nan")
+
+            results[step_key] = {
+                "waiting_time": waiting_time,
+                "chirp_length": chirp_length,
+                "f_lo_hz": f_lo_hz,
+                "f_hi_hz": f_hi_hz,
+                "tapering_percent": tapering_percent,
+                "fs": fs,
+            }
+
+        return results
+
+    @staticmethod
+    def _parse_num(s: str):
+        s = (s or "").strip()
+        if s == "":
+            return np.nan
+        # Remove spaces / non-breaking spaces (handles "1 234,56")
+        s = s.replace("\u00A0", "").replace(" ", "")
+        # If both ',' and '.' appear, assume '.' are thousands sep and ',' is decimal
+        if "," in s and "." in s:
+            s = s.replace(".", "").replace(",", ".")
+        # If only ',' appears, treat it as decimal separator
+        elif "," in s:
+            s = s.replace(",", ".")
+        return float(s)
 
     @classmethod
     def _data_from_file_contents(cls, file_contents, file_location=None, **read_kwargs):
         """
-        This method read the contents of .txt exported using TRIOS export to LIMS functionality.
+        This method reads the contents of a ``.txt`` produced by either
+        the TRIOS *Export to LIMS* command (TRIOS ≤5) or the TRIOS 6.0+
+        *Export to .txt (Full)* command.  The plain *Export to .txt*
+        option omits step metadata and will fail to parse.
         The method supports various types of rheological data and is tailored to handle specific file formats outputted by
         TA instruments (Ares G2, DHR, etc..)
 
@@ -813,47 +1673,91 @@ class TriosRheoReader(file_reader.FileReader):
         """
 
         file_contents = file_contents.split("\n")
-        metadata = cls.__read_keyed_metadata(file_contents)
+        metadata = {}
+
+        # Top-level/header/sample
+        for regex_dict in [
+            cls.__TOP_LEVEL_PARAMETER_REGEXES,
+            cls.__FILE_PARAMETER_REGEXES,
+            cls.__SAMPLE_REGEXES,  # if you add it
+            cls.__GEOMETRY_REGEXES,
+            cls.__GEOMETRY_EXT_REGEXES,
+            cls.__CALIBRATION_PARAM_REGEXES,
+        ]:
+            metadata.update(cls.__read_keyed_metadata(file_contents, regex_dict))
         instrument_serial_number = metadata.get("instrument_serial_number")
 
-        # If the instrument serial number is "Offline", extract from the instrument name
+        # If TRIOS wrote ``"Offline"`` in the serial-number field, try to
+        # recover the real serial from the instrument-name line (TRIOS
+        # writes ``"TASerNo 4010-0321"`` there when the instrument was
+        # disconnected at export time).
         if instrument_serial_number == "Offline":
             instrument_name = metadata.get("instrument_name")
             if instrument_name:
-                # Expected format: "TASerNo 4010-0321"
                 parts = instrument_name.split()
                 if len(parts) >= 2:
-                    # Split the second part on '-' and take the first four characters
-                    serial_candidate = parts[1].split("-")[0]
-                    instrument_serial_number = serial_candidate
+                    instrument_serial_number = parts[1].split("-")[0]
+                    metadata["instrument_serial_number"] = instrument_serial_number
                 else:
-                    raise ValueError(f"Invalid instrument name format: {instrument_name}")
+                    instrument_serial_number = None
+                    metadata["instrument_serial_number"] = None
             else:
-                raise ValueError("Instrument name field is missing for an offline instrument.")
+                instrument_serial_number = None
+                metadata["instrument_serial_number"] = None
 
-        if instrument_serial_number and len(instrument_serial_number) >= 4:
-            serial_prefix = instrument_serial_number[:4]
+        # Serial-number dispatch selects the OWChirp wave-metadata parser
+        # (Arbitrary Wave layout differs between DHR and ARES G2/G3 /
+        # Discovery HR).  Non-OWChirp measurements do not consume
+        # ``wave_details`` at all, so if the serial is missing or
+        # unfamiliar we still read the file — we simply leave
+        # ``wave_details`` empty and let ``OWChirpAnalysis`` raise a
+        # targeted error if a caller later tries to analyse an Arbitrary
+        # Wave step from an unknown instrument.
+        _DHR_SERIALS       = {"5343", "5332", "5333"}
+        _G2_SERIALS        = {"4020", "4010"}
+        _G3_SERIALS        = {"4060"}
+        _DISCOVERY_SERIALS = {"0850"}
+
+        serial_prefix = (
+            instrument_serial_number[:4]
+            if instrument_serial_number and len(instrument_serial_number) >= 4
+            else None
+        )
+
+        wave_details: Dict[str, Any] = {}
+        if serial_prefix in _DHR_SERIALS:
+            wave_details = cls.__extract_wave_data_DHR(file_contents)
+        elif serial_prefix in _G2_SERIALS | _G3_SERIALS | _DISCOVERY_SERIALS:
+            wave_details = cls.__extract_wave_data_G2(file_contents)
+        elif serial_prefix is None:
+            _logger.debug(
+                "TRIOS file has no parseable instrument serial number; "
+                "OWChirp wave metadata will not be extracted.",
+            )
         else:
-            raise ValueError(f"Invalid instrument serial number format: {instrument_serial_number}")
+            _logger.debug(
+                "TRIOS file has unrecognised instrument serial prefix %r; "
+                "OWChirp wave metadata will not be extracted.",
+                serial_prefix,
+            )
 
-        # Define sets for instrument serial numbers
-        dhr_serial_numbers = {"5343", "5332"}
-        g2_serial_numbers = {"4020", "4010"}
+        # Now assemble the full details dict
+        details: Dict[str, Any] = {}
 
-        # Determine the correct extraction method based on the first four digits of the instrument serial number
-        if serial_prefix in dhr_serial_numbers:
-            details = cls.__extract_wave_data_DHR(file_contents)
-        elif serial_prefix in g2_serial_numbers:
-            details = cls.__extract_wave_data_G2(file_contents)
-        else:
-            raise ValueError(f"Unsupported instrument serial number: {serial_prefix}")
+        # 1) wave-specific Arbitrary Wave / Frequency Chirp parameters
+        details.update(wave_details)
 
-        # Update details with additional metadata
+        # 2) general metadata from the header
         details.update(metadata)
 
-        # Extract additional data (example: notes)
+        # 3) Notes block
         notes_data = cls.__extract_notes_data(file_contents)
-        details['Notes'] = notes_data
+        details["Notes"] = notes_data
+
+        # 4) Details from Frequency Chirp method (structured per-step blocks)
+        freq_chirp_details = cls.__extract_frequency_chirp_method(file_contents)
+        if freq_chirp_details:
+            details.update(freq_chirp_details)
 
         block = cls.__find_all_regex_position(file_contents[0:], cls.DATA_HEADER_REGEX)
         block.append(len(file_contents))
@@ -878,6 +1782,9 @@ class TriosRheoReader(file_reader.FileReader):
             if all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Amplitude sweep"]):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Amplitude sweep"]
 
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Amplitude"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Amplitude"]
+
             elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency sweep"]):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Frequency sweep"]
 
@@ -886,6 +1793,9 @@ class TriosRheoReader(file_reader.FileReader):
 
             elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Creep"]):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Creep"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Creep (Recoverable)"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Creep (Recoverable)"]
 
             elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Arbitrary Wave"]):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Arbitrary Wave"]
@@ -911,14 +1821,56 @@ class TriosRheoReader(file_reader.FileReader):
             elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Master Curve - shift factors"]):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Master Curve - shift factors"]
 
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency sweep (ARES-G3)"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Frequency sweep (ARES-G3)"]
+
             elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Master Curve - master curve"]):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Master Curve - master curve"]
 
             elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Recovery"]):
                 select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Recovery"]
 
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep (Multifrequency)"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep (Multifrequency)"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Axial"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Axial"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Correlated"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Correlated"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Frequency Chirp"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Frequency Chirp"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Time"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Time"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Stress Control"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Stress Control"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Flow Sweep"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Flow Sweep"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep DMA"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Temperature Sweep DMA"]
+
+            elif all(col_label in column_labels for col_label in cls.Y_VALUES_COLUMN_LABELS["Sine Strain"]):
+                select_col_labels = cls.Y_VALUES_COLUMN_LABELS["Sine Strain"]
+
             else:
-                raise FileParsingException("The method of choice is currently not supported.")
+                # Pull a human-friendly method label from the step line
+                method_line = file_contents[block[index]].strip()
+                if method_line.lower().startswith('step name'):
+                    try:
+                        method_label = method_line.split('\t', 1)[1].strip()
+                    except Exception:
+                        method_label = method_line
+                else:
+                    method_label = method_line
+
+                raise FileParsingException(
+                    f"Unsupported/unknown method in this step: {method_label}"
+                )
 
             for col_label in select_col_labels:
                 y_axis_index.append(column_labels.index(col_label))
@@ -932,24 +1884,47 @@ class TriosRheoReader(file_reader.FileReader):
             x_values = []
             y_values = []
 
-            for line in file_contents[block[index] + offset + 2: block[index + 1] - 2]:
+            #read "Number of points" from the header line just after "Step name"
+            n_points = None
+            npts_line = file_contents[block[index] + 1].strip()
+            m_npts = re.match(r'Number of points\s*\t\s*(\d+)', npts_line, re.IGNORECASE)
+            if m_npts:
+                n_points = int(m_npts.group(1))
+
+            data_start = block[index] + offset + 2  # first data row after Units line
+
+            if n_points is not None and n_points > 0:
+                data_end = data_start + n_points  # read exactly N rows
+            else:
+                # fallback to old behavior if we somehow can't parse Number of points
+                data_end = block[index + 1] - 2
+
+            for line in file_contents[data_start:data_end]:
+                if not line.strip():
+                    # skip blank lines just in case
+                    continue
+
                 data = line.split('\t')
                 num_columns = len(data)
 
-                new_x_values = data[x_axis_index]
-                x_values.append(new_x_values)
+                # x
+                x_raw = data[x_axis_index]
+                x_values.append(cls._parse_num(x_raw))
+
                 if len(data) == 0:
                     break
-                new_y_values = data
+
+                new_y_values = data  # list of strings
 
                 for i in range(len(new_y_values)):
                     if not new_y_values[i]:
-                        new_y_values[i] = np.NAN
+                        new_y_values[i] = np.nan
                     else:
                         try:
-                            new_y_values[i] = float(new_y_values[i])
-                        except:
-                            new_y_values[i] = float(0)  # This will put 0s in the columns with HEX values in them (e.g. Status bits and Status bits 2)
+                            new_y_values[i] = cls._parse_num(new_y_values[i])
+                        except Exception:
+                            # Columns with HEX/status, etc.
+                            new_y_values[i] = 0.0
 
                 y_values.append(new_y_values)
 
@@ -958,19 +1933,39 @@ class TriosRheoReader(file_reader.FileReader):
 
             if read_kwargs.get("create_composite_datasets", True):
                 datasets = []
-
                 data_arrays = []
                 for i, column in enumerate(y_axis_index):
                     data_arrays.append(y_values[:, column])
-
                 data_arrays.append(x_values)
+
+                # Choose default (independent, dependent) coordinates for this
+                # measurement.  The "natural" mode (default) uses the
+                # scientifically meaningful pair for each method (e.g.
+                # strain=f(time) for Creep, G'=f(omega) for a frequency
+                # sweep).  The "legacy-temperature" mode reproduces the
+                # historical Temperature=f(Temperature) fallback, which
+                # yields ugly labels but keeps every measurement consistent
+                # so that a mixed-method file can be wrapped directly in an
+                # ``ExperimentSet``.
+                default_coords_mode = read_kwargs.get(
+                    "default_coords", "natural"
+                )
+                if default_coords_mode == "legacy-temperature":
+                    default_x = cls.X_VALUES_COLUMN_LABEL
+                    default_y = cls.Y_VALUES_COLUMN_LABEL
+                else:
+                    default_x, default_y = _lookup_method_defaults(
+                        method,
+                        variable_names,
+                        cls.X_VALUES_COLUMN_LABEL,
+                    )
 
                 composite_dataset = one_d_composite_dataset.OneDimensionalCompositeDataset(
                     data_arrays=data_arrays,
                     data_array_names=variable_names,
                     data_array_units=variable_units,
-                    default_independent_name=cls.X_VALUES_COLUMN_LABEL,
-                    default_dependent_name=cls.Y_VALUES_COLUMN_LABEL,
+                    default_independent_name=default_x,
+                    default_dependent_name=default_y,
                     source='Converted .txt file from TRIOS .tri file')
 
                 datasets.append(composite_dataset)
@@ -1030,22 +2025,20 @@ class TriosRheoReader(file_reader.FileReader):
     def __find_metadata(cls, file_contents: List[str], regex: str) -> Union[int, float, str]:
         """Find and return the value of scalar metadata matching a regex.
 
-        Parameters
-        ----------
-        file_contents : list of str
-            The contents of the Trios DSC .txt file.
-        regex : str
-            The regex for the scalar metadata.
-
-        Returns
-        -------
-        int or float or str
-            The value for the metadata.
+        Assumes that, if the regex has capture groups, the *last* one is the value.
+        If there are no groups, tries to take text after the first tab.
         """
         for line in file_contents:
             matched = re.match(regex, line)
             if matched is not None:
-                return cls.__parse_str(matched.groups()[0].strip())
+                # If the regex has capturing groups, use the last group as the value
+                if matched.lastindex and matched.lastindex >= 1:
+                    raw = matched.group(matched.lastindex)
+                else:
+                    # Fallback: try to get everything after the first tab
+                    parts = line.split("\t", 1)
+                    raw = parts[1] if len(parts) == 2 else matched.group(0)
+                return cls.__parse_str(raw.strip())
 
     @classmethod
     def __read_keyed_metadata(cls, file_contents: List[str], regex_dict=None) -> Dict[str, Union[int, float, str]]:
@@ -1122,3 +2115,4 @@ class TriosRheoReader(file_reader.FileReader):
             raise FileParsingException(f"Could not locate regex in file.{regex}")
         else:
             return match
+
