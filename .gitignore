@@ -145,3 +145,6 @@ paper/**/*.synctex.gz
 # Tutorial outputs
 tutorial_notebooks/tutorial_data/tutorial_3/plots/
 tutorial_notebooks/_build/
+
+# Recovery rheology tutorial data (not distributed yet)
+tutorial_notebooks/tutorial_data/tutorial_10/
