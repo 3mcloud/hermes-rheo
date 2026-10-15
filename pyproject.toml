@@ -86,7 +86,7 @@ filterwarnings = [
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-extend-exclude = ["paper", "docs/build", "docs/_build", "src/hermes_rheo/_vendor"]
+extend-exclude = ["paper", "docs/build", "docs/_build", "tutorial_notebooks", "src/hermes_rheo/_vendor"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B"]
