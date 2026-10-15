@@ -26,6 +26,8 @@ Master curves and fitting:
         Temperature dependence of TTS shift factors.
     :class:`~hermes_rheo.transforms.frequency_to_time.FrequencyToTime`
         Relaxation modulus G(t) from G*(omega) (i-Rheo Tempo method).
+    :class:`~hermes_rheo.transforms.relaxation_spectrum.RelaxationSpectrum`
+        Continuous and discrete relaxation spectra (pyReSpect, vendored).
 
 Temperature, recovery and mutation:
     :class:`~hermes_rheo.transforms.temperature_ramp_analysis.TemperatureRampAnalysis`,
@@ -59,6 +61,10 @@ from hermes_rheo.transforms.recovery_rheology import (
     RecoveryRheology,
     RecoveryRheologyResult,
 )
+from hermes_rheo.transforms.relaxation_spectrum import (
+    RelaxationSpectrum,
+    RelaxationSpectrumResult,
+)
 from hermes_rheo.transforms.rheo_analysis import RheoAnalysis
 from hermes_rheo.transforms.shift_factor_models import (
     ArrheniusModel,
@@ -85,6 +91,8 @@ __all__ = [
     "ArrheniusModel",
     "FrequencyToTime",
     "FrequencyToTimeResult",
+    "RelaxationSpectrum",
+    "RelaxationSpectrumResult",
     "TemperatureRampAnalysis",
     "TemperatureRampResult",
     "RecoveryRheology",
