@@ -12,11 +12,19 @@ Installation
 
    pip install hermes-rheo
 
+or with `uv <https://docs.astral.sh/uv/>`_:
+
+.. code-block:: console
+
+   uv add hermes-rheo            # add to a project
+   uv pip install hermes-rheo    # install into an existing environment
+
 Optional extras:
 
 .. code-block:: console
 
    pip install "hermes-rheo[notebooks]"   # SciencePlots and OpenCV for the tutorials
+   uv add "hermes-rheo[notebooks]"        # same extras with uv
 
 Model fitting with pyRheo models requires pyRheo, which is not on PyPI:
 

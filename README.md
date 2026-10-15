@@ -36,11 +36,20 @@ frequency_sweeps = SplitTemperatureSweep(
 pip install hermes-rheo
 ```
 
+With [`uv`](https://docs.astral.sh/uv/), add it to a project or install it into a throwaway environment:
+
+```bash
+uv add hermes-rheo                                  # project dependency
+uv pip install hermes-rheo                          # existing virtual environment
+uvx --from hermes-rheo --with jupyterlab jupyter lab  # temporary environment
+```
+
 Python 3.10–3.13 is supported. Optional extras:
 
 ```bash
 pip install "hermes-rheo[notebooks]"   # plotting style and video export for the tutorials
 pip install "hermes-rheo[docs]"        # build the documentation
+uv add "hermes-rheo[notebooks]"        # same extras with uv
 ```
 
 [`pyRheo`](https://github.com/mirandi1/pyRheo) (GPL-3.0, not on PyPI) is an
