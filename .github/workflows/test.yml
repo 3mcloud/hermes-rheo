@@ -23,9 +23,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Ruff lint
-        run: uvx ruff check .
+        run: uv run ruff check .
       - name: Ruff format
-        run: uvx ruff format --check .
+        run: uv run ruff format --check .
 
   test:
     runs-on: ${{ matrix.os }}

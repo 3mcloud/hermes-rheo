@@ -88,6 +88,9 @@ line-length = 100
 target-version = "py310"
 extend-exclude = ["paper", "docs/build", "docs/_build", "tutorial_notebooks", "src/hermes_rheo/_vendor"]
 
+[tool.ruff.format]
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B"]
 ignore = [
