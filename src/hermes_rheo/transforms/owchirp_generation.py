@@ -13,7 +13,8 @@ class OWChirpGeneration:
         output_file_name (str): The name of the file to save the signal data.
         waiting_time (float): The waiting time in seconds.
         signal_duration (float): The chirp signal length in seconds.
-        strain_amplitude (float): The strain amplitude as a percentage.
+        signal_amplitude (float): Amplitude of the input signal (strain or stress,
+            in the units used by the rheometer).
         initial_frequency (float): The initial frequency in rad/s.
         final_frequency (float): The final frequency in rad/s.
         tapering_parameter (float): The tapering parameter as a percentage.
@@ -25,7 +26,7 @@ class OWChirpGeneration:
         output_file_name: str,
         waiting_time: float,
         signal_duration: float,
-        strain_amplitude: float,
+        signal_amplitude: float,
         initial_frequency: float,
         final_frequency: float,
         tapering_parameter: float,
@@ -38,7 +39,8 @@ class OWChirpGeneration:
             output_file_name (str): The name of the file to save the signal data.
             waiting_time (float): The waiting time in seconds.
             signal_duration (float): The chirp signal length in seconds.
-            strain_amplitude (float): The strain amplitude as a percentage.
+            signal_amplitude (float): Amplitude of the input signal (strain or stress,
+            in the units used by the rheometer).
             initial_frequency (float): The initial frequency in rad/s.
             final_frequency (float): The final frequency in rad/s.
             tapering_parameter (float): The tapering parameter as a percentage.
@@ -47,7 +49,7 @@ class OWChirpGeneration:
         self.output_file_name = output_file_name
         self.waiting_time = waiting_time
         self.signal_duration = signal_duration
-        self.strain_amplitude = strain_amplitude
+        self.signal_amplitude = signal_amplitude
         self.initial_frequency = initial_frequency
         self.final_frequency = final_frequency
         self.tapering_parameter = tapering_parameter
@@ -115,20 +117,20 @@ class OWChirpGeneration:
         """Define equations for different zones based on the tapering parameter."""
         if self.initial_phase_shift_radians < 0:
             if self.tapering_parameter < 1:
-                self.zone2_equation = f"{self.strain_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c1})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
-                self.zone3_equation = f"{self.strain_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
-                self.zone4_equation = f"{self.strain_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c2})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
+                self.zone2_equation = f"{self.signal_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c1})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
+                self.zone3_equation = f"{self.signal_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
+                self.zone4_equation = f"{self.signal_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c2})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
             else:
-                self.zone2_equation = f"{self.strain_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
+                self.zone2_equation = f"{self.signal_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}-{abs(self.initial_phase_shift_radians)})"
                 self.zone3_equation = self.zone2_equation
                 self.zone4_equation = self.zone2_equation
         else:
             if self.tapering_parameter < 1:
-                self.zone2_equation = f"{self.strain_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c1})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
-                self.zone3_equation = f"{self.strain_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
-                self.zone4_equation = f"{self.strain_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c2})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
+                self.zone2_equation = f"{self.signal_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c1})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
+                self.zone3_equation = f"{self.signal_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
+                self.zone4_equation = f"{self.signal_amplitude}*cos({self.pi_over_taper}*t {self.phase_shift_c2})^2*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
             else:
-                self.zone2_equation = f"{self.strain_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
+                self.zone2_equation = f"{self.signal_amplitude}*sin({self.w0_exp_waiting_time}*exp({self.exponential_growth_rate}*t)-{self.w0_divided_by_alpha}+{self.initial_phase_shift_radians})"
                 self.zone3_equation = self.zone2_equation
                 self.zone4_equation = self.zone2_equation
 
@@ -138,7 +140,7 @@ class OWChirpGeneration:
             if time < self.waiting_time:
                 return 0
             elif self.waiting_time < time <= self.signal_duration + self.waiting_time:
-                return self.strain_amplitude * math.sin(
+                return self.signal_amplitude * math.sin(
                     self.w0_exp_waiting_time * math.exp(self.exponential_growth_rate * time)
                     - self.w0_divided_by_alpha
                     + self.initial_phase_shift_radians
@@ -148,7 +150,7 @@ class OWChirpGeneration:
                 return 0
             elif self.waiting_time < time <= self.segment_duration_1 + self.waiting_time:
                 return (
-                    self.strain_amplitude
+                    self.signal_amplitude
                     * (math.cos(self.pi_over_taper * time + self.phase_shift_c1)) ** 2
                     * math.sin(
                         self.w0_exp_waiting_time * math.exp(self.exponential_growth_rate * time)
@@ -161,7 +163,7 @@ class OWChirpGeneration:
                 return 0
             elif self.waiting_time < time <= self.segment_duration_1 + self.waiting_time:
                 return (
-                    self.strain_amplitude
+                    self.signal_amplitude
                     * (math.cos(self.pi_over_taper * time + self.phase_shift_c1)) ** 2
                     * math.sin(
                         self.w0_exp_waiting_time * math.exp(self.exponential_growth_rate * time)
@@ -174,14 +176,14 @@ class OWChirpGeneration:
                 < time
                 <= self.segment_duration_1 + self.segment_duration_2 + self.waiting_time
             ):
-                return self.strain_amplitude * math.sin(
+                return self.signal_amplitude * math.sin(
                     self.w0_exp_waiting_time * math.exp(self.exponential_growth_rate * time)
                     - self.w0_divided_by_alpha
                     + self.initial_phase_shift_radians
                 )
             elif time > self.segment_duration_1 + self.segment_duration_2 + self.waiting_time:
                 return (
-                    self.strain_amplitude
+                    self.signal_amplitude
                     * (math.cos(self.pi_over_taper * time + self.phase_shift_c2)) ** 2
                     * math.sin(
                         self.w0_exp_waiting_time * math.exp(self.exponential_growth_rate * time)
@@ -194,7 +196,7 @@ class OWChirpGeneration:
                 return 0
             elif self.waiting_time < time < self.segment_duration_1 + self.waiting_time:
                 return (
-                    self.strain_amplitude
+                    self.signal_amplitude
                     * (math.cos(self.pi_over_taper * time + self.phase_shift_c1)) ** 2
                     * math.sin(
                         self.w0_exp_waiting_time * math.exp(self.exponential_growth_rate * time)
@@ -208,7 +210,7 @@ class OWChirpGeneration:
                 <= self.segment_duration_1 + self.segment_duration_2 + self.waiting_time
             ):
                 return (
-                    self.strain_amplitude
+                    self.signal_amplitude
                     * (math.cos(self.pi_over_taper * time + self.phase_shift_c2)) ** 2
                     * math.sin(
                         self.w0_exp_waiting_time * math.exp(self.exponential_growth_rate * time)
@@ -217,8 +219,17 @@ class OWChirpGeneration:
                     )
                 )
 
-    def visualize(self, display_r0=False, filepath=None):
-        """Plot the chirp waveform and save data and plot to user-specified folder."""
+    def visualize(self, display_r0=False, filepath=None, y_axis="strain"):
+        """Plot the chirp waveform and save data and plot to user-specified folder.
+
+        Parameters:
+            display_r0 (bool): Overlay the untapered (r=0) chirp.
+            filepath (str): Folder where the waveform data and plot are saved.
+            y_axis (str): Quantity imposed by the chirp, "strain" or "stress".
+                Only sets the axis label and the data-file header.
+        """
+        if y_axis not in ("strain", "stress"):
+            raise ValueError(f"y_axis must be 'strain' or 'stress', got {y_axis!r}")
 
         time_values = np.arange(0, self.signal_duration + self.waiting_time, 0.0001)
         strain_values = list(map(self._chirp_function, time_values))
@@ -235,7 +246,7 @@ class OWChirpGeneration:
             np.savetxt(
                 txt_file_path,
                 np.column_stack((time_values_filtered, strain_values_filtered)),
-                header="Time(s)\tStrain",
+                header=f"Time(s)\t{y_axis.capitalize()}",
                 fmt="%.5e",
                 delimiter="\t",
             )
@@ -262,7 +273,7 @@ class OWChirpGeneration:
             self._precompute_constants()  # Recompute constants for the original tapering parameter
 
         plt.xlabel("Time (s)")
-        plt.ylabel("Strain")
+        plt.ylabel(y_axis.capitalize())
         plt.axhline(0, linestyle="--", color="black")
         plt.axvline(self.waiting_time, linestyle="--", color="black")
         plt.legend(loc="best")
@@ -278,7 +289,7 @@ class OWChirpGeneration:
         print(f"Total length of chirp signal: {self.signal_duration} (s)")
         print(f"Initial Frequency: {self.initial_frequency} (rad/s)")
         print(f"Final Frequency: {self.final_frequency} (rad/s)")
-        print(f"Strain amplitude: {self.strain_amplitude} ")
+        print(f"Signal amplitude: {self.signal_amplitude} ")
         print(f"Waiting time: {self.waiting_time} (s)")
         print(f"Tapering parameter: {self.tapering_parameter} ")
         print(f"Time Bandwidth: {self.time_bandwidth}")
@@ -309,7 +320,7 @@ class OWChirpGeneration:
             file.write(f"Total length of chirp signal: {self.signal_duration} (s)\n")
             file.write(f"Initial Frequency: {self.initial_frequency} (rad/s)\n")
             file.write(f"Final Frequency: {self.final_frequency} (rad/s)\n")
-            file.write(f"Strain amplitude: {self.strain_amplitude * 100} (%)\n")
+            file.write(f"Signal amplitude: {self.signal_amplitude}\n")
             file.write(f"Waiting time: {self.waiting_time} (s)\n")
             file.write(f"Tapering parameter: {self.tapering_parameter} (%)\n")
             file.write(f"Time Bandwidth: {self.time_bandwidth}\n")
