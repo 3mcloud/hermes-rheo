@@ -156,3 +156,6 @@ tutorial_notebooks/11_*.ipynb
 tutorial_notebooks/12_*.ipynb
 tutorial_notebooks/13_*.ipynb
 tutorial_notebooks/tutorial_data/tutorial_13/
+
+# Rheologica Acta manuscript (kept local)
+paper/rheologica_acta/
