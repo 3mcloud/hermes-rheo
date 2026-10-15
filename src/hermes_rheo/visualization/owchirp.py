@@ -389,7 +389,12 @@ class OWChirpVisualizer:
         video_path = os.path.join(output_dir, filename)
         writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*codec), fps, (width, height))
         for frame_path in frames:
-            writer.write(cv2.imread(frame_path))
+            frame = cv2.imread(frame_path)
+            # Tight bounding boxes can make frames differ by a pixel; the
+            # writer silently drops frames that do not match its size.
+            if frame.shape[:2] != (height, width):
+                frame = cv2.resize(frame, (width, height))
+            writer.write(frame)
         writer.release()
         return video_path
 
