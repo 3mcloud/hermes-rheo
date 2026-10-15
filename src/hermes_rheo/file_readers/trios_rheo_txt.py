@@ -1268,12 +1268,20 @@ class TriosRheoReader(file_reader.FileReader):
             Extract wave coefficients, durations, and wave forms from the wave data string.
             """
             wave_info = {}
-            for wave_match in re.finditer(
-                r"Wave (\d+)\s+(.+?)\s{2,}([\d.]+\s[a-zA-Z]+)", wave_data
-            ):
-                wave_num = "wave " + wave_match.group(1)
-                coef = wave_match.group(2)
-                duration = float(wave_match.group(3).split()[0])
+            # re.split with one capture group alternates: text, wave number, text, ...
+            chunks = re.split(r"Wave (\d+)(?=\s)", wave_data)
+            for wave_id, chunk in zip(chunks[1::2], chunks[2::2]):
+                # Fields are separated by runs of two or more whitespace characters:
+                # equation, then "<duration> <unit>".
+                fields = re.split(r"\s{2,}", chunk.strip())
+                if len(fields) < 2:
+                    continue
+                duration_match = re.match(r"(\d+(?:\.\d*)?|\.\d+)\s[a-zA-Z]+", fields[1])
+                if duration_match is None:
+                    continue
+                wave_num = "wave " + wave_id
+                coef = fields[0]
+                duration = float(duration_match.group(1))
 
                 # Preprocess coef to remove exponent parts before extracting coefficients
                 preprocessed_coef = re.sub(r"\^[0-9]+", "", coef)
