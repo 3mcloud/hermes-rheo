@@ -1,13 +1,19 @@
+import pytest
+
 from hermes_rheo.file_readers.rheo_compass_csv import RheoCompassReader
 
 
-def test_rheocompass_frequency_sweep_tts(datadir):
-    filepath = datadir.join("test_antonpaar_702e_tts.csv")
-    data = RheoCompassReader().data_from_filepath(str(filepath), create_composite_datasets=False)
-    assert len(data.measurements) == 33
+@pytest.mark.parametrize(
+    ("filename", "expected_measurements"),
+    [
+        ("test_mcr702e_rheocompass_frequency_sweep_tts.csv", 33),
+        ("test_mcr702e_rheocompass_stress_relaxation.csv", 1),
+    ],
+)
+def test_rheocompass_csv_loads(datadir, filename, expected_measurements):
+    """Load RheoCompass CSV measurements."""
+    data = RheoCompassReader().data_from_filepath(
+        str(datadir.join(filename)), create_composite_datasets=False
+    )
 
-
-def test_rheocompass_stress_relaxation(datadir):
-    filepath = datadir.join("test_antonpaar_htr_stress_relax.csv")
-    data = RheoCompassReader().data_from_filepath(str(filepath), create_composite_datasets=False)
-    assert len(data.measurements) == 1
+    assert len(data.measurements) == expected_measurements

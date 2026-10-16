@@ -1,56 +1,45 @@
-"""Kymograph transform for TORCh (Thermally Optimised Ramped Chirp) data.
+"""Kymograph transform: temperature x frequency maps of a viscoelastic quantity.
 
-Produces a 2-D kymograph (Temperature × Frequency → viscoelastic quantity)
-from a :class:`piblin.data.data_collections.measurement_set.MeasurementSet`
-that has been read by :class:`hermes_rheo.file_readers.trios_rheo_txt.TriosRheoReader`.
-
-The TORCh methodology itself was introduced by Vadillo, Perego *et al.*
-(2026) [Vadillo2026]_.
-
-The transform is not restricted to TORCh data: any per-measurement
-axis can be resolved either from a dataset column (e.g. ``temperature``
-from an OWChirp step) or from ``measurement.conditions`` (e.g.
-``Angular Frequency`` on a
+Builds a 2-D map from a :class:`~piblin.data.data_collections.measurement_set.MeasurementSet`,
+e.g. one read by :class:`hermes_rheo.file_readers.trios_rheo_txt.TriosRheoReader`
+and processed by ``OWChirpAnalysis``. It is intended for TORCh (Thermally
+Optimised Ramped Chirp) data [Vadillo2026]_ but is not limited to it: each
+axis is taken from a dataset column (e.g. ``temperature``) or, failing that,
+from ``measurement.conditions`` (e.g. ``Angular Frequency`` on a
 :class:`~hermes_rheo.transforms.mutation_number.MutationNumberMeasurementSet`).
-This makes it possible to build a Mutation Number kymograph from
-mutation-number output without extra reshaping — see the
-``mutation number`` example below.
 
-Typical usage
--------------
+Examples
+--------
 >>> from hermes_rheo import read_file
 >>> from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 >>> from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
 >>> from hermes_rheo.transforms.kymograph import Kymograph
->>>
 >>> experiment = read_file(filepath, file_reader=TriosRheoReader,
-...                        create_composite_datasets=True)
+...                        create_composite_datasets=True)  # doctest: +SKIP
 >>> pipeline = OWChirpAnalysis() + Kymograph(quantity="tan(delta)")
->>> result = pipeline.apply_to(experiment)
->>> result.plot()
+>>> result = pipeline.apply_to(experiment)  # doctest: +SKIP
+>>> result.plot()  # doctest: +SKIP
 
-Mutation Number kymograph::
+Frequency on the x-axis, temperature on the y-axis::
+
+    Kymograph("tan(delta)", x="angular frequency", y="temperature",
+              log_x=True, log_y=False)
+
+Mutation number map of a TORCh ramp::
 
     from hermes_rheo.transforms.mutation_number import MutationNumber
     result = (
-        OWChirpAnalysis()
-        + MutationNumber(dependent_variable="complex modulus")
-        + Kymograph(
-            quantity="mutation number",
-            x="time",
-            y="angular frequency",
-            log_y=True,
-        )
+        MutationNumber(absolute=True, owch_length=10)
+        + Kymograph(quantity="mutation number")
     ).apply_to(experiment)
-    result.plot(colormap="viridis")
+    result.plot(colormap="magma", vmax=0.15)
 
 References
 ----------
-.. [Vadillo2026] Vadillo, D. C., Perego, A. *et al.*, *TORCh: Thermally
+.. [Vadillo2026] Vadillo, D. C., Perego, A. *et al.*, "TORCh: Thermally
    Optimised Ramped Chirp for time-temperature spectroscopy of
-   polymers*, Macromolecules (2026).
-   DOI: `10.1021/acs.macromol.6c00679
-   <https://doi.org/10.1021/acs.macromol.6c00679>`_.
+   polymers", Macromolecules (2026).
+   https://doi.org/10.1021/acs.macromol.6c00679
 """
 
 from __future__ import annotations
@@ -60,12 +49,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import piblin.data.data_collections.measurement_set as measurement_set_mod
 import piblin.data.datasets.abc.split_datasets.two_dimensional_dataset as two_dimensional_dataset_mod
+from piblin.data import Measurement
 from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
 from scipy.interpolate import griddata
 
-# ---------------------------------------------------------------------------
-# Quantity catalogue
-# ---------------------------------------------------------------------------
+from hermes_rheo import __version__
+from hermes_rheo.visualization import style
+
+#: Accepted column-name aliases for each canonical quantity.
 QUANTITY_ALIASES: dict[str, list[str]] = {
     "complex modulus": ["|complex modulus|", "complex modulus", "g*", "|g*|"],
     "storage modulus": ["storage modulus", "g'", "g′"],
@@ -86,7 +77,7 @@ _DEFAULT_UNITS: dict[str, str] = {
     "complex viscosity": "Pa·s",
     "phase angle": "°",
     "dynamic viscosity": "Pa·s",
-    "mutation number": "a.u.",
+    "mutation number": "",
 }
 
 
@@ -121,20 +112,24 @@ def _resolve_column(column_names: list[str], quantity: str) -> str | None:
     return None
 
 
-# ---------------------------------------------------------------------------
-# Result object
-# ---------------------------------------------------------------------------
+def _shared_items(dicts: list[dict]) -> dict:
+    """Return the key/value pairs identical across all *dicts*."""
+    if not dicts:
+        return {}
+    shared = dict(dicts[0])
+    for other in dicts[1:]:
+        shared = {k: v for k, v in shared.items() if k in other and np.array_equal(other[k], v)}
+    return shared
 
 
 class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
-    """A :class:`~piblin.data.datasets.abc.split_datasets.two_dimensional_dataset.TwoDimensionalDataset`
-    produced by :class:`Kymograph`.
+    """Gridded 2-D piblin dataset produced by :class:`Kymograph`.
 
-    Inherits from ``TwoDimensionalDataset`` so ``result`` IS a proper
-    piblin 2-D dataset (``result.x_values``, ``result.y_values``,
-    ``result.z_values`` all work as expected).  In addition it stores the
-    original raw scatter data and exposes convenience methods for slicing
-    and visualisation.
+    A ``TwoDimensionalDataset`` (``x_values``, ``y_values``, ``z_values``)
+    that also keeps the raw scatter points and provides slicing, plotting and
+    Excel export. ``conditions`` and ``details`` carry the metadata shared by
+    the source measurements plus the gridding parameters; :meth:`to_measurement`
+    wraps the dataset and this metadata in a piblin ``Measurement``.
 
     Parameters
     ----------
@@ -164,6 +159,12 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         Physical unit of z.
     log_y : bool
         Whether the y-axis uses a logarithmic scale.
+    log_x : bool, optional
+        Whether the x-axis uses a logarithmic scale.  Defaults to ``False``.
+    conditions : dict, optional
+        Conditions shared by the source measurements.
+    details : dict, optional
+        Details shared by the source measurements and gridding parameters.
     """
 
     def __init__(
@@ -182,6 +183,9 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         y_unit: str,
         z_unit: str,
         log_y: bool,
+        log_x: bool = False,
+        conditions: dict | None = None,
+        details: dict | None = None,
     ) -> None:
         super().__init__(
             dependent_variable_data=z_grid,
@@ -195,16 +199,20 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         self.raw_y = np.asarray(raw_y, float)
         self.raw_z = np.asarray(raw_z, float)
         self.quantity = quantity
+        self.log_x = log_x
         self.log_y = log_y
+        self.conditions = dict(conditions) if conditions else {}
+        self.details = dict(details) if details else {}
+
+    def to_measurement(self) -> Measurement:
+        """Return a piblin ``Measurement`` with this dataset, conditions and details."""
+        details = {k: v for k, v in self.details.items() if k not in self.conditions}
+        return Measurement(datasets=[self], conditions=self.conditions, details=details)
 
     @property
     def grid(self) -> KymographResult:
-        """The interpolated grid — returns *self* (this object IS the grid)."""
+        """The gridded dataset (this object)."""
         return self
-
-    # ------------------------------------------------------------------
-    # Slicing helpers
-    # ------------------------------------------------------------------
 
     def slice_at_x(
         self,
@@ -300,24 +308,26 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
         return out
 
-    # ------------------------------------------------------------------
-    # Visualisation
-    # ------------------------------------------------------------------
-
     def plot(
         self,
         *,
         ax: plt.Axes | None = None,
         colormap: str = "RdYlBu_r",
         log_z: bool = False,
+        vmin: float | None = None,
+        vmax: float | None = None,
         add_scatter: bool = False,
         add_contours: bool = False,
         contour_levels: int | list[float] | None = None,
         contour_colors: str = "k",
-        figsize: tuple[float, float] = (8, 5),
+        figsize: tuple[float, float] = style.FIGSIZE,
         title: str | None = None,
     ) -> tuple[plt.Figure, plt.Axes]:
         """Plot the 2-D kymograph (heatmap).
+
+        Which variable is on which axis is set when the map is built, e.g.
+        ``Kymograph(x="angular frequency", y="temperature", log_x=True,
+        log_y=False)`` puts frequency on the horizontal axis.
 
         Parameters
         ----------
@@ -326,7 +336,10 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         colormap : str, optional
             A Matplotlib colormap name.  Defaults to ``"RdYlBu_r"``.
         log_z : bool, optional
-            Use a log-normalised colour scale.
+            Use a logarithmic colour scale.
+        vmin, vmax : float, optional
+            Colour-scale limits.  Default: the range of the data (positive
+            values only when *log_z*).
         add_scatter : bool, optional
             Overlay the raw data points as black dots.
         add_contours : bool, optional
@@ -355,11 +368,14 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         y_grid = self.y_values  # (n_y,)
         z_grid = self.z_values.T  # (n_y, n_x) for pcolormesh
 
-        norm: mcolors.Normalize | None = None
         if log_z:
-            pos = z_grid[z_grid > 0]
-            if pos.size:
-                norm = mcolors.LogNorm(vmin=pos.min(), vmax=pos.max())
+            positive = z_grid[z_grid > 0]
+            norm = mcolors.LogNorm(
+                vmin=vmin if vmin is not None else positive.min(),
+                vmax=vmax if vmax is not None else positive.max(),
+            )
+        else:
+            norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
 
         mesh = ax.pcolormesh(
             x_grid,
@@ -369,7 +385,8 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
             norm=norm,
             shading="auto",
         )
-        fig.colorbar(mesh, ax=ax, label=self._z_label())
+        colorbar = fig.colorbar(mesh, ax=ax)
+        colorbar.set_label(self._z_label(), fontsize=style.LABEL_SIZE)
 
         if add_contours:
             levels = contour_levels if contour_levels is not None else 8
@@ -386,11 +403,13 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         if add_scatter:
             ax.scatter(self.raw_x, self.raw_y, s=4, c="k", alpha=0.4, zorder=5, label="raw data")
 
-        ax.set_xlabel(self._x_label())
-        ax.set_ylabel(self._y_label())
+        ax.set_xlabel(self._x_label(), fontsize=style.LABEL_SIZE)
+        ax.set_ylabel(self._y_label(), fontsize=style.LABEL_SIZE)
+        if self.log_x:
+            ax.set_xscale("log")
         if self.log_y:
             ax.set_yscale("log")
-        ax.set_title(title or self._default_title())
+        ax.set_title(title or self._default_title(), fontsize=style.TITLE_SIZE)
 
         fig.tight_layout()
         return fig, ax
@@ -475,6 +494,8 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
             fig = ax.get_figure()
 
         slices = self.slice_at_y(y_values)
+        if self.log_x:
+            ax.set_xscale("log")
         for yv, (xarr, zarr) in slices.items():
             ax.plot(
                 xarr,
@@ -493,10 +514,6 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         ax.legend(fontsize=8)
         fig.tight_layout()
         return fig, ax
-
-    # ------------------------------------------------------------------
-    # Excel export
-    # ------------------------------------------------------------------
 
     def to_excel(self, path: str) -> None:
         """Export raw and gridded data to an Excel workbook.
@@ -523,7 +540,6 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
 
         wb = Workbook()
 
-        # --- raw data sheet ---
         ws_raw = wb.active
         ws_raw.title = "raw_data"
         ws_raw.append([self._x_label(), self._y_label(), self._z_label()])
@@ -536,7 +552,6 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
                 ]
             )
 
-        # --- grid sheet ---
         ws_grid = wb.create_sheet("grid_data")
         x_grid = self.x_values
         y_grid = self.y_values
@@ -551,7 +566,6 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
             ]
             ws_grid.append(row)
 
-        # --- metadata sheet ---
         ws_meta = wb.create_sheet("metadata")
         ws_meta.append(["Field", "Value"])
         ws_meta.append(["quantity", self.quantity])
@@ -561,15 +575,12 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         ws_meta.append(["y_unit", self.y_unit])
         ws_meta.append(["z_name", self.quantity])
         ws_meta.append(["z_unit", self.z_unit])
+        ws_meta.append(["log_x", str(self.log_x)])
         ws_meta.append(["log_y", str(self.log_y)])
         ws_meta.append(["n_raw_points", str(len(self.raw_x))])
         ws_meta.append(["grid_shape", f"{len(x_grid)} × {len(y_grid)}"])
 
         wb.save(path)
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _x_label(self) -> str:
         return f"{self.x_name} ({self.x_unit})" if self.x_unit else self.x_name
@@ -594,21 +605,13 @@ class KymographResult(two_dimensional_dataset_mod.TwoDimensionalDataset):
         )
 
 
-# ---------------------------------------------------------------------------
-# Transform
-# ---------------------------------------------------------------------------
-
-
 class Kymograph(MeasurementSetTransform):
-    """Build a 2-D kymograph from TORCh or frequency-ramp rheology data.
+    """Map a viscoelastic quantity onto a regular (x, y) grid.
 
-    The transform collects all datasets inside a
-    :class:`~piblin.data.data_collections.measurement_set.MeasurementSet`,
-    extracts ``(x, y, z)`` scatter points where *x* is a slowly-varying
-    quantity (typically Temperature), *y* is a fast-varying quantity
-    (typically Angular frequency), and *z* is a viscoelastic modulus or
-    other scalar; then it grid-interpolates the scattered data onto a
-    regular ``(n_x × n_y)`` mesh and wraps the result in a
+    Collects ``(x, y, z)`` points from all datasets in a ``MeasurementSet``
+    (x: slow variable, typically temperature; y: fast variable, typically
+    angular frequency; z: the quantity), interpolates them onto an
+    ``(n_x, n_y)`` mesh with :func:`scipy.interpolate.griddata` and returns a
     :class:`KymographResult`.
 
     Parameters
@@ -634,8 +637,11 @@ class Kymograph(MeasurementSetTransform):
         One of ``"cubic"``, ``"linear"``, or ``"nearest"``.
         Defaults to ``"cubic"``.
     log_y : bool, optional
-        Interpolate in log-space along y (recommended for frequency axes).
-        Defaults to ``True``.
+        Interpolate in log-space along y and plot y on a log scale
+        (recommended for frequency axes).  Defaults to ``True``.
+    log_x : bool, optional
+        Same as *log_y* for the x-axis, e.g. when frequency is on x.
+        Defaults to ``False``.
     x_min : float or None, optional
         Override the minimum x-value of the grid (e.g. to crop a cool-down
         ramp).  When *None* (default), the minimum observed x-value is used.
@@ -669,6 +675,7 @@ class Kymograph(MeasurementSetTransform):
         n_y: int = 80,
         interpolation: str = "cubic",
         log_y: bool = True,
+        log_x: bool = False,
         x_min: float | None = None,
         fill_nearest: bool = True,
         **kwargs,
@@ -681,12 +688,9 @@ class Kymograph(MeasurementSetTransform):
         self.n_y = int(n_y)
         self.interpolation = interpolation
         self.log_y = log_y
+        self.log_x = log_x
         self.x_min = x_min
         self.fill_nearest = fill_nearest
-
-    # ------------------------------------------------------------------
-    # Core _apply implementation
-    # ------------------------------------------------------------------
 
     def _apply(
         self,
@@ -776,20 +780,18 @@ class Kymograph(MeasurementSetTransform):
 
                 unit_map = {n.lower(): units_list[i] for i, n in enumerate(names)}
 
-                # --- resolve column names ---
                 x_col = _resolve_column(names, self.x)
                 y_col = _resolve_column(names, self.y)
                 z_col = _resolve_column(names, self.quantity)
 
-                # z MUST come from a dataset array.
                 if z_col is None:
                     continue
 
                 zi = names.index(z_col)
                 z_arr = np.asarray(arrays[zi], dtype=float)
 
-                # --- resolve x-values: dataset column first, then
-                # measurement condition (broadcast scalar).
+                # Axis values come from a dataset column, else a scalar
+                # measurement condition broadcast over z.
                 if x_col is not None:
                     xi = names.index(x_col)
                     x_arr = np.asarray(arrays[xi], dtype=float)
@@ -798,7 +800,6 @@ class Kymograph(MeasurementSetTransform):
                 else:
                     continue
 
-                # --- resolve y-values likewise.
                 if y_col is not None:
                     yi = names.index(y_col)
                     y_arr = np.asarray(arrays[yi], dtype=float)
@@ -807,11 +808,9 @@ class Kymograph(MeasurementSetTransform):
                 else:
                     continue
 
-                # handle complex (take magnitude)
                 if np.iscomplexobj(z_arr):
                     z_arr = np.abs(z_arr)
 
-                # common finite mask
                 mask = np.isfinite(x_arr) & np.isfinite(y_arr) & np.isfinite(z_arr)
                 if not mask.any():
                     continue
@@ -846,10 +845,31 @@ class Kymograph(MeasurementSetTransform):
         raw_y = np.asarray(y_all, float)
         raw_z = np.asarray(z_all, float)
 
-        # --- build regular grid ---
         grid, x_grid, y_grid = self._interpolate(raw_x, raw_y, raw_z)
 
+        conditions = _shared_items([dict(getattr(m, "conditions", {}) or {}) for m in measurements])
+        details = _shared_items([dict(getattr(m, "details", {}) or {}) for m in measurements])
+        details.update(
+            {
+                "analysis": "kymograph",
+                "quantity": self.quantity,
+                "x": self.x,
+                "y": self.y,
+                "n_x": self.n_x,
+                "n_y": self.n_y,
+                "interpolation": self.interpolation,
+                "log_x": self.log_x,
+                "log_y": self.log_y,
+                "x_min": self.x_min,
+                "fill_nearest": self.fill_nearest,
+                "n_source_measurements": len(measurements),
+                "software": f"hermes-rheo {__version__}; scipy.interpolate.griddata",
+            }
+        )
+
         return KymographResult(
+            conditions=conditions,
+            details=details,
             raw_x=raw_x,
             raw_y=raw_y,
             raw_z=raw_z,
@@ -863,6 +883,7 @@ class Kymograph(MeasurementSetTransform):
             y_unit=y_unit,
             z_unit=z_unit,
             log_y=self.log_y,
+            log_x=self.log_x,
         )
 
     def _interpolate(
@@ -871,7 +892,7 @@ class Kymograph(MeasurementSetTransform):
         raw_y: np.ndarray,
         raw_z: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Scatter → regular grid interpolation.
+        """Interpolate scattered points onto a regular grid.
 
         Returns
         -------
@@ -879,39 +900,32 @@ class Kymograph(MeasurementSetTransform):
         x_grid : np.ndarray, shape (n_x,)
         y_grid : np.ndarray, shape (n_y,)
         """
-        x_min = float(self.x_min) if self.x_min is not None else float(raw_x.min())
-        x_max = float(raw_x.max())
-
+        keep = np.ones(raw_x.shape, bool)
+        if self.log_x:
+            keep &= raw_x > 0
         if self.log_y:
-            pos = raw_y > 0
-            raw_x_f = raw_x[pos]
-            raw_y_f = raw_y[pos]
-            raw_z_f = raw_z[pos]
-            y_points = np.log10(raw_y_f)
-            y_min = float(y_points.min())
-            y_max = float(y_points.max())
-        else:
-            raw_x_f, raw_y_f, raw_z_f = raw_x, raw_y, raw_z
-            y_min = float(raw_y_f.min())
-            y_max = float(raw_y_f.max())
-            y_points = raw_y_f
+            keep &= raw_y > 0
+        # Grid and interpolate in log10 space along log axes.
+        x_points = np.log10(raw_x[keep]) if self.log_x else raw_x[keep]
+        y_points = np.log10(raw_y[keep]) if self.log_y else raw_y[keep]
+        z_points = raw_z[keep]
 
-        x_grid = np.linspace(x_min, x_max, self.n_x)
-        y_grid_log = np.linspace(y_min, y_max, self.n_y)  # log10 space or linear
+        x_min = x_points.min()
+        if self.x_min is not None:
+            x_min = np.log10(self.x_min) if self.log_x else float(self.x_min)
+        x_grid = np.linspace(x_min, x_points.max(), self.n_x)
+        y_grid = np.linspace(y_points.min(), y_points.max(), self.n_y)
 
-        XX, YY = np.meshgrid(x_grid, y_grid_log, indexing="ij")  # (n_x, n_y)
-
-        points = np.column_stack([raw_x_f, y_points])
-        grid = griddata(points, raw_z_f, (XX, YY), method=self.interpolation)
+        XX, YY = np.meshgrid(x_grid, y_grid, indexing="ij")  # (n_x, n_y)
+        points = np.column_stack([x_points, y_points])
+        grid = griddata(points, z_points, (XX, YY), method=self.interpolation)
 
         if self.fill_nearest and np.any(~np.isfinite(grid)):
-            grid_near = griddata(points, raw_z_f, (XX, YY), method="nearest")
+            grid_near = griddata(points, z_points, (XX, YY), method="nearest")
             grid = np.where(np.isfinite(grid), grid, grid_near)
 
-        # Convert y-grid back to original units
+        if self.log_x:
+            x_grid = 10.0**x_grid
         if self.log_y:
-            y_grid = 10.0**y_grid_log
-        else:
-            y_grid = y_grid_log
-
+            y_grid = 10.0**y_grid
         return grid, x_grid, y_grid

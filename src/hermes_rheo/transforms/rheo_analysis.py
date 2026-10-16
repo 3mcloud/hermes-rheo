@@ -1,25 +1,12 @@
-"""Deprecated compatibility shim for :class:`OWChirpAnalysis`.
+"""Deprecated alias of :class:`~hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`.
 
-This module previously contained a large ``RheoAnalysis`` class that mixed
-OWChirp / Frequency Chirp FFT signal-processing with a cascade of
-``switch_coordinates()`` calls for every other rheological method (Creep,
-Amplitude Sweep, Temperature Ramp, …).
-
-Since hermes-rheo 2.0:
-
-* The per-method default coordinates are now set at read time by the file
-  readers themselves — see the ``_METHOD_DEFAULTS`` machinery in
-  :mod:`hermes_rheo.file_readers.trios_rheo_txt`.
-* The OWChirp / Frequency Chirp FFT logic lives in the new focused
-  :class:`hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`.
-
-``RheoAnalysis`` is preserved here as a thin subclass that emits a
-``DeprecationWarning`` and forwards all behaviour to
-:class:`OWChirpAnalysis`.  Existing pipelines using
-``RheoAnalysis() + AutomatedMasterCurve() + ...`` continue to work
-unchanged.
-
-The alias will be removed in hermes-rheo 3.0.
+``RheoAnalysis`` formerly combined OWCh Fourier analysis with per-method
+``switch_coordinates()`` calls. Since hermes-rheo 2.0 the file readers set
+the default coordinates for each method (see ``_METHOD_DEFAULTS`` in
+:mod:`hermes_rheo.file_readers.trios_rheo_txt`), and the OWCh analysis lives
+in :class:`OWChirpAnalysis`. This module keeps a subclass that warns on
+construction and otherwise behaves identically. It will be removed in
+hermes-rheo 3.0.
 """
 
 from __future__ import annotations
@@ -37,15 +24,9 @@ from hermes_rheo.transforms.owchirp_analysis import (
 class RheoAnalysis(OWChirpAnalysis):
     """Deprecated alias for :class:`OWChirpAnalysis`.
 
-    Prior releases used ``RheoAnalysis`` as a catch-all transform that
-    (1) applied OWChirp / Frequency Chirp FFT analysis to chirp steps and
-    (2) issued ``switch_coordinates()`` calls to set method-appropriate
-    default coordinates on every other kind of measurement.
-
-    Item (2) is now handled directly by the file readers, so ``RheoAnalysis``
-    on a non-chirp measurement is a no-op — same as :class:`OWChirpAnalysis`.
-    Emit a ``DeprecationWarning`` on construction so downstream code has
-    time to migrate to :class:`OWChirpAnalysis`.
+    Emits a ``DeprecationWarning`` on construction. Measurements that are
+    not Arbitrary Wave or Frequency Chirp steps are left unchanged, because
+    the readers already set their default coordinates.
 
     Examples
     --------
@@ -63,10 +44,9 @@ class RheoAnalysis(OWChirpAnalysis):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         warnings.warn(
             "RheoAnalysis is a deprecated alias for OWChirpAnalysis and will "
-            "be removed in a future major release.  Import OWChirpAnalysis from "
-            "hermes_rheo.transforms.owchirp_analysis instead.  Per-method "
-            "coordinate defaults (Creep, Frequency Sweep, Temperature Ramp, "
-            "…) are now set by the reader; no post-read transform is needed.",
+            "be removed in hermes-rheo 3.0. Import OWChirpAnalysis from "
+            "hermes_rheo.transforms.owchirp_analysis instead. Per-method "
+            "coordinate defaults are now set by the file reader.",
             DeprecationWarning,
             stacklevel=2,
         )

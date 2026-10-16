@@ -86,7 +86,7 @@ filterwarnings = [
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-extend-exclude = ["paper", "docs/build", "docs/_build", "tutorial_notebooks", "src/hermes_rheo/_vendor"]
+extend-exclude = ["papers", "docs/build", "docs/_build", "tutorial_notebooks", "src/hermes_rheo/_vendor"]
 
 [tool.ruff.format]
 exclude = ["*.md"]

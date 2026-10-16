@@ -84,9 +84,13 @@ The notebooks are also in [`tutorial_notebooks/`](tutorial_notebooks/):
 | 4 | Time-temperature superposition |
 | 5 | Time-curing superposition |
 | 6 | Mutation number |
-| 7 | Visualization helpers |
+| 7 | Van Gurp–Palmen and Cole–Cole plots |
 | 8 | Temperature ramp analysis |
 | 9 | Kymographs (TORCh) |
+| 10 | Recovery rheology |
+| 11 | Rheological model fitting |
+| 12 | Frequency to time relaxation modulus |
+| 13 | Relaxation spectrum (pyReSpect) |
 
 ## File readers
 
@@ -144,6 +148,15 @@ Publications using `hermes-rheo`:
 - Vadillo, D. C., Perego, A. *et al.* (2026), *TORCh: Thermally Optimised Ramped
   Chirp*, Macromolecules.
   DOI [10.1021/acs.macromol.6c00679](https://doi.org/10.1021/acs.macromol.6c00679).
+
+Additional references for the implemented methods:
+
+- Geri, M., Keshavarz, B., Divoux, T., Clasen, C., Curtis, D. J. and McKinley, G. H., *Time-resolved mechanical spectroscopy of soft materials via optimally windowed chirps*, Phys. Rev. X **8**, 041042 (2018). DOI: 10.1103/PhysRevX.8.041042.
+- Perego, A., Vadillo, D. C., Mills, M. J. L., Das, M. and McKinley, G. H., *Evaluation of optimally windowed chirp signals in industrial rheological measurements: method development and data processing*, Rheologica Acta **64**, 391–406 (2025). DOI: 10.1007/s00397-025-01511-0.
+- Bonfanti, A., Kaplan, J. L., Charras, G. and Kabla, A., *Fractional viscoelastic models for power-law materials*, Soft Matter **16**(26), 6002–6020 (2020). DOI: 10.1039/d0sm00354a.
+- Song, J., Holten-Andersen, N. and McKinley, G. H., *Non-Maxwellian viscoelastic stress relaxations in soft matter*, Soft Matter **19**(41), 7885–7906 (2023). DOI: 10.1039/d3sm00736g.
+- Miranda-Valdez, I. Y., Niinisto, H., Makinen, T. P., Lejon, E., Koivisto, J. and Alava, M. J., *pyRheo: an open-source Python package for complex rheology*, Digital Discovery **4**(4), 1075–1082 (2025). DOI: 10.1039/d5dd00021a.
+- Mours, M. and Winter, H. H., *Time-resolved rheometry*, Rheologica Acta **33**(5), 385–397 (1994). DOI: 10.1007/BF00366581.
 
 ## Contact
 

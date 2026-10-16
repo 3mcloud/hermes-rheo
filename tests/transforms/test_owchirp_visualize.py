@@ -1,18 +1,8 @@
-"""Tests for :class:`hermes_rheo.visualization.OWChirpVisualizer`.
-
-These tests lock in that the high-level OWChirp visualiser:
-
-1. Extracts one array set per wave from a processed OWChirp experiment.
-2. Resolves the ``steps`` selector (``"first-middle-last"``, ints, ...).
-3. Produces figures for :meth:`plot_wave`, :meth:`plot_waves` and
-   :meth:`plot_fourier` without error.
-4. Saves one PNG frame per wave with :meth:`save_frames`.
-"""
+"""Tests for OWChirp visualization."""
 
 from __future__ import annotations
 
 import os
-import shutil
 
 import matplotlib
 import pytest
@@ -22,22 +12,13 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
-from hermes_rheo.visualization import OWChirpVisualizer
-
-
-@pytest.fixture()
-def datadir(tmpdir, request):
-    module_dir = os.path.dirname(request.module.__file__)
-    test_dir = os.path.abspath(os.path.join(module_dir, "..", "fileio", "test_data"))
-    if os.path.isdir(test_dir):
-        shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
-    return tmpdir
+from hermes_rheo.visualization import OWChirpVisualizer, axis_label
 
 
 @pytest.fixture()
 def visualizer(datadir):
-    filepath = datadir.join("test_owchirp_DHR.txt")
-    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    filepath = datadir / "test_dhr30_trios_owchirp.txt"
+    mset = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
     processed = OWChirpAnalysis()(mset)
     viz = OWChirpVisualizer(processed)
     yield viz
@@ -66,17 +47,28 @@ def test_resolve_steps(visualizer):
 
 def test_plot_wave_and_waves(visualizer):
     """plot_wave returns three axes; plot_waves honours the selector."""
-    fig, axes = visualizer.plot_wave(0)
+    _, axes = visualizer.plot_wave(0)
     assert len(axes) == 3
 
-    figs, axes_list = visualizer.plot_waves(steps="first-middle-last")
+    figs, _ = visualizer.plot_waves(steps="first-middle-last")
     assert len(figs) == len(visualizer._resolve_steps("first-middle-last"))
 
+    _, fourier_axes = visualizer.plot_fourier(step=0)
+    assert len(fourier_axes) == 4
 
-def test_plot_fourier(visualizer):
-    """plot_fourier returns a 2x2 set of axes."""
-    fig, axes = visualizer.plot_fourier(step=0)
-    assert len(axes) == 4
+
+def test_plot_labels_use_dataset_units(visualizer):
+    """Plots use labels derived from the source datasets."""
+    freq_ds, time_ds = visualizer._meas[0].datasets[:2]
+    _, (ax_mod, ax_strain, ax_stress) = visualizer.plot_wave(0)
+    assert ax_mod.get_xlabel() == axis_label(freq_ds, "angular frequency")
+    assert ax_mod.get_ylabel() == axis_label(freq_ds, "storage modulus", text="modulus")
+    assert ax_stress.get_xlabel() == axis_label(time_ds, "adjusted time", text="time")
+    assert ax_stress.get_ylabel() == axis_label(time_ds, "adjusted stress", text="stress")
+    assert ax_mod.get_title().startswith("Arbitrary Wave 1")
+
+    _, axes = visualizer.plot_fourier(step=0)
+    assert axes[1].get_xlabel() == axis_label(freq_ds, "angular frequency")
 
 
 def test_save_frames(visualizer, tmp_path):

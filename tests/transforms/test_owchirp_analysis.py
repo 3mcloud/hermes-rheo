@@ -1,22 +1,7 @@
-"""Tests for :class:`hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`.
-
-These tests lock in that:
-
-1. ``OWChirpAnalysis`` produces the same frequency-domain moduli as the
-   deprecated ``RheoAnalysis`` alias on the same input fixture (numerical
-   equivalence).
-2. Non-chirp measurements pass through unchanged (no-op behaviour).
-3. ``RheoAnalysis`` still works and emits a ``DeprecationWarning`` exactly
-   once per construction.
-4. ``OWChirpAnalysis`` still uses the pipeline operator (``+``) form and
-   integrates with the existing master-curve and temperature-ramp
-   transforms.
-"""
+"""Tests for OWChirp analysis."""
 
 from __future__ import annotations
 
-import os
-import shutil
 import warnings
 
 import numpy as np
@@ -33,26 +18,12 @@ from hermes_rheo.transforms.rheo_analysis import RheoAnalysis
 
 # Reuse the fixture-copy pattern from tests/fileio/conftest.py — this test
 # module lives in tests/transforms/ so points at ../fileio/test_data.
-@pytest.fixture()
-def datadir(tmpdir, request):
-    module_dir = os.path.dirname(request.module.__file__)
-    test_dir = os.path.abspath(os.path.join(module_dir, "..", "fileio", "test_data"))
-    if os.path.isdir(test_dir):
-        shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
-    return tmpdir
-
-
-# ---------------------------------------------------------------------------
-# 1) Numerical equivalence with the deprecated RheoAnalysis alias
-# ---------------------------------------------------------------------------
-
-
 def test_owchirp_analysis_equivalent_to_rheo_analysis_on_owchirp_file(datadir):
     """OWChirpAnalysis and RheoAnalysis produce identical moduli on an OWChirp fixture."""
-    filepath = datadir.join("test_owchirp_DHR.txt")
+    filepath = datadir / "test_dhr30_trios_owchirp.txt"
 
-    mset_new = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
-    mset_old = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    mset_new = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
+    mset_old = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
 
     processed_new = OWChirpAnalysis()(mset_new)
     with warnings.catch_warnings():
@@ -80,15 +51,10 @@ def test_owchirp_analysis_equivalent_to_rheo_analysis_on_owchirp_file(datadir):
         )
 
 
-# ---------------------------------------------------------------------------
-# 2) Non-chirp measurements are pass-through
-# ---------------------------------------------------------------------------
-
-
 def test_owchirp_analysis_noop_on_temperature_ramp(datadir):
     """A temperature-ramp measurement is unchanged by OWChirpAnalysis."""
-    filepath = datadir.join("test_temp_ramp.txt")
-    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    filepath = datadir / "test_aresg2_trios_temp_ramp.txt"
+    mset = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
     ds_before = mset.measurements[0].datasets[0]
     n_arrays_before = len(ds_before.data_arrays)
     x_name_before = ds_before.independent_variable_name
@@ -107,8 +73,8 @@ def test_owchirp_analysis_noop_on_temperature_ramp(datadir):
 
 def test_owchirp_analysis_noop_on_creep(datadir):
     """A creep measurement is unchanged by OWChirpAnalysis."""
-    filepath = datadir.join("test_creep_apac.txt")
-    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    filepath = datadir / "test_aresg2_trios_creep.txt"
+    mset = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
     ds_before = mset.measurements[1].datasets[0]  # first Creep step
     x_before = ds_before.independent_variable_name
     y_before = ds_before.dependent_variable_name
@@ -118,11 +84,6 @@ def test_owchirp_analysis_noop_on_creep(datadir):
     ds_after = processed.measurements[1].datasets[0]
     assert ds_after.independent_variable_name == x_before == "time"
     assert ds_after.dependent_variable_name == y_before == "strain"
-
-
-# ---------------------------------------------------------------------------
-# 3) DeprecationWarning on RheoAnalysis construction
-# ---------------------------------------------------------------------------
 
 
 def test_rheo_analysis_emits_deprecation_warning():
@@ -136,25 +97,10 @@ def test_rheo_analysis_emits_deprecation_warning():
     assert "OWChirpAnalysis" in str(deprecations[0].message)
 
 
-def test_rheo_analysis_still_works_end_to_end(datadir):
-    """RheoAnalysis(...) forwards to OWChirpAnalysis and processes an OWChirp fixture."""
-    filepath = datadir.join("test_owchirp_DHR.txt")
-    mset = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        processed = RheoAnalysis()(mset)
-    assert processed.details["instrument_serial_number"].startswith("5343")
-
-
-# ---------------------------------------------------------------------------
-# 4) Pipeline integration
-# ---------------------------------------------------------------------------
-
-
 def test_owchirp_analysis_composes_with_master_curve(datadir):
     """OWChirpAnalysis + AutomatedMasterCurve pipeline works on OWChirp TTS data."""
-    filepath = datadir.join("test_owchirp_tts_ARES.txt")
-    data = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    filepath = datadir / "test_aresg2_trios_owchirp_tts.txt"
+    data = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
     pipeline = OWChirpAnalysis() + AutomatedMasterCurve(
         state="temperature",
         y="storage modulus",
@@ -164,11 +110,6 @@ def test_owchirp_analysis_composes_with_master_curve(datadir):
     )
     master_curve = pipeline(data)
     assert len(master_curve.hparams[0]) == 10
-
-
-# ---------------------------------------------------------------------------
-# 5) _canonicalise_method / helper unit tests
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(

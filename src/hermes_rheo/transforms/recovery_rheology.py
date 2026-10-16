@@ -1,57 +1,79 @@
-"""
-Recovery Rheology Transform
-===========================
+r"""
+Recovery rheology transform.
 
-Implements oscillatory recovery rheology (OCR) and step-function recovery
-analysis as a piblin and hermes_rheo transform.
+Recovery rheology splits the total shear strain of a viscoelastic material
+into a recoverable (elastic) part and an unrecoverable (viscous or plastic)
+part,
 
-Oscillatory method
-------------------
-Reproduces the MATLAB pipeline of ``ocr_rec_anal_mcr`` followed by
-``ocr_mcr_shift_deriv``:
+.. math:: \gamma_{tot} = \gamma_{rec} + \gamma_{unrec},
 
-1. **Pairing** – consecutive measurements are grouped as forward / reverse
-   pairs with positive and negative strain amplitudes: (1,2), (3,4), …
-   If the last measurement has no partner the forward run is used alone.
-2. **Averaging** – forward raw data (A) and reverse raw data (B) are
-   averaged as (A − B) / 2 to reduce material-drift effects, then centred
-   on the mean of the final oscillation interval.
-3. **FFT moduli** – the average stress response is converted to
-   frequency-domain moduli (G′ and G″) through a Fourier transform.
-4. **Transient decomposition** – a closed half-period loop is built from
-   the recovery-analysis matrix and mirrored to complete the period.
-   Energy-informed dynamic moduli are then determined from total strain,
-   with G′_solid, G″_solid, and G″_fluid determined from the recoverable
-   and unrecoverable contributions.
+so that each part defines its own material function: a recoverable modulus
+:math:`G_{rec} = \sigma / \gamma_{rec}` and a flow viscosity
+:math:`\eta_{flow} = \sigma / \dot\gamma_{unrec}` [1]_ [2]_ [3]_. The
+transform supports two protocols and returns piblin datasets: a
+:class:`RecoveryRheologyMeasurementSet` whose measurements hold the computed
+curves and whose ``details`` hold the parameters and scalar results.
+
+Symbols
+-------
+:math:`t` time [s]; :math:`\omega` angular frequency [rad/s];
+:math:`\gamma` shear strain [-]; :math:`\dot\gamma` shear rate [1/s];
+:math:`\sigma` shear stress [Pa]; :math:`G'`, :math:`G''` storage and loss
+moduli [Pa]. Subscripts: tot (total), rec (recoverable), unrec
+(unrecoverable), FT (Fourier transform of the stress response).
+
+Oscillatory method (oscillatory recovery, OCR)
+----------------------------------------------
+1. Consecutive measurements are paired as forward/reverse runs with positive
+   and negative strain amplitude: (1, 2), (3, 4), ... An unpaired last
+   measurement is used alone.
+2. Forward (A) and reverse (B) data are averaged as (A - B) / 2. Because the
+   two runs have opposite strain amplitude, this keeps the response that is
+   odd in strain and cancels drift that does not change sign. The result is
+   centred on the mean of the final oscillation interval.
+3. The Fourier component of the averaged stress at harmonic bin ``n_osc``
+   gives :math:`G'_{FT}` and :math:`G''_{FT}`.
+4. A closed half-period loop is built from the paired strain, recoverable
+   strain and stress, and mirrored (:math:`x(t + \pi/\omega) = -x(t)`) to
+   complete the period. After periodic differentiation, cycle-averaged
+   energies yield the decomposed moduli. With :math:`\gamma_0` the
+   total-strain amplitude, :math:`G'_x = 4 \langle \gamma_x \sigma / 2
+   \rangle / \gamma_0^2` and :math:`G''_x = 2 \langle \dot\gamma_x \sigma
+   \rangle / (\omega \gamma_0)^2` for :math:`x` in {tot, unrec, rec}.
+   :math:`G'_{rec}` is the solid-like storage modulus, :math:`G''_{rec}`
+   the solid-like dissipation and :math:`G''_{unrec}` the fluid-like
+   dissipation.
 
 Step-function method
 --------------------
-Reproduces ``Trios_recovery_rheology_creep.m``:
+1. Non-zero strain- or stress-controlled blocks are identified in a stepwise
+   measurement and classified as positive or negative steps.
+2. Positive and negative blocks of the same duration are averaged to give
+   total, unrecoverable and recoverable strain versus experimental time; a
+   duration measured in one direction only is used alone. The recoverable strain of a
+   step is :math:`\gamma_{rec} = \gamma_{tot} - \gamma_{unrec}`, where
+   :math:`\gamma_{unrec}` is the strain left after recovery at zero stress.
 
-1. Non-zero strain- or stress-controlled deformation blocks are identified
-   in a stepwise measurement.
-2. Blocks are classified as positive or negative steps.
-3. Positive/negative pairs are averaged to obtain total, unrecoverable,
-   and recoverable strain and strain rates as functions of the experimental
-   time of the input deformation.
+References
+----------
+.. [1] Lee, J. C.-W., Weigandt, K. M., Kelley, E. G. and Rogers, S. A.
+   (2019). Structure-Property Relationships via Recovery Rheology in
+   Viscoelastic Materials. Physical Review Letters 122, 248003.
+   doi:10.1103/PhysRevLett.122.248003.
+.. [2] Singh, P. K., Lee, J. C.-W., Patankar, K. A. and Rogers, S. A.
+   (2021). Revisiting the basis of transient rheological material functions:
+   Insights from recoverable strain measurements. Journal of Rheology 65(2),
+   129-144.
+.. [3] Donley, G. J., Singh, P. K., Shetty, A. and Rogers, S. A. (2020).
+   Elucidating the G'' overshoot in soft materials with a yield transition
+   via a time-resolved experimental strain decomposition. Proceedings of the
+   National Academy of Sciences 117(36), 21945-21952.
 
-Usage
------
-::
-
-    from hermes_rheo.transforms.recovery_rheology import RecoveryRheology
-
-    # oscillatory (RheoCompass data)
-    pipeline = RecoveryRheology(method='oscillatory')
-    result = pipeline(experiment)
-
-    # step-function deformation (Trios creep/recovery data)
-    pipeline = RecoveryRheology(method='step')
-    result = pipeline(experiment)
-
-    # access results
-    rr = result.result
-    # or equivalently: rr = result.details['recovery_rheology_result']
+Examples
+--------
+>>> from hermes_rheo.transforms.recovery_rheology import RecoveryRheology
+>>> out = RecoveryRheology(method="oscillatory")(experiment)  # doctest: +SKIP
+>>> out.measurements[0].details["energy_storage_modulus_recoverable"]  # doctest: +SKIP
 """
 
 from __future__ import annotations
@@ -71,14 +93,103 @@ import piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset
 from piblin.data import Measurement, MeasurementSet
 from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
 
-# ---------------------------------------------------------------------------
-# Result container
-# ---------------------------------------------------------------------------
+
+def _drop_invalid(*arrays: np.ndarray) -> tuple[np.ndarray, ...]:
+    """Drop rows where any array is not finite, e.g. points flagged invalid."""
+    keep = np.logical_and.reduce([np.isfinite(a) for a in arrays])
+    return tuple(a[keep] for a in arrays)
+
+
+def _average_by_duration(
+    arr_pos: np.ndarray, arr_neg: np.ndarray, rtol: float = 0.05
+) -> np.ndarray:
+    """Average positive and negative step blocks that have the same duration.
+
+    Blocks are grouped by step duration (column 1) within ``rtol``, so a
+    pair is never formed from steps of different length, even if a step was
+    repeated or recorded with a different duration. Within a group, each
+    direction is averaged first and the directions are then averaged, so a
+    direction with an extra repeat does not dominate. A duration measured in
+    one direction only is kept on its own.
+
+    Returns
+    -------
+    numpy.ndarray
+        Columns ``[time, total strain, stress, recovery time, unrecoverable
+        strain, recoverable strain]``, one row per duration, sorted by time.
+    """
+    rows = [r for r in (*arr_pos, *arr_neg) if np.isfinite(r[1])]
+    rows.sort(key=lambda r: r[1])
+    groups: list[list[np.ndarray]] = []
+    for r in rows:
+        if groups and abs(r[1] - groups[-1][0][1]) <= rtol * abs(groups[-1][0][1]):
+            groups[-1].append(r)
+        else:
+            groups.append([r])
+
+    out = np.full((len(groups), 6), np.nan, dtype=float)
+    for j, group in enumerate(groups):
+        by_sign = [np.array([r for r in group if np.sign(r[0]) == sgn]) for sgn in (1, -1)]
+        means = [np.nanmean(np.abs(g[:, [1, 2, 3, 4, 5]]), axis=0) for g in by_sign if g.size]
+        t, tot_strain, tot_stress, rec_time, unrec_strain = np.nanmean(means, axis=0)
+        out[j] = [t, tot_strain, tot_stress, rec_time, unrec_strain, tot_strain - unrec_strain]
+    return out
+
+
+def _find_step_columns(names_lower: list[str]) -> tuple[int | None, int | None, int | None]:
+    """Return indices of the time, strain and stress columns (None if absent)."""
+
+    def _find(candidates):
+        for c in candidates:
+            for i, n in enumerate(names_lower):
+                if c == n:
+                    return i
+        return None
+
+    return (
+        _find(["time", "step time", "interval time", "average time"]),
+        _find(["strain", "shear strain", "strain (step)"]),
+        _find(["stress", "shear stress", "stress (step)"]),
+    )
 
 
 @dataclass
 class RecoveryRheologyResult:
-    """Container for all outputs of a recovery-rheology analysis."""
+    """
+    Array-level container for the outputs of a recovery-rheology analysis.
+
+    Attributes
+    ----------
+    method : str
+        "oscillatory" or "step".
+    recov_anal_data : numpy.ndarray
+        Pair-averaged data. Oscillatory: columns ``[t, gamma_tot, gamma_unrec,
+        gamma_rec, sigma]`` (s, -, -, -, Pa). Step: columns ``[t,
+        gamma_tot, sigma_tot, t_rec, gamma_unrec, gamma_rec]`` (s, -, Pa, s,
+        -, -).
+    pair_indices : numpy.ndarray
+        Index of each forward/reverse pair (oscillatory) or step pair (step).
+    mod_fft : numpy.ndarray or None
+        ``[G'_FT, G''_FT]`` in Pa from the Fourier transform of the paired
+        stress response (oscillatory).
+    amplitudes : numpy.ndarray or None
+        Maximum absolute value of total/unrecoverable/recoverable strain
+        [-], their rates [1/s] and the stress [Pa] over the loop (7 values).
+    trad_mod : numpy.ndarray or None
+        Energy-based moduli [Pa] normalised by the total-strain amplitude:
+        ``[G'_tot, G'_unrec, G'_rec, G''_tot, G''_unrec, G''_rec]``.
+    raw_mod : numpy.ndarray or None
+        The same six moduli [Pa], each normalised by the amplitude of its own
+        strain or strain rate.
+    decomp_waveform : numpy.ndarray or None
+        Closed decomposition loop with columns ``[t, gamma_tot, gamma_unrec,
+        gamma_rec, rate_tot, rate_unrec, rate_rec, sigma]`` (s, -, -, -, 1/s,
+        1/s, 1/s, Pa).
+    omega : float or None
+        Angular frequency [rad/s].
+    metadata : dict or None
+        Additional scalars and, for step data, the transient curves.
+    """
 
     method: str
     recov_anal_data: np.ndarray
@@ -91,9 +202,8 @@ class RecoveryRheologyResult:
     omega: float | None = None
     metadata: dict[str, Any] | None = field(default_factory=dict)
 
-    # ---- convenience --------------------------------------------------------
-
     def to_dict(self) -> dict[str, Any]:
+        """Return all fields as a dict (``metadata`` is ``{}`` if None)."""
         return {
             "method": self.method,
             "recov_anal_data": self.recov_anal_data,
@@ -107,14 +217,12 @@ class RecoveryRheologyResult:
             "metadata": self.metadata or {},
         }
 
-    # ---- export -------------------------------------------------------------
-
     def to_excel(self, path: str) -> str:
         """
         Write transient data and moduli to an Excel file.
 
-        Output format matches the reference notebook
-        (``test_rr_new.ipynb``).
+        Sheets: "transient data" (oscillatory), "moduli" (oscillatory) and
+        "step_results" (step).
 
         Parameters
         ----------
@@ -124,7 +232,7 @@ class RecoveryRheologyResult:
         Returns
         -------
         str
-            The path that was written.
+            Path written.
         """
         sheets: dict[str, pd.DataFrame] = {}
 
@@ -144,7 +252,6 @@ class RecoveryRheologyResult:
 
         if self.mod_fft is not None and self.trad_mod is not None:
             # mod_fft is the windowed average [G'_FT, G''_FT]
-            # (MATLAB: mod_anal_use = sum(mod_anal_mat(idx,:)) / n_halfp)
             if self.mod_fft.ndim == 1:
                 Gp_FT = float(self.mod_fft[0])
                 Gpp_FT = float(self.mod_fft[1])
@@ -158,26 +265,22 @@ class RecoveryRheologyResult:
             meta = self.metadata or {}
 
             row: dict[str, float] = {
-                # FFT moduli
                 "G'_FT": Gp_FT,
                 "G''_FT": Gpp_FT,
-                # Energy-based (traditional) moduli – normalised by
-                # total-strain amplitude (MATLAB: mod_trad)
+                # Energy-based moduli, normalised by total-strain amplitude
                 "trad_G'_tot": float(trad[0]),
                 "trad_G'_unrec": float(trad[1]),
                 "trad_G'_rec": float(trad[2]),
                 "trad_G''_tot": float(trad[3]),
                 "trad_G''_unrec": float(trad[4]),
                 "trad_G''_rec": float(trad[5]),
-                # Raw moduli – each component normalised by its own
-                # amplitude (MATLAB: mod_raw)
+                # Raw moduli, each component normalised by its own amplitude
                 "raw_G'_tot": float(raw[0]),
                 "raw_G'_unrec": float(raw[1]),
                 "raw_G'_rec": float(raw[2]),
                 "raw_G''_tot": float(raw[3]),
                 "raw_G''_unrec": float(raw[4]),
                 "raw_G''_rec": float(raw[5]),
-                # Amplitudes (fraction for strains, 1/s for rates, Pa for stress)
                 "amp_total_strain": float(amp[0]),
                 "amp_unrec_strain": float(amp[1]),
                 "amp_rec_strain": float(amp[2]),
@@ -185,7 +288,6 @@ class RecoveryRheologyResult:
                 "amp_unrec_rate": float(amp[4]),
                 "amp_rec_rate": float(amp[5]),
                 "amp_stress": float(amp[6]),
-                # Analysis metadata
                 "n_halfp_auto": meta.get("n_halfp_auto", np.nan),
                 "n_halfp_est": meta.get("n_halfp_est", np.nan),
                 "n_use_auto": meta.get("n_use_auto", np.nan),
@@ -219,25 +321,27 @@ class RecoveryRheologyResult:
 
         return path
 
-    # ---- plotting -----------------------------------------------------------
-
     def plot_lissajous(self, figsize=(6, 4)):
         """
         Plot stress versus total, recoverable, and unrecoverable responses.
 
-        Generates three separate figures, each showing forward and reverse
-        half-periods. The unrecoverable panel uses strain rate rather than
-        strain to show the fluid contribution to the stress response.
+        Produces three figures with forward and reverse half-periods. The
+        unrecoverable plot uses strain rate instead of strain.
 
         Parameters
         ----------
-        figsize : tuple, optional
-            Size of each individual figure (default ``(6, 4)``).
+        figsize : tuple of float, default (6, 4)
+            Size of each figure.
 
         Returns
         -------
-        figs : list[matplotlib.figure.Figure]
-        axes : list[matplotlib.axes.Axes]
+        figs : list of matplotlib.figure.Figure
+        axes : list of matplotlib.axes.Axes
+
+        Raises
+        ------
+        ValueError
+            If no decomposition waveform is available (step results).
         """
         if self.decomp_waveform is None:
             raise ValueError(
@@ -282,12 +386,12 @@ class RecoveryRheologyResult:
 
     def plot_step_results(self, figsize=(8, 5)):
         """
-        Plot total, unrecoverable, and recoverable strain versus experimental time.
+        Plot total, unrecoverable and recoverable strain versus experimental time.
 
         Parameters
         ----------
-        figsize : tuple, optional
-            Figure size (default ``(8, 5)``).
+        figsize : tuple of float, default (8, 5)
+            Figure size.
 
         Returns
         -------
@@ -297,7 +401,6 @@ class RecoveryRheologyResult:
         if self.method != "step":
             raise ValueError("plot_step_results is only for method='step'.")
         data = self.recov_anal_data
-        # columns: [time, total_strain, total_stress, rec_time, unrec_strain, rec_strain]
         t = data[:, 0]
 
         fig, ax = plt.subplots(figsize=figsize)
@@ -307,40 +410,38 @@ class RecoveryRheologyResult:
         ax.set_xlabel("Experiment Time [s]")
         ax.set_ylabel("Strain [-]")
         ax.legend(frameon=False)
-        ax.set_title("Step-function recovery: strain decomposition vs experimental time")
+        ax.set_title("Step-function recovery: strain vs experimental time")
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         return fig, ax
 
     def plot_transient(self, figsize=(10, 6), direction="both", logx=True):
         """
-        Plot transient recoverable strain vs recovery time.
+        Plot transient recoverable strain versus recovery time.
 
-        For each stepwise deformation, the recoverable strain at recovery
-        time *t* is defined as::
-
-            γ_rec(t_recovery) = γ_tot(t_exp) − γ(t_recovery)
-
-        i.e. how much strain has been recovered by time *t*.  This
-        starts at 0 (nothing recovered yet) and asymptotically
-        approaches the final recoverable strain.
-
-        Curves are coloured by deformation duration.
+        For each step, the recoverable strain at recovery time *t* is
+        ``|gamma(t=0) - gamma(t)|``, i.e. the strain recovered so far. It
+        starts at 0 and approaches the final recoverable strain. Curves are
+        coloured by deformation duration.
 
         Parameters
         ----------
-        figsize : tuple, optional
-            Figure size (default ``(10, 6)``).
-        direction : str, optional
-            Which step directions to include:
-            ``'pos'``, ``'neg'``, or ``'both'`` (default).
-        logx : bool, optional
-            Use logarithmic x-axis (default ``True``).
+        figsize : tuple of float, default (10, 6)
+            Figure size.
+        direction : {"pos", "neg", "both"}, default "both"
+            Step directions to include.
+        logx : bool, default True
+            Use a logarithmic x-axis.
 
         Returns
         -------
         fig : matplotlib.figure.Figure
         ax : matplotlib.axes.Axes
+
+        Raises
+        ------
+        ValueError
+            If the result is not a step result or has no transient curves.
         """
         if self.method != "step":
             raise ValueError("plot_transient is only for method='step'.")
@@ -354,7 +455,6 @@ class RecoveryRheologyResult:
                 "step-strain files via the merged extraction path."
             )
 
-        # Filter by direction
         if direction == "pos":
             curves = [c for c in curves if c["sign"] > 0]
         elif direction == "neg":
@@ -362,7 +462,6 @@ class RecoveryRheologyResult:
 
         fig, ax = plt.subplots(figsize=figsize)
 
-        # Use a colormap based on creep duration
         cmap = plt.cm.viridis
         all_creep_durations = []
         for c in curves:
@@ -376,7 +475,7 @@ class RecoveryRheologyResult:
         t_min = min(all_creep_durations)
         t_max = max(all_creep_durations)
         if t_max == t_min:
-            t_max = t_min + 1.0  # avoid division by zero
+            t_max = t_min + 1.0
 
         for c in curves:
             rec_t = c["rec_time"]
@@ -384,20 +483,15 @@ class RecoveryRheologyResult:
             if rec_t.size == 0:
                 continue
 
-            # Shift recovery time to start at 0
             rec_t_shifted = rec_t - rec_t[0]
 
-            # Recoverable strain: γ_rec(t) = γ(end of creep) − γ(t)
-            # The strain at the start of recovery equals the strain at
-            # the end of creep (rec_g[0]).
             gamma_rec_transient = np.abs(rec_g[0] - rec_g)
 
-            # Colour by creep duration
             ct = c["creep_time"][-1] - c["creep_time"][0] if c["creep_time"].size > 1 else 0
             color = cmap((ct - t_min) / (t_max - t_min))
 
             sign_label = "+" if c["sign"] > 0 else "−"
-            label = f"t_creep = {ct:.1f} s ({sign_label})"
+            label = f"$t_\\mathrm{{step}}$ = {ct:.1f} s ({sign_label})"
             ax.plot(rec_t_shifted, gamma_rec_transient, color=color, lw=1.2, alpha=0.8, label=label)
 
         if logx:
@@ -411,38 +505,84 @@ class RecoveryRheologyResult:
         return fig, ax
 
 
-# ---------------------------------------------------------------------------
-# Main transform class
-# ---------------------------------------------------------------------------
+class RecoveryRheologyMeasurementSet(MeasurementSet):
+    """
+    Measurements produced by :class:`RecoveryRheology`.
+
+    Each measurement holds one or more piblin datasets; the analysis
+    parameters and scalar results (moduli, amplitudes, angular frequency)
+    are stored in the ``details`` of every measurement.
+
+    Attributes
+    ----------
+    result : RecoveryRheologyResult or None
+        Array-level view of the analysis with plotting and Excel export
+        helpers. It is set by the transform that created this object.
+    """
+
+    result: RecoveryRheologyResult | None = None
 
 
 class RecoveryRheology(MeasurementSetTransform):
-    """
-    Recovery rheology transform for hermes-rheo / piblin.
+    r"""
+    Recovery rheology analysis of oscillatory or step-function data.
+
+    The transform returns a :class:`RecoveryRheologyMeasurementSet`; the
+    input is not modified.
+
+    * Oscillatory: one measurement with the paired forward/reverse data
+      (time [s], total, unrecoverable and recoverable strain [-], stress
+      [Pa]) and one with the closed decomposition loop (time, the three
+      strains, the three strain rates [1/s] and stress).
+    * Step: one measurement with the pair-averaged strain and stress
+      versus time, plus one measurement per deformation step holding the
+      deformation and recovery strain curves.
+
+    Parameters and scalar results (``omega``, ``storage_modulus_fft``,
+    ``loss_modulus_fft``, ``energy_*`` and ``raw_*`` moduli, ``amplitude_*``
+    values, loop-selection diagnostics) are stored in each measurement's
+    ``details``. The same results are also available as arrays through the
+    ``result`` attribute of the output and of the transform
+    (:class:`RecoveryRheologyResult`), which provides Lissajous/transient
+    plots and Excel export.
 
     Parameters
     ----------
-    method : str
-        ``'oscillatory'`` or ``'step'``.
-    n_osc : int
-        Harmonic bin index for FFT (oscillatory only, default 2).
-    n_use : int or None
-        Initial guess for the half-period starting row (1-based,
-        matching MATLAB convention).  When ``None`` (default) the
-        optimal value is selected automatically by minimising a
-        join-discontinuity score – matching the behaviour of the
-        reference MATLAB code.
-    diff_state : int
-        Stencil width for periodic centred differentiation (1–4, default 4).
-    k_step : int
-        Step size for derivative stencil (default 1).
-    omega : float or None
-        Angular frequency in rad/s.  If ``None`` (default) the value is
-        estimated automatically from the FFT of the oscillation data.
-        When the experiment frequency is known it should be supplied
-        explicitly to match the reference MATLAB pipeline.
-    stress_zero_tol : float
-        Threshold below which stress is treated as zero (step only).
+    method : {"oscillatory", "step"}, default "oscillatory"
+        Analysis type. "step strain" and "creep" are accepted as aliases of
+        "step".
+    n_osc : int, default 2
+        Harmonic bin index of the FFT of the stress response used for
+        :math:`G'_{FT}` and :math:`G''_{FT}` (oscillatory only).
+    n_use : int, optional
+        Initial guess of the 1-based row at which the half-period starts. If
+        None, the start row is chosen by minimising the discontinuity at the
+        joins of the mirrored loop.
+    diff_state : int, default 4
+        Stencil width of the periodic centred finite-difference derivative
+        used for strain rates (1-4).
+    k_step : int, default 1
+        Sample spacing of the derivative stencil.
+    strain_shift_state : bool, default False
+        Shift the strain columns of the half-period by the mean of its first
+        and mirrored last rows, so the loop closes about zero.
+    omega : float, optional
+        Angular frequency :math:`\omega` [rad/s]. If None, it is estimated
+        from the FFT peak of the oscillation data; supply it when known.
+    stress_zero_tol : float, default 1e-10
+        Stress magnitude [Pa] below which stress is treated as zero, which
+        marks the recovery blocks (step only).
+
+    References
+    ----------
+    Lee, J. C.-W., Weigandt, K. M., Kelley, E. G. and Rogers, S. A. (2019).
+    Structure-Property Relationships via Recovery Rheology in Viscoelastic
+    Materials. Physical Review Letters 122, 248003.
+
+    Singh, P. K., Lee, J. C.-W., Patankar, K. A. and Rogers, S. A. (2021).
+    Revisiting the basis of transient rheological material functions:
+    Insights from recoverable strain measurements. Journal of Rheology
+    65(2), 129-144.
     """
 
     def __init__(
@@ -470,10 +610,6 @@ class RecoveryRheology(MeasurementSetTransform):
         self.result: RecoveryRheologyResult | None = None
         self._transient_curves: list[dict[str, Any]] = []
 
-    # ------------------------------------------------------------------
-    # piblin transform hook
-    # ------------------------------------------------------------------
-
     def _apply(self, target, **kwargs):
         if self.method == "oscillatory":
             rr_result = self._run_oscillatory(target)
@@ -482,66 +618,179 @@ class RecoveryRheology(MeasurementSetTransform):
         else:
             raise ValueError(f"method must be 'oscillatory' or 'step', got '{self.method}'")
 
-        # Store result on the transform instance for easy access
         self.result = rr_result
+        return self._build_output(rr_result)
 
-        # Store on the returned target so callers can use
-        # ``processed.result`` directly instead of ``pipeline.result``
-        try:
-            target.result = rr_result
-        except (AttributeError, TypeError):
-            pass
+    def _scalar_details(self, rr: RecoveryRheologyResult) -> dict[str, Any]:
+        """Collect the parameters and scalar results of an analysis as plain values."""
+        details: dict[str, Any] = {
+            "method": rr.method,
+            "n_pairs": int(rr.recov_anal_data.shape[0]),
+        }
+        meta = rr.metadata or {}
+        if rr.method == "oscillatory":
+            details.update(
+                {
+                    "angular_frequency": float(rr.omega),
+                    "n_osc": self.n_osc,
+                    "diff_state": self.diff_state,
+                    "k_step": self.k_step,
+                    "strain_shift_state": self.strain_shift_state,
+                }
+            )
+            for key in ("n_halfp_auto", "n_halfp_est", "n_use_auto", "join_score", "dt_auto"):
+                if key in meta:
+                    details[key] = float(meta[key])
+            mod_fft = np.asarray(rr.mod_fft, dtype=float)
+            if mod_fft.ndim > 1:
+                mod_fft = np.nanmean(mod_fft, axis=0)
+            details["storage_modulus_fft"] = float(mod_fft[0])
+            details["loss_modulus_fft"] = float(mod_fft[1])
+            for prefix, values in (("energy", rr.trad_mod), ("raw", rr.raw_mod)):
+                for name, value in zip(self._MODULUS_NAMES, values):
+                    details[f"{prefix}_{name}"] = float(value)
+            for name, value in zip(self._AMPLITUDE_NAMES, rr.amplitudes):
+                details[f"amplitude_{name}"] = float(value)
+        else:
+            details.update(
+                {
+                    "n_positive_steps": int(meta.get("n_pos", 0)),
+                    "n_negative_steps": int(meta.get("n_neg", 0)),
+                    "stress_zero_tol": float(self.stress_zero_tol),
+                }
+            )
+        return details
 
-        # Try to store on target details if possible
-        try:
-            if hasattr(target, "details") and isinstance(target.details, dict):
-                target.details["recovery_rheology"] = rr_result.to_dict()
-                target.details["recovery_rheology_result"] = rr_result
-        except Exception:
-            pass
+    _MODULUS_NAMES = (
+        "storage_modulus_total",
+        "storage_modulus_unrecoverable",
+        "storage_modulus_recoverable",
+        "loss_modulus_total",
+        "loss_modulus_unrecoverable",
+        "loss_modulus_recoverable",
+    )
+    _AMPLITUDE_NAMES = (
+        "total_strain",
+        "unrecoverable_strain",
+        "recoverable_strain",
+        "total_strain_rate",
+        "unrecoverable_strain_rate",
+        "recoverable_strain_rate",
+        "stress",
+    )
 
-        # Build a decomposition dataset if available
-        if rr_result.decomp_waveform is not None:
-            ds = self._build_decomposition_dataset(rr_result.decomp_waveform)
-            try:
-                if hasattr(target, "details") and isinstance(target.details, dict):
-                    target.details["recovery_rheology_dataset"] = ds
-            except Exception:
-                pass
+    def _build_output(self, rr: RecoveryRheologyResult) -> RecoveryRheologyMeasurementSet:
+        """Wrap an analysis result in piblin datasets, measurements and a measurement set."""
+        details = self._scalar_details(rr)
+        measurements: list[Measurement] = []
 
-        return target
+        if rr.method == "oscillatory":
+            pair_data = rr.recov_anal_data
+            pair_dataset = one_d_composite_dataset.OneDimensionalCompositeDataset(
+                data_arrays=[pair_data[:, i] for i in range(5)],
+                data_array_names=[
+                    "time",
+                    "total strain",
+                    "unrecoverable strain",
+                    "recoverable strain",
+                    "stress",
+                ],
+                data_array_units=["s", "–", "–", "–", "Pa"],
+                default_independent_name="time",
+                default_dependent_name="stress",
+                source="Recovery rheology paired oscillation data",
+            )
+            measurements.append(
+                Measurement(
+                    datasets=[pair_dataset],
+                    details=details,
+                    conditions={"omega": float(rr.omega), "component": "paired oscillation data"},
+                )
+            )
+            measurements.append(
+                Measurement(
+                    datasets=[self._build_decomposition_dataset(rr.decomp_waveform)],
+                    details=details,
+                    conditions={"omega": float(rr.omega), "component": "decomposed waveform"},
+                )
+            )
+        else:
+            data = rr.recov_anal_data
+            step_dataset = one_d_composite_dataset.OneDimensionalCompositeDataset(
+                data_arrays=[data[:, i] for i in range(6)],
+                data_array_names=[
+                    "time",
+                    "total strain",
+                    "total stress",
+                    "recovery time",
+                    "unrecoverable strain",
+                    "recoverable strain",
+                ],
+                data_array_units=["s", "–", "Pa", "s", "–", "–"],
+                default_independent_name="time",
+                default_dependent_name="recoverable strain",
+                source="Recovery rheology step results",
+            )
+            measurements.append(
+                Measurement(
+                    datasets=[step_dataset],
+                    details=details,
+                    conditions={"component": "step results"},
+                )
+            )
+            for index, curve in enumerate((rr.metadata or {}).get("transient_curves", [])):
+                creep_time = np.asarray(curve["creep_time"], dtype=float)
+                creep_strain = np.asarray(curve["creep_strain"], dtype=float)
+                rec_time = np.asarray(curve["rec_time"], dtype=float)
+                rec_strain = np.asarray(curve["rec_strain"], dtype=float)
+                creep_dataset = one_d_composite_dataset.OneDimensionalCompositeDataset(
+                    data_arrays=[creep_time, creep_strain],
+                    data_array_names=["time", "strain"],
+                    data_array_units=["s", "–"],
+                    default_independent_name="time",
+                    default_dependent_name="strain",
+                    source="Recovery rheology deformation step",
+                )
+                recovery_dataset = one_d_composite_dataset.OneDimensionalCompositeDataset(
+                    data_arrays=[rec_time, rec_strain],
+                    data_array_names=["recovery time", "strain"],
+                    data_array_units=["s", "–"],
+                    default_independent_name="recovery time",
+                    default_dependent_name="strain",
+                    source="Recovery rheology recovery step",
+                )
+                measurements.append(
+                    Measurement(
+                        datasets=[creep_dataset, recovery_dataset],
+                        conditions={"component": f"transient curve {index}"},
+                        details={
+                            "curve_index": index,
+                            "sign": float(curve["sign"]),
+                            "method": "step",
+                        },
+                    )
+                )
 
-    # ==================================================================
-    #  OSCILLATORY  workflow
-    # ==================================================================
+        output = RecoveryRheologyMeasurementSet(measurements=measurements)
+        output.result = rr
+        return output
 
     def _run_oscillatory(self, target) -> RecoveryRheologyResult:
         """
-        Full oscillatory recovery-rheology pipeline.
+        Run the oscillatory pipeline.
 
-        Works with both:
-        - **RheoCompass** data where measurements are already split by
-          Result and contain interval IDs inside each dataset.
-          Intervals belonging to the same run (e.g. "Forward - 17") are
-          automatically merged before pairing.
-        - **Trios** data where each measurement is one forward or reverse
-          run and interval structure is embedded in the data arrays.
+        Accepts RheoCompass data, where intervals of the same run (e.g.
+        "Forward - 17") are merged before pairing, and Trios data, where
+        each measurement is one forward or reverse run.
         """
         measurements = self._get_measurements(target)
 
-        # ----------------------------------------------------------
-        # Stage 1 – build the 3-D data cube  (max_rows × 4 × n_meas)
-        #   columns: [interval_id, time, strain, stress]
-        #
-        # RheoCompass creates one measurement per interval.  We need to
-        # group intervals belonging to the same Result (e.g. "Forward - 17")
-        # into a single stacked array so the pairing logic can find the
-        # oscillation / pre-load / recovery interval structure.
-        # ----------------------------------------------------------
+        # Data cube (max_rows, 4, n_meas); columns: interval_id, time, strain, stress.
+        # RheoCompass gives one measurement per interval, so intervals of the
+        # same run are stacked into one array.
         stacks: list[np.ndarray] = []
 
-        # Try to detect RheoCompass-style method labels like
-        # "Interval 1 (Forward - 17)" and group by the part after "Interval N"
+        # Group RheoCompass labels "Interval N (Forward - 17)" by the bracketed run
         grouped: dict[str, list[tuple[int, np.ndarray]]] = defaultdict(list)
         ungrouped: list[np.ndarray] = []
 
@@ -554,7 +803,6 @@ class RecoveryRheology(MeasurementSetTransform):
             if hasattr(meas, "conditions") and meas.conditions and "method" in meas.conditions:
                 method = str(meas.conditions["method"])
 
-            # Match "Interval <N> (<direction> - <cycle>)"
             m = re.match(
                 r"Interval\s+(\d+)\s+\((.+)\)",
                 method,
@@ -562,16 +810,14 @@ class RecoveryRheology(MeasurementSetTransform):
             )
             if m:
                 interval_id = int(m.group(1))
-                run_key = m.group(2).strip()  # e.g. "Forward - 17"
-                # Override the interval column with the parsed interval id
+                run_key = m.group(2).strip()
                 arr[:, 0] = float(interval_id)
                 grouped[run_key].append((interval_id, arr))
             else:
                 ungrouped.append(arr)
 
         if grouped:
-            # Sort runs by their cycle number so forward/reverse alternate
-            # correctly: "Forward - 1", "Reverse - 1", "Forward - 2", ...
+            # Order runs as "Forward - 1", "Reverse - 1", "Forward - 2", ...
             def _run_sort_key(key: str):
                 parts = key.split("-")
                 try:
@@ -579,13 +825,11 @@ class RecoveryRheology(MeasurementSetTransform):
                 except (ValueError, IndexError):
                     cycle = 0
                 direction = parts[0].strip().lower()
-                # forward before reverse within the same cycle
                 dir_order = 0 if direction.startswith("f") else 1
                 return (cycle, dir_order)
 
             for run_key in sorted(grouped.keys(), key=_run_sort_key):
                 intervals = grouped[run_key]
-                # Sort intervals within a run by interval id
                 intervals.sort(key=lambda x: x[0])
                 merged = np.vstack([arr for _, arr in intervals])
                 stacks.append(merged)
@@ -604,23 +848,15 @@ class RecoveryRheology(MeasurementSetTransform):
             n = stk.shape[0]
             data_in[:n, :, i] = stk
 
-        # ----------------------------------------------------------
-        # Stage 2 – pairing + FFT  (ocr_rec_anal_mcr)
-        # ----------------------------------------------------------
-        omega_user = self.omega  # may be None
-
         (avg_data, recov_anal_data, mod_tot_data, num_pairs, omega_list) = self._ocr_rec_anal_mcr(
             data_in,
             num_meas,
             size_meas,
             self.n_osc,
-            omega_override=omega_user,
+            omega_override=self.omega,
         )
 
-        # ----------------------------------------------------------
-        # Filter valid rows  (keep only rows with ALL finite values,
-        # matching the reference MATLAB / notebook pipeline)
-        # ----------------------------------------------------------
+        # Keep only pairs whose values are all finite
         valid = np.all(np.isfinite(recov_anal_data), axis=1)
         recov_anal_data = recov_anal_data[valid]
         mod_tot_data = mod_tot_data[valid]
@@ -634,11 +870,8 @@ class RecoveryRheology(MeasurementSetTransform):
                 "intervals and that strain/stress columns are present."
             )
 
-        # ----------------------------------------------------------
-        # Stage 3 – shift / derivative / energy  (ocr_mcr_shift_deriv)
-        # ----------------------------------------------------------
-        if omega_user is not None and np.isfinite(omega_user) and omega_user > 0:
-            omega_energy = float(omega_user)
+        if self.omega is not None and np.isfinite(self.omega) and self.omega > 0:
+            omega_energy = float(self.omega)
         else:
             finite_mask = np.isfinite(omega_list)
             omega_energy = (
@@ -679,16 +912,12 @@ class RecoveryRheology(MeasurementSetTransform):
             },
         )
 
-    # ------------------------------------------------------------------
-    # Extract arrays from a single measurement
-    # ------------------------------------------------------------------
-
     def _extract_oscillatory_arrays(self, meas: Measurement) -> np.ndarray | None:
         """
-        Return an (N, 4) array  [interval_id, time, strain, stress]
-        from *meas.datasets[0]*.
+        Return ``[interval_id, time, strain, stress]`` as an (N, 4) array.
 
-        Tries several common column-name variants.
+        Columns are matched by name in ``meas.datasets[0]``; strain in % is
+        converted to a fraction. Returns None if a column is missing.
         """
         ds = meas.datasets[0]
         names_lower = [n.lower() for n in ds.data_array_names]
@@ -711,19 +940,16 @@ class RecoveryRheology(MeasurementSetTransform):
         strain_arr = np.asarray(ds.data_arrays[idx_strain], dtype=float)
         stress_arr = np.asarray(ds.data_arrays[idx_stress], dtype=float)
 
-        # Check if strain is in % and convert
         strain_unit = (
             ds.data_array_units[idx_strain] if idx_strain < len(ds.data_array_units) else ""
         )
         if strain_unit == "%":
             strain_arr = strain_arr * 0.01
 
-        # Try to get interval id
         idx_interval = _find(["interval", "interval id"])
         if idx_interval is not None:
             interval_arr = np.asarray(ds.data_arrays[idx_interval], dtype=float)
         else:
-            # If no interval column, assign a single interval
             interval_arr = np.ones_like(time_arr)
 
         n = min(len(time_arr), len(strain_arr), len(stress_arr), len(interval_arr))
@@ -736,10 +962,6 @@ class RecoveryRheology(MeasurementSetTransform):
             ]
         )
 
-    # ------------------------------------------------------------------
-    # Stage 2 – pairing + FFT  (MATLAB: ocr_rec_anal_mcr_modify)
-    # ------------------------------------------------------------------
-
     def _ocr_rec_anal_mcr(
         self,
         data_in: np.ndarray,
@@ -749,26 +971,39 @@ class RecoveryRheology(MeasurementSetTransform):
         omega_override: float | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, np.ndarray]:
         """
-        Pair measurements as (1,2), (3,4), … and compute per-pair
+        Pair measurements as (1, 2), (3, 4), ... and compute per-pair
         recovery data and FFT moduli.
 
-        This is a faithful port of MATLAB ``ocr_rec_anal_mcr_modify``.
+        Forward (A) and reverse (B) runs have opposite strain amplitude, so
+        (A - B) / 2 retains the response odd in strain and cancels drift.
 
         Parameters
         ----------
-        omega_override : float or None
-            If supplied and finite, use this omega (rad/s) for the G″
-            calculation instead of estimating per pair.
+        data_in : numpy.ndarray
+            Data cube (max_rows, 4, num_meas).
+        num_meas : int
+            Number of measurements.
+        size_meas : numpy.ndarray
+            Valid row count of each measurement.
+        n_osc : int
+            Harmonic bin index of the FFT.
+        omega_override : float, optional
+            Angular frequency (rad/s) used for G'' instead of a per-pair
+            estimate, if positive and finite.
 
         Returns
         -------
-        avg_data        : (maxN, 4, num_pairs)
-        recov_anal_data : (num_pairs, 5)  [t_n, total, unrec, rec, stress]
-        mod_tot_data    : (num_pairs, 2)  [G'_FT, G''_FT]
-        num_pairs       : int
-        omega_list      : (num_pairs,)  rad/s per pair
+        avg_data : numpy.ndarray
+            Averaged data, shape (max_rows, 4, num_pairs).
+        recov_anal_data : numpy.ndarray
+            Columns ``[t_n, total, unrec, rec, stress]``, shape (num_pairs, 5).
+        mod_tot_data : numpy.ndarray
+            Columns ``[G'_FT, G''_FT]``, shape (num_pairs, 2).
+        num_pairs : int
+            Number of pairs.
+        omega_list : numpy.ndarray
+            Angular frequency per pair in rad/s.
         """
-        # Pair as (1,2), (3,4), … like the modified MATLAB code
         num_pairs = math.ceil(num_meas / 2)
         maxN = int(np.max(size_meas))
 
@@ -781,9 +1016,6 @@ class RecoveryRheology(MeasurementSetTransform):
             omega_override is not None and np.isfinite(omega_override) and omega_override > 0
         )
 
-        print(f"num_meas  = {num_meas}")
-        print(f"num_pairs = {num_pairs}")
-
         for ii in range(num_pairs):
             meas_f = 2 * ii  # forward (0-based)
             meas_r = 2 * ii + 1  # reverse (0-based)
@@ -791,9 +1023,7 @@ class RecoveryRheology(MeasurementSetTransform):
 
             if has_reverse:
                 N = min(int(size_meas[meas_f]), int(size_meas[meas_r]))
-                # interval & time from forward
                 avg_data[:N, 0:2, ii] = data_in[:N, 0:2, meas_f]
-                # strain & stress averaged as (forward - reverse) / 2
                 avg_data[:N, 2:4, ii] = (data_in[:N, 2:4, meas_f] - data_in[:N, 2:4, meas_r]) / 2.0
             else:
                 N = int(size_meas[meas_f])
@@ -801,10 +1031,9 @@ class RecoveryRheology(MeasurementSetTransform):
 
             avg_block = avg_data[:N, :, ii]
 
-            # Max interval number
             n_int = np.nanmax(avg_block[:, 0])
 
-            # Final full oscillation interval (n_int - 2)
+            # Final full oscillation interval is n_int - 2
             final_osc_idx = np.where(avg_block[:, 0] == (n_int - 2))[0]
             if final_osc_idx.size == 0:
                 warnings.warn(
@@ -813,7 +1042,6 @@ class RecoveryRheology(MeasurementSetTransform):
                 )
                 continue
 
-            # Centre strain and stress on final-oscillation mean
             center_gamma = float(np.nanmean(avg_block[final_osc_idx, 2]))
             center_sigma = float(np.nanmean(avg_block[final_osc_idx, 3]))
             avg_data[:N, 2, ii] -= center_gamma
@@ -844,14 +1072,14 @@ class RecoveryRheology(MeasurementSetTransform):
                     avg_block[i_osc_end, 3],  # stress
                 ]
 
-            # ---- FFT moduli (explicit AB rotation, MATLAB-faithful) ----
+            # FFT moduli: rotate the harmonic so the strain is purely in-phase
             g_osc = avg_block[final_osc_idx, 2]
             s_osc = avg_block[final_osc_idx, 3]
             n_f = final_osc_idx.size
 
             Gg = np.fft.fft(g_osc, n=n_f)
             Gs = np.fft.fft(s_osc, n=n_f)
-            h = n_osc  # harmonic bin (0-based in Python)
+            h = n_osc
 
             if h >= n_f:
                 warnings.warn(
@@ -861,7 +1089,6 @@ class RecoveryRheology(MeasurementSetTransform):
                 )
                 continue
 
-            # MATLAB: strain_AB1 = [2*real(fft[h+1])/n, -2*imag(fft[h+1])/n]
             strain_AB1 = np.array(
                 [
                     2.0 * np.real(Gg[h]) / n_f,
@@ -905,7 +1132,6 @@ class RecoveryRheology(MeasurementSetTransform):
                 )
                 continue
 
-            # Estimate ω from time series
             t_osc = avg_block[final_osc_idx, 1]
             if use_fixed_omega:
                 omega_i = float(omega_override)
@@ -913,18 +1139,11 @@ class RecoveryRheology(MeasurementSetTransform):
                 omega_i = self._estimate_omega(t_osc, g_osc)
             omega_list[ii] = omega_i
 
-            # MATLAB: mod_tot_data = [stress_AB(2)/strain_AB(2),
-            #                         stress_AB(1)/(strain_AB(2)*omega)]
             mod_tot_data[ii, 0] = stress_AB[1] / strain_AB[1]
             if np.isfinite(omega_i) and omega_i > 0:
                 mod_tot_data[ii, 1] = stress_AB[0] / (strain_AB[1] * omega_i)
 
         return avg_data, recov_anal_data, mod_tot_data, num_pairs, omega_list
-
-    # ------------------------------------------------------------------
-    # Stage 3 – shift / derivative / energy
-    # (MATLAB: ocr_mcr_shift_deriv_modify)
-    # ------------------------------------------------------------------
 
     def _ocr_mcr_shift_deriv(
         self,
@@ -933,28 +1152,33 @@ class RecoveryRheology(MeasurementSetTransform):
         omega: float,
     ) -> dict[str, Any]:
         """
-        Build the closed half-period loop, differentiate, compute
+        Build the closed half-period loop, differentiate it and compute
         energy-based moduli.
 
-        This is a faithful port of MATLAB ``ocr_mcr_shift_deriv_modify``
-        and matches ``test_rr_new.ipynb`` exactly.
-
-        n_halfp is always auto-determined from omega and dt (MATLAB
-        convention).
+        The half-period length is ``pi / omega`` expressed in samples of the
+        median time step.
 
         Parameters
         ----------
-        rec_anal_mat : (n_meas, 5)
-            [time, total_strain, unrec_strain, rec_strain, stress]
-        mod_anal_mat : (n_meas, 2)
-            [G'_FT, G''_FT] per pair
+        rec_anal_mat : numpy.ndarray
+            Columns ``[time, total_strain, unrec_strain, rec_strain, stress]``,
+            shape (n_meas, 5).
+        mod_anal_mat : numpy.ndarray
+            Columns ``[G'_FT, G''_FT]`` per pair, shape (n_meas, 2).
         omega : float
-            Angular frequency (rad/s).
+            Angular frequency in rad/s.
 
         Returns
         -------
-        dict with keys: decomp, amp, trad_mod, raw_mod, mod_fft,
-        lump, n_halfp_auto, n_halfp_est, n_use_auto, join_score, dt_auto
+        dict
+            Keys ``decomp``, ``amp``, ``trad_mod``, ``raw_mod``, ``mod_fft``,
+            ``lump``, ``n_halfp_auto``, ``n_halfp_est``, ``n_use_auto``,
+            ``join_score``, ``dt_auto``.
+
+        Raises
+        ------
+        ValueError
+            If there are too few rows or no valid time step.
         """
         rec_anal_mat = np.asarray(rec_anal_mat, dtype=float)
         mod_anal_mat = np.asarray(mod_anal_mat, dtype=float)
@@ -963,14 +1187,12 @@ class RecoveryRheology(MeasurementSetTransform):
         if rec_anal_mat.size == 0 or n_meas < 3:
             raise ValueError("rec_anal_mat must contain at least 3 rows.")
 
-        # Initial n_use (MATLAB: default 1, 1-based)
+        # n_use is a 1-based row index
         if self.n_use is not None and np.isfinite(self.n_use):
             n_use_init = max(1, int(round(self.n_use)))
         else:
             n_use_init = 1
 
-        # ---- auto-determine n_halfp from omega & dt ----
-        # MATLAB: dt = median(diff(rec_anal_mat(:,1)))
         dt_vec = np.diff(rec_anal_mat[:, 0])
         dt_vec = dt_vec[np.isfinite(dt_vec) & ~np.isinf(dt_vec) & (dt_vec > 0)]
         if dt_vec.size == 0:
@@ -982,22 +1204,16 @@ class RecoveryRheology(MeasurementSetTransform):
         if n_halfp_est < 1:
             n_halfp_est = 1
 
-        # MATLAB: max_halfp = n_meas - n_use
         max_halfp = n_meas - n_use_init
         if max_halfp < 1:
             raise ValueError(f"Not enough rows in rec_anal_mat for n_use = {n_use_init}.")
 
         n_halfp = min(n_halfp_est, max_halfp)
-        print(
-            f"Auto-selected n_halfp = {n_halfp} (estimated {n_halfp_est}, max allowed {max_halfp})"
-        )
 
-        # ---- determine all half-period options ----
         n_opts = n_meas - n_halfp
         if n_opts < 1:
             raise ValueError("Not enough rows to construct half-period options.")
 
-        # MATLAB: meas_opts(nn:(nn+n_halfp), nn) = ...
         meas_opts = np.full((n_meas, n_opts), np.nan, dtype=float)
 
         for nn in range(n_opts):
@@ -1006,9 +1222,9 @@ class RecoveryRheology(MeasurementSetTransform):
                 rec_anal_mat[nn : nn + n_halfp + 1, 4] + diff_cyc / 2.0
             )
 
-        # ---- auto-select n_use by minimizing discontinuity ----
+        # Choose n_use that minimises the discontinuity at the loop joins
         best_score = np.inf
-        best_use = min(max(1, n_use_init), n_opts)  # MATLAB-style 1-based
+        best_use = min(max(1, n_use_init), n_opts)
 
         for cand0 in range(n_opts):
             idx = slice(cand0, cand0 + n_halfp)
@@ -1032,15 +1248,12 @@ class RecoveryRheology(MeasurementSetTransform):
 
             if score < best_score:
                 best_score = score
-                best_use = cand0 + 1  # MATLAB-style 1-based
+                best_use = cand0 + 1
 
         n_use = best_use
-        print(f"Auto-selected n_use = {n_use} with join score = {best_score:.6g}")
 
-        # Convert to 0-based for indexing
         n_use0 = n_use - 1
 
-        # ---- optional strain shift ----
         if self.strain_shift_state:
             if (n_use0 + n_halfp) >= n_meas:
                 raise ValueError(
@@ -1051,8 +1264,6 @@ class RecoveryRheology(MeasurementSetTransform):
         else:
             gamma_shift = np.array([0.0, 0.0, 0.0])
 
-        # ---- build full period ----
-        # MATLAB: idx = n_use:(n_use+(n_halfp-1))
         idx = np.arange(n_use0, n_use0 + n_halfp)
 
         rec_anal_use = np.vstack(
@@ -1076,23 +1287,18 @@ class RecoveryRheology(MeasurementSetTransform):
             ]
         )
 
-        # MATLAB: mod_anal_use = sum(mod_anal_mat(idx,:)) / n_halfp
-        # Use nanmean so that NaN entries (skipped pairs) don't poison
-        # the average and leave G'_FT / G''_FT empty.
+        # nanmean so skipped pairs (NaN) do not blank G'_FT / G''_FT
         mod_anal_use = np.nanmean(mod_anal_mat[idx, :], axis=0)
 
-        # ---- smooth discontinuities ----
-        # Midpoint join: rows n_halfp-1 and n_halfp
+        # Average the rows on either side of the mid-period join
         join_mid = (rec_anal_use[n_halfp - 1, 1:8] + rec_anal_use[n_halfp, 1:8]) / 2.0
         rec_anal_use[n_halfp - 1, 1:8] = join_mid
         rec_anal_use[n_halfp, 1:8] = join_mid
 
-        # End/start closure: row 2*n_halfp-1 and row 0
+        # Same for the end/start closure
         join_end = (rec_anal_use[2 * n_halfp - 1, 1:8] + rec_anal_use[0, 1:8]) / 2.0
         rec_anal_use[2 * n_halfp - 1, 1:8] = join_end
         rec_anal_use[0, 1:8] = join_end
-
-        # ---- differentiate (periodic centred stencil) ----
 
         for col in range(3):
             rec_anal_use[:, 4 + col] = self._centered_derivative_periodic(
@@ -1102,28 +1308,22 @@ class RecoveryRheology(MeasurementSetTransform):
                 dt=dt,
             )
 
-        # ---- close curve (append first row) ----
+        # Close the curve
         rec_anal_use = np.vstack([rec_anal_use, rec_anal_use[0, :][None, :]])
 
-        # ---- energy / Lissajous ----
         npts = 2 * n_halfp
         rec_anal_nrg_s = np.zeros((npts, 3), dtype=float)
         rec_anal_nrg_d_dot = np.zeros((npts, 3), dtype=float)
 
         for q in range(3):
-            # MATLAB: rec_anal_nrg_s(:,q) = strain * stress / 2
             rec_anal_nrg_s[:, q] = rec_anal_use[:npts, q + 1] * rec_anal_use[:npts, 7] / 2.0
-            # MATLAB: rec_anal_nrg_d_dot(:,q) = rate * stress
             rec_anal_nrg_d_dot[:, q] = rec_anal_use[:npts, q + 4] * rec_anal_use[:npts, 7]
 
         avg_nrg_s = np.mean(rec_anal_nrg_s, axis=0)
         avg_nrg_d_dot = np.mean(rec_anal_nrg_d_dot, axis=0)
 
-        # MATLAB: rec_anal_amp = max(abs(rec_anal_use(:,2:8)))
         rec_anal_amp = np.max(np.abs(rec_anal_use[:, 1:8]), axis=0)
 
-        # MATLAB: mod_trad = [4*avg_nrg_s/rec_anal_amp(1)^2,
-        #                     2*avg_nrg_d_dot/(rec_anal_amp(1)*omega)^2]
         trad_mod = np.concatenate(
             [
                 4.0 * avg_nrg_s / (rec_anal_amp[0] ** 2),
@@ -1131,8 +1331,6 @@ class RecoveryRheology(MeasurementSetTransform):
             ]
         )
 
-        # MATLAB: mod_raw = [4*avg_nrg_s./rec_anal_amp(1:3).^2,
-        #                    2*avg_nrg_d_dot./rec_anal_amp(4:6).^2]
         raw_mod = np.concatenate(
             [
                 4.0 * avg_nrg_s / (rec_anal_amp[0:3] ** 2),
@@ -1140,7 +1338,6 @@ class RecoveryRheology(MeasurementSetTransform):
             ]
         )
 
-        # MATLAB: lump = [mod_anal_use, mod_trad, mod_raw, rec_anal_amp]
         lump = np.concatenate([mod_anal_use, trad_mod, raw_mod, rec_anal_amp])
 
         return {
@@ -1157,29 +1354,17 @@ class RecoveryRheology(MeasurementSetTransform):
             "dt_auto": dt,
         }
 
-    # ==================================================================
-    #  STEP-FUNCTION workflow  (MATLAB: Trios_recovery_rheology_creep.m)
-    # ==================================================================
-
     def _run_step(self, target) -> RecoveryRheologyResult:
         """
-        Step-function recovery analysis.
+        Run the step-function recovery analysis.
 
-        1. Extract time, strain, stress from each measurement.
-        2. Merge into a single continuous time series if needed (handles
-           RheoCompass data where each interval is a separate measurement).
-        3. Identify non-zero strain- or stress-controlled deformation blocks
-           and classify as +/−.
-        4. Positive/negative pairs are averaged to obtain total strain,
-           unrecoverable strain, and recoverable strain and strain rate as
-           functions of experimental time.
+        Blocks are first detected per measurement (Trios). If none are found
+        or their recovery data is all NaN, the measurements are merged into
+        one time series (RheoCompass, one measurement per interval).
+        Positive and negative blocks of the same duration are then averaged.
         """
         measurements = self._get_measurements(target)
 
-        # ----------------------------------------------------------
-        # Try per-measurement block detection first (Trios-style: each
-        # measurement contains a full stress+recovery sequence).
-        # ----------------------------------------------------------
         rows_pos: list[np.ndarray] = []
         rows_neg: list[np.ndarray] = []
 
@@ -1188,13 +1373,6 @@ class RecoveryRheology(MeasurementSetTransform):
             rows_pos.extend(pos)
             rows_neg.extend(neg)
 
-        # ----------------------------------------------------------
-        # If no blocks found OR all recovery data is NaN (meaning
-        # per-measurement detection found stress blocks but couldn't
-        # find recovery within the same measurement), fall back to
-        # merged approach (RheoCompass-style: each interval is a
-        # separate measurement, need to concatenate).
-        # ----------------------------------------------------------
         all_recovery_nan = (rows_pos or rows_neg) and all(
             np.isnan(r[4]) for r in rows_pos + rows_neg
         )
@@ -1207,38 +1385,7 @@ class RecoveryRheology(MeasurementSetTransform):
         arr_pos = np.array(rows_pos) if rows_pos else np.empty((0, 7))
         arr_neg = np.array(rows_neg) if rows_neg else np.empty((0, 7))
 
-        n = min(arr_pos.shape[0], arr_neg.shape[0])
-        if n == 0:
-            # Only one direction available – use what we have
-            combined = arr_pos if arr_pos.shape[0] > 0 else arr_neg
-            pair_avg = np.column_stack(
-                [
-                    combined[:, 1],  # time
-                    np.abs(combined[:, 2]),  # total strain
-                    np.abs(combined[:, 3]),  # total stress
-                    combined[:, 4],  # recovery time
-                    np.abs(combined[:, 5]),  # unrec strain
-                    np.abs(combined[:, 2]) - np.abs(combined[:, 5]),  # rec strain
-                ]
-            )
-        else:
-            pair_avg = np.full((n, 6), np.nan, dtype=float)
-            for j in range(n):
-                time_nz = np.nanmean([arr_pos[j, 1], arr_neg[j, 1]])
-                tot_strain = np.nanmean([abs(arr_pos[j, 2]), abs(arr_neg[j, 2])])
-                tot_stress = np.nanmean([abs(arr_pos[j, 3]), abs(arr_neg[j, 3])])
-                rec_time = np.nanmean([arr_pos[j, 4], arr_neg[j, 4]])
-                unrec_strain = np.nanmean([abs(arr_pos[j, 5]), abs(arr_neg[j, 5])])
-                rec_strain = tot_strain - unrec_strain
-
-                pair_avg[j, :] = [
-                    time_nz,
-                    tot_strain,
-                    tot_stress,
-                    rec_time,
-                    unrec_strain,
-                    rec_strain,
-                ]
+        pair_avg = _average_by_duration(arr_pos, arr_neg)
 
         return RecoveryRheologyResult(
             method="step",
@@ -1255,25 +1402,23 @@ class RecoveryRheology(MeasurementSetTransform):
 
     def _extract_step_blocks(self, meas: Measurement) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
-        From one measurement, find non-zero stress blocks, classify
-        as positive or negative, and extract the recovery point.
+        Find non-zero stress blocks in one measurement and their recovery point.
 
-        Returns two lists (pos_rows, neg_rows) where each row is
-        [sign, nz_time, nz_strain, nz_stress, z_time, z_strain, z_stress].
+        Parameters
+        ----------
+        meas : Measurement
+            Measurement whose first dataset holds time, strain and stress.
+
+        Returns
+        -------
+        rows_pos, rows_neg : list of numpy.ndarray
+            One row per positive/negative block:
+            ``[sign, nz_time, nz_strain, nz_stress, z_time, z_strain, z_stress]``.
         """
         ds = meas.datasets[0]
         names_lower = [n.lower() for n in ds.data_array_names]
 
-        def _find(candidates):
-            for c in candidates:
-                for i, n in enumerate(names_lower):
-                    if c == n:
-                        return i
-            return None
-
-        idx_time = _find(["time", "step time", "interval time", "average time"])
-        idx_strain = _find(["strain", "shear strain", "strain (step)"])
-        idx_stress = _find(["stress", "shear stress", "stress (step)"])
+        idx_time, idx_strain, idx_stress = _find_step_columns(names_lower)
 
         if idx_time is None or idx_strain is None or idx_stress is None:
             return [], []
@@ -1283,15 +1428,16 @@ class RecoveryRheology(MeasurementSetTransform):
         stress_arr = np.asarray(ds.data_arrays[idx_stress], dtype=float)
 
         N = min(len(time_arr), len(strain_arr), len(stress_arr))
-        time_arr = time_arr[:N]
-        strain_arr = strain_arr[:N]
-        stress_arr = stress_arr[:N]
+        time_arr, strain_arr, stress_arr = _drop_invalid(
+            time_arr[:N], strain_arr[:N], stress_arr[:N]
+        )
+        N = len(time_arr)
 
         tol = self.stress_zero_tol
         check_zero = np.abs(stress_arr) <= tol
         find_nonzero = ~check_zero
 
-        # Find contiguous non-zero blocks
+        # Contiguous non-zero stress blocks
         d = np.diff(np.r_[False, find_nonzero, False].astype(int))
         starts = np.where(d == 1)[0]
         ends = np.where(d == -1)[0] - 1
@@ -1309,7 +1455,7 @@ class RecoveryRheology(MeasurementSetTransform):
             nz_g = strain_arr[i2]
             nz_s = stress_arr[i2]
 
-            # Look for following zero-stress block
+            # Following zero-stress block
             z1 = i2 + 1
             if z1 >= N or not check_zero[z1]:
                 z_t, z_g, z_s = np.nan, np.nan, np.nan
@@ -1333,12 +1479,10 @@ class RecoveryRheology(MeasurementSetTransform):
         self, measurements: list[Measurement]
     ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
-        Merge all measurements into a single continuous time series and
-        then run block detection.
+        Concatenate all measurements and detect step blocks on the result.
 
-        This handles RheoCompass-style data where each interval is stored
-        as a separate measurement (so a single measurement never contains
-        both a non-zero and a zero stress block).
+        Used for RheoCompass data, where each interval is a separate
+        measurement.
 
         Parameters
         ----------
@@ -1346,14 +1490,14 @@ class RecoveryRheology(MeasurementSetTransform):
 
         Returns
         -------
-        rows_pos, rows_neg : lists of (7,) arrays
-            Same format as ``_extract_step_blocks``.
+        rows_pos, rows_neg : list of numpy.ndarray
+            Same format as `_extract_step_blocks`.
 
-        Side Effects
-        ------------
-        Sets ``self._transient_curves`` to a list of dicts, one per
-        non-zero stress block, containing the full recovery transient:
-        ``{'sign', 'creep_time', 'creep_strain', 'rec_time', 'rec_strain'}``.
+        Notes
+        -----
+        Sets ``self._transient_curves``: one dict per non-zero stress block
+        with keys ``sign``, ``creep_time``, ``creep_strain``, ``rec_time``,
+        ``rec_strain``.
         """
         time_parts: list[np.ndarray] = []
         strain_parts: list[np.ndarray] = []
@@ -1363,16 +1507,7 @@ class RecoveryRheology(MeasurementSetTransform):
             ds = meas.datasets[0]
             names_lower = [n.lower() for n in ds.data_array_names]
 
-            def _find(candidates, names_lower=names_lower):
-                for c in candidates:
-                    for i, n in enumerate(names_lower):
-                        if c == n:
-                            return i
-                return None
-
-            idx_time = _find(["time", "step time", "interval time", "average time"])
-            idx_strain = _find(["strain", "shear strain", "strain (step)"])
-            idx_stress = _find(["stress", "shear stress", "stress (step)"])
+            idx_time, idx_strain, idx_stress = _find_step_columns(names_lower)
 
             if idx_time is None or idx_strain is None or idx_stress is None:
                 continue
@@ -1392,19 +1527,17 @@ class RecoveryRheology(MeasurementSetTransform):
         time_arr = np.concatenate(time_parts)
         strain_arr = np.concatenate(strain_parts)
         stress_arr = np.concatenate(stress_parts)
+        time_arr, strain_arr, stress_arr = _drop_invalid(time_arr, strain_arr, stress_arr)
 
-        # Do NOT sort by time: RheoCompass resets time per Result, so
-        # sorting would interleave different stress cycles.  The reader
-        # already produces measurements in file order which is the
-        # correct temporal sequence (stress interval → recovery interval
-        # for each Result).
+        # Do not sort by time: RheoCompass resets time per result, so
+        # sorting would interleave cycles. File order is the temporal order.
 
         N = len(time_arr)
         tol = self.stress_zero_tol
         check_zero = np.abs(stress_arr) <= tol
         find_nonzero = ~check_zero
 
-        # Find contiguous non-zero blocks
+        # Contiguous non-zero stress blocks
         d = np.diff(np.r_[False, find_nonzero, False].astype(int))
         starts = np.where(d == 1)[0]
         ends = np.where(d == -1)[0] - 1
@@ -1424,11 +1557,10 @@ class RecoveryRheology(MeasurementSetTransform):
             nz_g = strain_arr[i2]
             nz_s = stress_arr[i2]
 
-            # Full creep transient (during non-zero stress)
             creep_t = time_arr[i1 : i2 + 1].copy()
             creep_g = strain_arr[i1 : i2 + 1].copy()
 
-            # Look for following zero-stress block
+            # Following zero-stress block
             z1 = i2 + 1
             if z1 >= N or not check_zero[z1]:
                 z_t, z_g, z_s = np.nan, np.nan, np.nan
@@ -1441,11 +1573,9 @@ class RecoveryRheology(MeasurementSetTransform):
                 z_t = time_arr[z2]
                 z_g = strain_arr[z2]
                 z_s = stress_arr[z2]
-                # Full recovery transient
                 rec_t_full = time_arr[z1 : z2 + 1].copy()
                 rec_g_full = strain_arr[z1 : z2 + 1].copy()
 
-            # Store transient curve data
             transient_curves.append(
                 {
                     "sign": float(sgn),
@@ -1463,17 +1593,13 @@ class RecoveryRheology(MeasurementSetTransform):
             else:
                 rows_neg.append(row)
 
-        # Store transient data on the transform instance for later use
         self._transient_curves = transient_curves
 
         return rows_pos, rows_neg
 
-    # ==================================================================
-    #  Numerical helpers
-    # ==================================================================
-
     @staticmethod
     def _safe_dt(t: np.ndarray) -> float:
+        """Median of the positive, finite time steps (NaN if none)."""
         d = np.diff(np.asarray(t, dtype=float))
         d = d[np.isfinite(d) & (d > 0)]
         return float(np.median(d)) if d.size else np.nan
@@ -1503,15 +1629,26 @@ class RecoveryRheology(MeasurementSetTransform):
         """
         Periodic centred finite-difference derivative.
 
-        Faithful port of the MATLAB loop that uses modular indexing
-        for periodic boundary conditions.
-
         Parameters
         ----------
-        X       : signal array (length L, will be treated as periodic)
-        k       : step multiplier
-        stencil : 1 → 3-pt, 2 → 5-pt, 3 → 7-pt, 4 → 9-pt
-        dt      : time step
+        X : numpy.ndarray
+            Signal, treated as periodic.
+        k : int
+            Step multiplier.
+        stencil : int
+            1 (3-point), 2 (5-point), 3 (7-point) or 4 (9-point).
+        dt : float
+            Time step.
+
+        Returns
+        -------
+        numpy.ndarray
+            Derivative of `X`, same length.
+
+        Raises
+        ------
+        ValueError
+            If `stencil` is not in 1-4.
         """
         X = np.asarray(X, dtype=float)
         L = X.shape[0]
@@ -1552,11 +1689,8 @@ class RecoveryRheology(MeasurementSetTransform):
 
         return d
 
-    # ------------------------------------------------------------------
-    # Utility
-    # ------------------------------------------------------------------
-
     def _get_measurements(self, target) -> list[Measurement]:
+        """Return the measurements of a piblin collection, or ``list(target)``."""
         if isinstance(target, experiment_set.ExperimentSet):
             return list(target.measurements)
         if isinstance(target, MeasurementSet):
@@ -1584,11 +1718,6 @@ class RecoveryRheology(MeasurementSetTransform):
             default_dependent_name="stress",
             source="Recovery rheology decomposition",
         )
-
-
-# ---------------------------------------------------------------------------
-# Batch helpers
-# ---------------------------------------------------------------------------
 
 
 def batch_oscillatory_recovery(

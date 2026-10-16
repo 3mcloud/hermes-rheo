@@ -1,57 +1,56 @@
-"""Models for the temperature dependence of time--temperature-superposition shift factors.
+"""Temperature models for time-temperature-superposition shift factors.
 
-This module fits the horizontal shift factors :math:`a_T` produced by
+Fits the horizontal shift factors :math:`a_T` of a master curve built by
 :class:`~hermes_rheo.transforms.automated_mastercurve.AutomatedMasterCurve`
-(exposed as ``master_curve.hparams[0]`` for the states
-``master_curve.states``) to classical constitutive descriptions of their
-temperature dependence:
+(``master_curve.hparams[0]`` at ``master_curve.states``) with
 
-* the **Williams--Landel--Ferry** (WLF) equation, and
-* the **Arrhenius** equation.
+* the Williams-Landel-Ferry (WLF) equation [WLF1955]_, and
+* the Arrhenius equation.
 
-The design mirrors :class:`~hermes_rheo.transforms.fit_model.FitModel`: the
-pipeline-style :class:`ShiftFactorModel` wraps a lightweight model object
-(:class:`WLFModel` or :class:`ArrheniusModel`) and can be applied directly to
-a master-curve object.
+:class:`ShiftFactorModel` is a pipeline-style wrapper around
+:class:`WLFModel` or :class:`ArrheniusModel`, analogous to
+:class:`~hermes_rheo.transforms.fit_model.FitModel`.
 """
 
 import numpy as np
 from scipy.optimize import curve_fit, minimize
 
-# Universal gas constant (J mol^-1 K^-1).
-_R = 8.314462618
+_R = 8.314462618  # J mol^-1 K^-1
 _LN10 = np.log(10.0)
 _CELSIUS_TO_KELVIN = 273.15
 
 
-class WLFModel:
-    r"""Williams--Landel--Ferry description of shift-factor temperature dependence.
+def _finite_pairs(temperatures, log_shift_factors):
+    """Return both arrays as float with non-finite pairs removed."""
+    temperatures = np.asarray(temperatures, dtype=float)
+    log_shift_factors = np.asarray(log_shift_factors, dtype=float)
+    mask = np.isfinite(temperatures) & np.isfinite(log_shift_factors)
+    return temperatures[mask], log_shift_factors[mask]
 
-    Fits :math:`\log_{10} a_T` as a function of temperature with
+
+class WLFModel:
+    r"""WLF equation for the temperature dependence of shift factors.
 
     .. math::
 
-        \log_{10} a_T(T) = -\frac{C_1 (T - T_\mathrm{ref})}
-                                  {C_2 + (T - T_\mathrm{ref})}
+        \log_{10} a_T = -\frac{C_1 (T - T_\mathrm{ref})}
+                              {C_2 + (T - T_\mathrm{ref})}
 
-    where :math:`C_1` (dimensionless) and :math:`C_2` (in the temperature
-    unit of the data, conventionally :math:`^\circ\mathrm{C}`) are the WLF
-    constants and :math:`T_\mathrm{ref}` is the reference temperature at
-    which :math:`a_T = 1`.
+    :math:`C_1` is dimensionless; :math:`C_2` has the unit of the input
+    temperatures (conventionally degC). Both are constrained positive.
 
     Parameters
     ----------
     reference_temperature : float, optional
-        Reference temperature.  If ``None`` (default) it is taken as the
-        state whose shift factor is closest to unity.
+        Reference temperature where :math:`a_T = 1`. If None (default), the
+        temperature whose shift factor is closest to unity is used.
 
     References
     ----------
-    .. [WLF1955] Williams, M. L., Landel, R. F. and Ferry, J. D., *The
+    .. [WLF1955] Williams, M. L., Landel, R. F. and Ferry, J. D., "The
        temperature dependence of relaxation mechanisms in amorphous polymers
-       and other glass-forming liquids*, J. Am. Chem. Soc. **77**\ (14),
-       3701-3707 (1955).  DOI: `10.1021/ja01619a008
-       <https://doi.org/10.1021/ja01619a008>`_.
+       and other glass-forming liquids", J. Am. Chem. Soc. 77(14),
+       3701-3707 (1955). https://doi.org/10.1021/ja01619a008
     """
 
     model = "WLF"
@@ -88,10 +87,7 @@ class WLFModel:
         WLFModel
             ``self``, with fitted attributes populated.
         """
-        temperatures = np.asarray(temperatures, dtype=float)
-        log_shift_factors = np.asarray(log_shift_factors, dtype=float)
-        mask = np.isfinite(temperatures) & np.isfinite(log_shift_factors)
-        temperatures, log_shift_factors = temperatures[mask], log_shift_factors[mask]
+        temperatures, log_shift_factors = _finite_pairs(temperatures, log_shift_factors)
 
         if reference_temperature is not None:
             self.reference_temperature = reference_temperature
@@ -100,11 +96,9 @@ class WLFModel:
 
         t_ref = self.reference_temperature
 
-        # Constrain the WLF constants to be physically positive (C1 > 0, C2 > 0)
-        # and use a multi-start bounded minimisation.  The WLF equation is
-        # ill-conditioned (C1 and C2 trade off), so a single local solve can get
-        # trapped at the degenerate C1 = 0 (flat) solution on near-Arrhenius
-        # data; multiple starts reliably recover the true minimum.
+        # WLF is ill-conditioned (C1 and C2 trade off); a single start can
+        # stall at the flat C1 = 0 solution on near-Arrhenius data, so take
+        # the best of several starts.
         def _sse(params):
             c1, c2 = params
             return float(
@@ -150,33 +144,30 @@ class WLFModel:
 
 
 class ArrheniusModel:
-    r"""Arrhenius description of shift-factor temperature dependence.
-
-    Fits :math:`\log_{10} a_T` as a function of temperature with
+    r"""Arrhenius equation for the temperature dependence of shift factors.
 
     .. math::
 
-        \log_{10} a_T(T) = \frac{E_a}{R \ln 10}
-                           \left(\frac{1}{T} - \frac{1}{T_\mathrm{ref}}\right)
+        \ln a_T = \frac{E_a}{R}
+                  \left(\frac{1}{T} - \frac{1}{T_\mathrm{ref}}\right)
 
-    with temperatures in kelvin, universal gas constant
-    :math:`R = 8.314\ \mathrm{J\,mol^{-1}\,K^{-1}}`, and activation energy
-    :math:`E_a` (in :math:`\mathrm{J\,mol^{-1}}`).
+    with :math:`T` in kelvin, gas constant :math:`R` and activation energy
+    :math:`E_a` in J/mol. The fit is performed on :math:`\log_{10} a_T`,
+    like the WLF model.
 
     Parameters
     ----------
     reference_temperature : float, optional
-        Reference temperature (same unit as the input data).  If ``None``
-        (default) it is taken as the state whose shift factor is closest to
-        unity.
-    temperature_unit : {"C", "K"}, optional
-        Unit of the input temperatures.  Celsius (``"C"``, the default) is
-        converted to kelvin internally.
+        Reference temperature, in the unit of the input data. If None
+        (default), the temperature whose shift factor is closest to unity
+        is used.
+    temperature_unit : {"C", "K"}, default "C"
+        Unit of the input temperatures; Celsius is converted to kelvin.
 
     References
     ----------
-    .. [Arrhenius1889] Arrhenius, S., *Über die Reaktionsgeschwindigkeit bei
-       der Inversion von Rohrzucker durch Säuren*, Z. Phys. Chem. **4**,
+    .. [Arrhenius1889] Arrhenius, S., "Über die Reaktionsgeschwindigkeit bei
+       der Inversion von Rohrzucker durch Säuren", Z. Phys. Chem. 4,
        226-248 (1889).
     """
 
@@ -217,10 +208,7 @@ class ArrheniusModel:
         ArrheniusModel
             ``self``, with fitted attributes populated.
         """
-        temperatures = np.asarray(temperatures, dtype=float)
-        log_shift_factors = np.asarray(log_shift_factors, dtype=float)
-        mask = np.isfinite(temperatures) & np.isfinite(log_shift_factors)
-        temperatures, log_shift_factors = temperatures[mask], log_shift_factors[mask]
+        temperatures, log_shift_factors = _finite_pairs(temperatures, log_shift_factors)
 
         if reference_temperature is not None:
             self.reference_temperature = reference_temperature
@@ -267,26 +255,21 @@ _MODELS = {"WLF": WLFModel, "Arrhenius": ArrheniusModel}
 
 
 class ShiftFactorModel:
-    r"""Pipeline step that fits a temperature model to master-curve shift factors.
+    r"""Fit a WLF or Arrhenius model to master-curve shift factors.
 
-    ``ShiftFactorModel`` reads the horizontal shift factors :math:`a_T`
-    (``master_curve.hparams[0]``) and their states
-    (``master_curve.states``) from a master curve produced by
-    :class:`~hermes_rheo.transforms.automated_mastercurve.AutomatedMasterCurve`,
-    converts them to :math:`\log_{10} a_T`, and fits either the WLF or the
-    Arrhenius equation.  It can also be applied to a pair of arrays
-    ``(temperatures, shift_factors)``.
+    Reads :math:`a_T` (``master_curve.hparams[0]``) and the states
+    (``master_curve.states``) from a master curve, or a
+    ``(temperatures, shift_factors)`` pair, and fits :math:`\log_{10} a_T`.
 
     Parameters
     ----------
-    model : {"WLF", "Arrhenius"}, optional
-        Which temperature model to fit.  Defaults to ``"WLF"``.
+    model : {"WLF", "Arrhenius"}, default "WLF"
+        Temperature model.
     reference_temperature : float, optional
-        Reference temperature at which :math:`a_T = 1`.  If ``None``
-        (default) the state closest to :math:`a_T = 1` is used.
-    temperature_unit : {"C", "K"}, optional
+        Reference temperature where :math:`a_T = 1`. If None, the state
+        closest to :math:`a_T = 1` is used.
+    temperature_unit : {"C", "K"}, default "C"
         Unit of the state temperatures (used by the Arrhenius model).
-        Defaults to ``"C"``.
 
     Examples
     --------
@@ -324,8 +307,7 @@ class ShiftFactorModel:
 
     def __call__(self, target):
         temperatures, log_shift_factors = self._extract(target)
-        mask = np.isfinite(temperatures) & np.isfinite(log_shift_factors)
-        temperatures, log_shift_factors = temperatures[mask], log_shift_factors[mask]
+        temperatures, log_shift_factors = _finite_pairs(temperatures, log_shift_factors)
 
         model_cls = _MODELS[self.model]
         if self.model == "Arrhenius":
@@ -345,7 +327,7 @@ class ShiftFactorModel:
         return self
 
     def apply_to(self, target, make_copy=False, **kwargs):
-        """Apply the model to *target* (kept for pipeline symmetry with FitModel)."""
+        """Fit the model to *target*; ``make_copy`` is ignored (API symmetry with FitModel)."""
         return self.__call__(target)
 
     def predict(self, temperatures):
@@ -357,10 +339,9 @@ class ShiftFactorModel:
     def plot(self, *args, **kwargs):
         """Plot ``log10(a_T)`` versus temperature with the fitted curve.
 
-        Delegates to
-        :func:`hermes_rheo.visualization.fit.plot_shift_factors` and
-        returns ``(figure, axes)``.  Pass ``show=False`` to suppress the
-        implicit ``plt.show``.
+        Delegates to :func:`hermes_rheo.visualization.fit.plot_shift_factors`
+        and returns ``(figure, axes)``. Pass ``show=False`` to skip
+        ``plt.show``.
         """
         from hermes_rheo.visualization.fit import plot_shift_factors
 

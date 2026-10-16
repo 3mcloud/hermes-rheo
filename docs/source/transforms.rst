@@ -76,7 +76,7 @@ Automated master-curve construction via the data-driven Gaussian-process
 method of Lennon, McKinley and Swan (2023) [#ref-Lennon2023]_.
 
 .. automodule:: hermes_rheo.transforms.automated_mastercurve
-   :members: AutomatedMasterCurve, CompositeMasterCurve
+   :members: AutomatedMasterCurve, CompositeMasterCurve, MasterCurveMeasurement, MasterCurveSet
    :undoc-members:
    :show-inheritance:
 
@@ -85,7 +85,8 @@ Rheological Model Fitting
 Fits rheological models to master-curve data using
 `pyRheo <https://github.com/mirandi1/pyRheo>`_ (Miranda-Valdez *et al.*)
 or a built-in multi-mode Maxwell (Prony series) implementation
-[#ref-MirandaValdez2025]_.
+[#ref-MirandaValdez2025]_. Background on fractional models and non-Maxwellian
+relaxation: [#ref-Bonfanti2020]_, [#ref-Song2023]_.
 pyRheo is an optional dependency (GPL-3.0, not on PyPI) and is imported
 only when one of its models is requested:
 
@@ -96,6 +97,15 @@ only when one of its models is requested:
 ``FitModel`` supports both oscillation-domain fitting
 (:math:`G'(\omega), G''(\omega)`) and time-domain relaxation fitting
 (:math:`G(t)`) via ``domain="relaxation"``.
+
+Calling ``FitModel`` returns a piblin ``Measurement`` holding a
+one-dimensional composite dataset with the measured and fitted arrays
+(``angular frequency``, ``storage modulus``, ``loss modulus``, ``fitted
+storage modulus``, ``fitted loss modulus``; or ``time``, ``relaxation
+modulus``, ``fitted relaxation modulus``). Its ``details`` record the model,
+fitted parameters, goodness of fit, method, references and software version.
+The transform instance keeps ``fitted_model``, ``fit_params``, ``plot()`` and
+``print_parameters()`` for convenience.
 
 .. automodule:: hermes_rheo.transforms.fit_model
    :members: FitModel, MultiModeMaxwellModel
@@ -119,12 +129,15 @@ Temperature Ramp Analysis
 -------------------------
 Extract Tg and interpolated viscoelastic properties from a
 :class:`~piblin.data.ExperimentSet` containing temperature-ramp or
-temperature-sweep steps.  Peak-finding for Tg is prominence-based on the
-``tan(delta)`` variable following classical DMA practice
-[#ref-Menard2008]_.
+temperature-sweep steps, and report the test frequency read from the data.
+Tg is taken at the most prominent ``tan(delta)`` peak (default; further
+peaks, e.g. of a second phase, are reported too), at the onset of the
+storage-modulus drop (intersection of the glassy and inflection tangents of
+log G'), or both (``tg_method``), following [#ref-RH100]_.
 
 .. automodule:: hermes_rheo.transforms.temperature_ramp_analysis
-   :members: TemperatureRampAnalysis, TemperatureRampResult
+   :members: TemperatureRampAnalysis, TemperatureRampMeasurement, TemperatureRampResult,
+      find_tan_delta_peaks, TanDeltaPeaks, storage_modulus_onset, StorageModulusOnset
    :undoc-members:
    :show-inheritance:
 
@@ -134,14 +147,19 @@ Oscillatory (OCR) and step-strain (creep-recovery) rheology analyses
 following Lee, Weigandt, Kelley and Rogers (2019) [#ref-Lee2019]_.
 
 .. automodule:: hermes_rheo.transforms.recovery_rheology
-   :members: RecoveryRheology, RecoveryRheologyResult
+   :members: RecoveryRheology, RecoveryRheologyMeasurementSet, RecoveryRheologyResult
    :undoc-members:
    :show-inheritance:
 
 Mutation Number
 ---------------
-Computes the mutation number :math:`M_u` following Jamali & McKinley
-(2022) [#ref-Jamali2022]_.
+Computes the mutation number :math:`\mathrm{Mu}` following Jamali & McKinley
+(2022) [#ref-Jamali2022]_ and the mutation-number concept of Mours & Winter
+(1994) [#ref-MoursWinter1994]_, from successive single-wave or correlated
+OWCh (e.g. TORCh) spectra. Each output measurement holds time, mutation number,
+angular frequency and, for correlated steps, temperature, so the result can be
+passed to ``Kymograph``; its ``details`` store the mean and maximum mutation
+number and the calculation settings.
 
 .. automodule:: hermes_rheo.transforms.mutation_number
    :members: MutationNumber, MutationNumberMeasurementSet
@@ -152,7 +170,10 @@ Kymograph
 ---------
 Produces a 2-D kymograph (Temperature × Frequency → viscoelastic
 quantity) from a Thermally-Optimised Ramped Chirp (TORCh) sequence —
-introduced by Vadillo, Perego *et al.* (2026) [#ref-Vadillo2026]_.
+introduced by Vadillo, Perego *et al.* (2026) [#ref-Vadillo2026]_. Either
+variable can go on either axis (``x``, ``y``, ``log_x``, ``log_y``), and
+``KymographResult.plot`` sets the colour scale (``log_z``, ``vmin``,
+``vmax``).
 
 .. automodule:: hermes_rheo.transforms.kymograph
    :members: Kymograph, KymographResult
@@ -163,8 +184,8 @@ Frequency → Time Relaxation Modulus (iRheoTempo)
 ------------------------------------------------
 Reconstructs time-domain relaxation modulus :math:`G(t)` from
 frequency-domain :math:`G'(\omega), G''(\omega)` using the interval-slope
-method implemented in iRheoTempo (Tassieri and Ramirez, 2026)
-[#ref-TassieriRamirez2026]_.
+method implemented in iRheoTempo (Ramírez and Tassieri, 2026)
+[#ref-RamirezTassieri2026]_.
 
 This transform is intended to compose with existing pipelines. Common
 patterns include raw frequency sweeps, and chaining after
@@ -227,7 +248,10 @@ References
    <https://doi.org/10.1103/PhysRevX.8.041042>`_ (open access) —
    preprint: `arXiv:1804.03061 <https://arxiv.org/abs/1804.03061>`_.
 
-.. [#ref-Perego2025] Perego, A. *et al.*, *Rheologica Acta* (2025).
+.. [#ref-Perego2025] Perego, A., Vadillo, D. C., Mills, M. J. L., Das, M. and
+   McKinley, G. H., *Evaluation of optimally windowed chirp signals in
+   industrial rheological measurements: method development and data
+   processing*, Rheologica Acta **64**, 391--406 (2025).
    DOI: `10.1007/s00397-025-01511-0
    <https://doi.org/10.1007/s00397-025-01511-0>`_.
    Application of ``hermes-rheo`` to time-resolved OWChirp analysis
@@ -249,9 +273,9 @@ References
    Introduces the TORCh sequence rendered by
    :class:`~hermes_rheo.transforms.kymograph.Kymograph`.
 
-.. [#ref-Menard2008] Menard, K. P., *Dynamic Mechanical Analysis: A
-   Practical Introduction*, 2nd ed., CRC Press (2008).
-   ISBN 978-1420053128.
+.. [#ref-RH100] Whitcomb, K., *Measurement of Glass Transition Temperatures
+   by Dynamic Mechanical Analysis and Rheology*, TA Instruments application
+   note RH100. `<https://www.tainstruments.com/>`_.
 
 .. [#ref-Lee2019] Lee, J. C.-W., Weigandt, K. M., Kelley, E. G. and Rogers,
    S. A., *Structure-Property Relationships via Recovery Rheology in
@@ -259,24 +283,29 @@ References
    DOI: `10.1103/PhysRevLett.122.248003
    <https://doi.org/10.1103/PhysRevLett.122.248003>`_.
 
+.. [#ref-MoursWinter1994] Mours, M. and Winter, H. H., *Time-resolved
+   rheometry*, Rheologica Acta **33**(5), 385--397 (1994).
+   DOI: `10.1007/BF00366581 <https://doi.org/10.1007/BF00366581>`_.
+
 .. [#ref-Jamali2022] Jamali, S. and McKinley, G. H., *The Mnemosyne number
    and the rheology of remembrance*, J. Rheol. **66**\ (5), 1027–1039
    (2022).
    DOI: `10.1122/8.0000432 <https://doi.org/10.1122/8.0000432>`_.
 
-.. [#ref-MirandaValdez2025] Miranda-Valdez, I. Y., Sourroubille, M.,
-   Koivisto, J., Puisto, A. and Alava, M. J., *pyRheo: an open-source
-   Python package for complex rheology*, Digital Discovery **4**, 1075
-   (2025).
-   DOI: `10.1039/D4DD00378K <https://doi.org/10.1039/D4DD00378K>`_ —
-   preprint: `arXiv:2412.15941 <https://arxiv.org/abs/2412.15941>`_.
+.. [#ref-Bonfanti2020] Bonfanti, A., Kaplan, J. L., Charras, G. and Kabla, A., *Fractional viscoelastic models for power-law materials*, Soft Matter **16**(26), 6002–6020 (2020). DOI: 10.1039/d0sm00354a.
+
+.. [#ref-Song2023] Song, J., Holten-Andersen, N. and McKinley, G. H., *Non-Maxwellian viscoelastic stress relaxations in soft matter*, Soft Matter **19**(41), 7885–7906 (2023). DOI: 10.1039/d3sm00736g.
+
+.. [#ref-MirandaValdez2025] Miranda-Valdez, I. Y., Niinisto, H., Makinen, T. P., Lejon, E., Koivisto, J. and Alava, M. J., *pyRheo: an open-source Python package for complex rheology*, Digital Discovery **4**(4), 1075–1082 (2025). DOI: 10.1039/d5dd00021a.
    Provides the fractional and classical viscoelastic models fitted by
    :class:`~hermes_rheo.transforms.fit_model.FitModel`.
 
-.. [#ref-TassieriRamirez2026] Tassieri, M. and Ramirez, J.,
-   *i-Rheo Tempo: Open-Access Analytical Tool for Broadband
-   Viscoelastic Characterisation* (2026).
-   DOI: `10.5525/gla.researchdata.2230
+.. [#ref-RamirezTassieri2026] Ramírez, J. and Tassieri, M.,
+   *i-Rheo-Tempo: A model-free, quadrature-free reconstruction of the
+   shear relaxation modulus from complex viscosity*, J. Rheol. **70**,
+   1089-1104 (2026). DOI: `10.1122/8.0001232
+   <https://doi.org/10.1122/8.0001232>`_. Reference implementation:
+   University of Glasgow Research Data, `10.5525/gla.researchdata.2230
    <https://doi.org/10.5525/gla.researchdata.2230>`_.
 
 .. [#ref-Shanbhag2019] Shanbhag, S., *pyReSpect: A Computer Program to

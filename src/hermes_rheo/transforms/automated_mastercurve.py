@@ -2,20 +2,35 @@ import numpy as np
 import pandas as pd
 from mastercurves import MasterCurve
 from mastercurves.transforms import Multiply
+from piblin.data import MeasurementSet, OneDimensionalCompositeDataset
+from piblin.data.data_collections.measurement import Measurement
 from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+
+from hermes_rheo import __version__
+from hermes_rheo.transforms.states_to_conditions import summarize_state
+
+METHOD = "mastercurves (Gaussian-process superposition; Lennon et al. 2023, doi:10.1017/dce.2023.3)"
 
 
 class MasterCurveExtended(MasterCurve):
-    """
-    Extends the MasterCurve class with additional functionality such as exporting to Excel.
-    """
+    """:class:`mastercurves.MasterCurve` with an Excel export."""
 
     def to_excel(self, filename):
-        """
-        Exports the master curve data to an Excel file.
+        """Write original and shifted data to an Excel file in long format.
 
-        Args:
-            filename (str): The path to the Excel file to save the data.
+        Columns are ``State``, ``X_Transformed``, ``Y_Transformed``,
+        ``X_Data`` and ``Y_Data``. Values are returned to linear scale
+        (the master curve works on log-transformed data).
+
+        Parameters
+        ----------
+        filename : str or path-like
+            Output ``.xlsx`` path.
+
+        Raises
+        ------
+        ValueError
+            If the master curve has not been constructed.
         """
         if (
             not hasattr(self, "states")
@@ -26,87 +41,252 @@ class MasterCurveExtended(MasterCurve):
                 "Master curve data is missing. Ensure the master curve is properly constructed."
             )
 
-        # Extract the data from the master curve
-        states = self.states
-        xtransformed = self.xtransformed
-        ytransformed = self.ytransformed
-        xdata = self.xdata
-        ydata = self.ydata
+        def flat_exp(blocks):
+            return np.exp([val for block in blocks for val in block])
 
-        # Flatten the arrays
-        xtransformed_flat = [val for sublist in xtransformed for val in sublist]
-        ytransformed_flat = [val for sublist in ytransformed for val in sublist]
-        xdata_flat = [val for sublist in xdata for val in sublist]
-        ydata_flat = [val for sublist in ydata for val in sublist]
-
-        # Repeat the states for each corresponding row in xtransformed and ytransformed
-        states_flat = np.repeat(states, [len(sublist) for sublist in xtransformed])
-
-        # Compute the exponent of the transformed values to reverse the log transformation
-        xtransformed_exp = np.exp(xtransformed_flat)
-        ytransformed_exp = np.exp(ytransformed_flat)
-        xdata_exp = np.exp(xdata_flat)
-        ydata_exp = np.exp(ydata_flat)
-
-        # Create a dictionary for the long format data
-        data_long = {
-            "State": states_flat,
-            "X_Transformed": xtransformed_exp,
-            "Y_Transformed": ytransformed_exp,
-            "X_Data": xdata_exp,
-            "Y_Data": ydata_exp,
-        }
-
-        # Convert to DataFrame
-        df_long = pd.DataFrame(data_long)
-
-        # Export to Excel
+        df_long = pd.DataFrame(
+            {
+                "State": np.repeat(self.states, [len(block) for block in self.xtransformed]),
+                "X_Transformed": flat_exp(self.xtransformed),
+                "Y_Transformed": flat_exp(self.ytransformed),
+                "X_Data": flat_exp(self.xdata),
+                "Y_Data": flat_exp(self.ydata),
+            }
+        )
         df_long.to_excel(filename, index=False)
         print(f"Data has been exported to {filename}.")
 
 
-class AutomatedMasterCurve(MeasurementSetTransform):
+def _units_by_name(measurement):
+    """Map data-array names to units over all datasets of *measurement*."""
+    units = {}
+    for dataset in measurement.datasets:
+        for name, unit in zip(dataset.data_array_names, dataset.data_array_units, strict=False):
+            units.setdefault(name, unit)
+    return units
+
+
+def _shared_items(dicts):
+    """Return the key/value pairs identical across all *dicts*."""
+    if not dicts:
+        return {}
+    shared = dict(dicts[0])
+    for other in dicts[1:]:
+        shared = {k: v for k, v in shared.items() if k in other and np.array_equal(other[k], v)}
+    return shared
+
+
+class MasterCurveMeasurement(Measurement):
+    """Piblin measurement holding a superposed master curve.
+
+    Datasets
+    --------
+    0. Master curve: one-dimensional composite dataset with the shifted
+       abscissa (``x``), shifted ordinate (``y``) and the ``state`` of each
+       point, in linear scale and sorted by ``x``.
+    1. Shift factors: horizontal shift factor (and vertical shift factor if
+       fitted) against the state.
+
+    Details hold the method, reference state, shift parameters and
+    uncertainties, and software. The fitted :class:`mastercurves.MasterCurve`
+    is available as :attr:`master_curve`.
+
+    Parameters
+    ----------
+    master_curve : MasterCurveExtended
+        The fitted master curve (log-transformed data).
+    state, x, y : str
+        Names of the shift variable, abscissa and ordinate arrays.
+    units : dict of str to str
+        Units by array name, as found on the source datasets.
+    conditions, details : dict, optional
+        Metadata copied from the source measurements.
+    reference_state : float, optional
+        Reference state. Defaults to the state whose shift factor is closest
+        to one.
     """
-    AutomatedMasterCurve is a class for constructing master curves using a data-driven algorithm which
-    employs Gaussian process regression to learn statistical models that describe the data, and then uses maximum a
-    posteriori estimation to optimally superpose the data sets. It supports customization of the state and property
-    for the master curve creation and allows for optional vertical shift if needed.
 
-    The algorithm was developed by the Swan and McKinley lab at MIT. For more information, see:
-    Lennon, K. R., McKinley, G. H. and Swan, J. W.,
-    "A data-driven method for automated data superposition with applications in soft matter science",
-    Data-Centric Engineering, Volume 4, 2023, e13.
-    DOI: https://doi.org/10.1017/dce.2023.3 —
-    preprint: https://arxiv.org/abs/2204.09521.
+    def __init__(
+        self, master_curve, state, x, y, units, conditions=None, details=None, reference_state=None
+    ):
+        self.master_curve = master_curve
+        self._build_args = (state, x, y, units, conditions, details)
+        x_all = np.exp(np.concatenate([np.asarray(b, float) for b in master_curve.xtransformed]))
+        y_all = np.exp(np.concatenate([np.asarray(b, float) for b in master_curve.ytransformed]))
+        s_all = np.repeat(
+            np.asarray(master_curve.states, float),
+            [len(b) for b in master_curve.xtransformed],
+        )
+        order = np.argsort(x_all, kind="stable")
+        curve = OneDimensionalCompositeDataset(
+            data_arrays=[x_all[order], y_all[order], s_all[order]],
+            data_array_names=[x, y, state],
+            data_array_units=[units.get(x, ""), units.get(y, ""), units.get(state, "")],
+            default_independent_name=x,
+            default_dependent_name=y,
+        )
 
-    The implementation in this class is based on an open-source Python package developed by Kyle Lennon. For
-    source code, visit: https://github.com/krlennon/mastercurves. Documentation for the package can be found at:
-    https://krlennon-mastercurves.readthedocs.io.
+        arrays = [
+            np.asarray(master_curve.states, float),
+            np.asarray(master_curve.hparams[0], float),
+        ]
+        names = [state, "horizontal shift factor"]
+        shift_units = [units.get(state, ""), ""]
+        if master_curve.vparams:
+            arrays.append(np.asarray(master_curve.vparams[0], float))
+            names.append("vertical shift factor")
+            shift_units.append("")
+        shifts = OneDimensionalCompositeDataset(
+            data_arrays=arrays,
+            data_array_names=names,
+            data_array_units=shift_units,
+            default_independent_name=state,
+            default_dependent_name="horizontal shift factor",
+        )
 
-    Note: The mastercurves package is released under the GNU General Public License v3.0.
+        a_t = np.asarray(master_curve.hparams[0], float)
+        states = np.asarray(master_curve.states, float)
+        meta = dict(details or {})
+        meta.update(
+            {
+                "method": METHOD,
+                "reference": "https://doi.org/10.1017/dce.2023.3",
+                "software": f"hermes-rheo {__version__}; mastercurves",
+                "state": state,
+                "x": x,
+                "y": y,
+                "reference_state": float(
+                    states[np.argmin(np.abs(np.log(a_t)))]
+                    if reference_state is None
+                    else reference_state
+                ),
+                "horizontal_shift_factors": a_t.tolist(),
+                "horizontal_shift_uncertainties": np.asarray(
+                    master_curve.huncertainties[0], float
+                ).tolist(),
+                "vertical_shift": bool(master_curve.vparams),
+            }
+        )
+        if master_curve.vparams:
+            meta["vertical_shift_factors"] = np.asarray(master_curve.vparams[0], float).tolist()
+            meta["vertical_shift_uncertainties"] = np.asarray(
+                master_curve.vuncertainties[0], float
+            ).tolist()
+        super().__init__(datasets=[curve, shifts], conditions=conditions, details=meta)
 
-    Args:
-        state (str): The state based on which the master curve is constructed (e.g., 'time', 'temperature').
-                     Defaults to 'temperature'.
-        state_mode (str): The method to compute the state value ('average', 'first point', 'last point'). Only used
-                          if the state is a dataset variable. Defaults to 'average'.
-        x (str): The x-axis data for the master curve (e.g., 'angular frequency'). Defaults to 'angular frequency'.
-        y (str): The y-axis data for the master curve (e.g., 'storage modulus'). Defaults to 'storage modulus'.
-        vertical_shift (bool): Whether to apply a vertical shift. Defaults to False.
-        reverse_data (bool): Whether to reverse the data order. Defaults to False.
-        measurements (list, optional): A list of specific measurement indices to use. If not provided, all measurements
-                                       in the target dataset will be used. Defaults to None.
-        ``*args, **kwargs``: Additional arguments and keyword arguments for superclass initialization.
+    @property
+    def states(self):
+        """States of the superposed data, in superposition order."""
+        return self.master_curve.states
 
-    Methods:
-        _apply(self, target, **kwargs):
-            Applies the algorithm to the target dataset to create a master curve. This method integrates the data
-            processing, state conditioning, and master curve creation into a single automated process.
+    @property
+    def hparams(self):
+        """Horizontal shift parameters (``hparams[0]`` holds the shift factors)."""
+        return self.master_curve.hparams
 
-        _state_to_condition(self, target):
-            Computes the specified state's value using the defined method ('average', 'first point', 'last point')
-            and adds it as a condition to the target dataset. This method is used internally to condition the data
-            before applying the master curve algorithm.
+    @property
+    def vparams(self):
+        """Vertical shift parameters."""
+        return self.master_curve.vparams
+
+    @property
+    def xtransformed(self):
+        """Log-scale shifted abscissa blocks, one per state."""
+        return self.master_curve.xtransformed
+
+    @property
+    def ytransformed(self):
+        """Log-scale shifted ordinate blocks, one per state."""
+        return self.master_curve.ytransformed
+
+    def change_ref(self, state):
+        """Change the reference state and refresh the piblin datasets and details."""
+        self.master_curve.change_ref(state)
+        self.__init__(self.master_curve, *self._build_args, reference_state=state)
+
+    def plot(self, *args, **kwargs):
+        """Plot the master curve; see :meth:`mastercurves.MasterCurve.plot`."""
+        return self.master_curve.plot(*args, **kwargs)
+
+    def to_excel(self, filename):
+        """Export original and shifted data; see :meth:`MasterCurveExtended.to_excel`."""
+        self.master_curve.to_excel(filename)
+
+
+class MasterCurveSet(MeasurementSet):
+    """Piblin measurement set of master curves, one per quantity.
+
+    Provides :meth:`get_mastercurve` and :attr:`available_quantities` for
+    downstream steps such as :class:`~hermes_rheo.transforms.fit_model.FitModel`.
+    """
+
+    def __init__(self, measurements=None, quantities=None):
+        super().__init__(measurements=measurements, merge_redundant=False)
+        self.quantities = list(quantities or [])
+
+    def get_mastercurve(self, quantity):
+        """Return the master-curve measurement for *quantity* (case-insensitive), or None."""
+        q_norm = str(quantity).strip().lower()
+        for name, measurement in zip(self.quantities, self.measurements, strict=False):
+            if str(name).strip().lower() == q_norm:
+                return measurement
+        return None
+
+    @property
+    def available_quantities(self):
+        """Lower-cased names of the quantities with a master curve."""
+        return [str(q).strip().lower() for q in self.quantities]
+
+
+class AutomatedMasterCurve(MeasurementSetTransform):
+    """Superpose a measurement set into a master curve (Gaussian-process method).
+
+    Wraps the ``mastercurves`` package, which learns a Gaussian-process model
+    of the data and finds shift factors by maximum a posteriori estimation
+    [1]_. Data are log-transformed; horizontal shifts (and optionally
+    vertical shifts) are multiplicative.
+
+    Parameters
+    ----------
+    state : str, default "temperature"
+        Name of the data array used as the shift variable. Its value per
+        measurement is summarized with
+        :func:`~hermes_rheo.transforms.states_to_conditions.summarize_state`
+        and stored as a condition.
+    state_mode : {"average", "first point", "last point"}, default "average"
+        How each measurement's state value is computed from its array.
+    x : str, default "angular frequency"
+        Name of the abscissa array.
+    y : str, default "storage modulus"
+        Name of the ordinate array.
+    vertical_shift : bool, default False
+        Also fit multiplicative vertical shift factors.
+    reverse_data : bool, default False
+        Reverse the (sorted) data order before superposition.
+    measurements : list of int, optional
+        Indices of measurements to use. All are used if None.
+    sort_states : bool, default True
+        Sort the measurements by ascending state value.
+    ref_state_idx : int, optional
+        Index into the ordered states of the reference state; if given, the
+        shift factors are re-referenced to it.
+
+    Returns
+    -------
+    MasterCurveMeasurement
+        From ``apply_to``: a piblin measurement with the master-curve
+        dataset (shifted ``x``, ``y`` and ``state``) and a shift-factor
+        dataset (state against horizontal/vertical shift factors). Details
+        hold the method, reference state, shift factors and uncertainties,
+        and software. The ``mastercurves`` object is ``result.master_curve``.
+
+    References
+    ----------
+    .. [1] Lennon, K. R., McKinley, G. H. and Swan, J. W. "A data-driven
+       method for automated data superposition with applications in soft
+       matter science", Data-Centric Engineering 4, e13 (2023).
+       https://doi.org/10.1017/dce.2023.3
+       Code: https://github.com/krlennon/mastercurves
     """
 
     def __init__(
@@ -119,6 +299,7 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         reverse_data=False,
         measurements=None,
         sort_states=True,
+        ref_state_idx=None,
         *args,
         **kwargs,
     ):
@@ -131,61 +312,26 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         self.reverse_data = reverse_data
         self.measurements = measurements
         self.sort_states = sort_states
-
-    def _state_to_condition(self, target):
-        """
-        Applies the transformation to compute the specified state's value and adds it as a condition.
-
-        Args:
-            target (object): The target dataset to which the transformation is applied.
-
-        Returns:
-            object: The target with the new condition added.
-
-        Raises:
-            ValueError: If the state name is not a string or if the specified method is invalid.
-        """
-        for measurement in target.measurements:
-            state_found = False
-            for dataset in measurement.datasets:
-                if self.state in dataset._data_array_names:
-                    dataset.switch_coordinates(
-                        independent_name=self.state, dependent_name=self.state
-                    )
-                    if self.state_mode == "average":
-                        value = np.average(dataset.y_values)
-                    elif self.state_mode == "first point":
-                        value = dataset.y_values[0]
-                    elif self.state_mode == "last point":
-                        value = dataset.y_values[-1]
-                    else:
-                        raise ValueError(
-                            "Invalid method. Choose 'average', 'first point', or 'last point'"
-                        )
-                    measurement.add_condition(f"{self.state}", value)
-                    state_found = True
-                    break  # Break after adding the condition to the current measurement
-
-            if not state_found:
-                raise ValueError(
-                    f"State name {self.state} not found in datasets for one of the measurements"
-                )
+        self.ref_state_idx = ref_state_idx
 
     def _apply(self, target, **kwargs):
+        """Superpose the selected measurements.
+
+        Returns
+        -------
+        MasterCurveMeasurement
+            The superposed master curve.
+
+        Raises
+        ------
+        ValueError
+            If the state is missing from a measurement or ``state_mode`` is invalid.
         """
-        Applies the mastercurve algorithm to create a master curve from the target dataset.
+        for measurement in target.measurements:
+            measurement.add_condition(
+                self.state, summarize_state(measurement, self.state, self.state_mode)
+            )
 
-        Args:
-            target (object): The target dataset containing the data to be used for master curve construction.
-
-        Returns:
-            MasterCurve: The generated master curve based on the specified state and data.
-
-        Raises:
-            ValueError: If the state array's length does not match the number of measurements.
-                        If the specified state is not found in the dataset conditions.
-        """
-        self._state_to_condition(target)
         states = []
         x_data = []
         y_data = []
@@ -194,49 +340,28 @@ class AutomatedMasterCurve(MeasurementSetTransform):
         if self.measurements is not None:
             measurements_to_use = [target.measurements[i] for i in self.measurements]
 
-        for i, measurement in enumerate(measurements_to_use):
+        for measurement in measurements_to_use:
             dataset = measurement.datasets[0]
             dataset.switch_coordinates(independent_name=self.x, dependent_name=self.y)
             x_values = dataset.x_values
             y_values = dataset.y_values
 
-            # Handling external array of state values
-            if isinstance(self.state, (list, np.ndarray)):
-                if i < len(self.state):
-                    state_value = self.state[i]
-                else:
-                    raise ValueError(
-                        "Length of the 'state' array does not match the number of measurements."
-                    )
-            else:
-                # Handling state as a condition name within the dataset
-                state_value = measurement.conditions.get(f"{self.state}")
-                if state_value is None:
-                    raise ValueError(
-                        f"The specified state '{self.state}' is not found in the conditions."
-                    )
-
-            # Compute logarithms and filter out NaNs
+            # Only NaNs in log(y) (non-positive y) are dropped.
             log_x_values = np.log(x_values)
             log_y_values = np.log(y_values)
 
             valid_indices = ~np.isnan(log_y_values)
-            filtered_x_values = log_x_values[valid_indices]
-            filtered_y_values = log_y_values[valid_indices]
 
-            states.append(state_value)
-            x_data.append(filtered_x_values)
-            y_data.append(filtered_y_values)
+            states.append(measurement.conditions[self.state])
+            x_data.append(log_x_values[valid_indices])
+            y_data.append(log_y_values[valid_indices])
 
-        # sort by state (e.g. temperature) in ascending order
         if self.sort_states:
-            # argsort gives indices that would sort 'states'
             order = np.argsort(states)
             states = [states[i] for i in order]
             x_data = [x_data[i] for i in order]
             y_data = [y_data[i] for i in order]
 
-        # Optional: reverse final order after sorting
         if self.reverse_data:
             states = states[::-1]
             x_data = x_data[::-1]
@@ -251,16 +376,46 @@ class AutomatedMasterCurve(MeasurementSetTransform):
 
         master_curve.superpose()
 
-        return master_curve
+        if self.ref_state_idx is not None:
+            master_curve.change_ref(master_curve.states[self.ref_state_idx])
+
+        units = _units_by_name(measurements_to_use[0])
+        conditions = _shared_items([m.conditions for m in measurements_to_use])
+        conditions.pop(self.state, None)
+        details = _shared_items([m.details for m in measurements_to_use])
+        return MasterCurveMeasurement(
+            master_curve, self.state, self.x, self.y, units, conditions, details
+        )
 
 
 class CompositeMasterCurve(MeasurementSetTransform):
-    """
-    Pipeline step that generates master curves for multiple y-quantities and returns itself,
-    so downstream steps (FitModel) receive an object exposing:
+    """Build one master curve per y-quantity.
 
-      - available_quantities
-      - get_mastercurve(quantity)
+    Returns a :class:`MasterCurveSet` (a piblin measurement set) holding one
+    :class:`MasterCurveMeasurement` per quantity, usable by downstream steps
+    such as ``FitModel`` through :attr:`MasterCurveSet.available_quantities`
+    and :meth:`MasterCurveSet.get_mastercurve`.
+
+    Parameters
+    ----------
+    n_curves : int, default 2
+        Number of quantities; must equal ``len(y_quantities)``.
+    y_quantities : list of str
+        Ordinate arrays to superpose (e.g. ``["storage modulus", "loss modulus"]``).
+    quantities : list of str, optional
+        Alias for ``y_quantities``, used when that is None.
+    x, state, state_mode, vertical_shift, reverse_data, measurements, sort_states
+        See :class:`AutomatedMasterCurve`.
+    ref_temp_idx : int, optional
+        Index into the sorted states of the reference state; if given, each
+        master curve is re-referenced to it.
+
+    References
+    ----------
+    .. [1] Lennon, K. R., McKinley, G. H. and Swan, J. W. "A data-driven
+       method for automated data superposition with applications in soft
+       matter science", Data-Centric Engineering 4, e13 (2023).
+       https://doi.org/10.1017/dce.2023.3
     """
 
     def __init__(
@@ -298,14 +453,9 @@ class CompositeMasterCurve(MeasurementSetTransform):
         self.sort_states = sort_states
         self.ref_temp_idx = ref_temp_idx
 
-        self.mastercurves = {}  # {quantity: mastercurve_obj}
-
     def _apply(self, target, **kwargs):
-        # Build mastercurves dict
-        self.mastercurves = {}
-
-        for yq in self.y_quantities:
-            mc = AutomatedMasterCurve(
+        curves = [
+            AutomatedMasterCurve(
                 state=self.state,
                 state_mode=self.state_mode,
                 x=self.x,
@@ -314,27 +464,8 @@ class CompositeMasterCurve(MeasurementSetTransform):
                 reverse_data=self.reverse_data,
                 measurements=self.measurements,
                 sort_states=self.sort_states,
+                ref_state_idx=self.ref_temp_idx,
             ).apply_to(target, make_copy=False, **kwargs)
-
-            if self.ref_temp_idx is not None:
-                mc.change_ref(mc.states[self.ref_temp_idx])
-
-            self.mastercurves[yq] = mc
-
-        # IMPORTANT: return self so FitModel sees CompositeMasterCurve-like API
-        return self
-
-    def get_mastercurve(self, quantity):
-        # FitModel seems to ask for lowercase keys like 'storage modulus'
-        # so normalize lookup.
-        if quantity in self.mastercurves:
-            return self.mastercurves[quantity]
-        q_norm = str(quantity).strip().lower()
-        for k, v in self.mastercurves.items():
-            if str(k).strip().lower() == q_norm:
-                return v
-        return None
-
-    @property
-    def available_quantities(self):
-        return [str(k).strip().lower() for k in self.mastercurves.keys()]
+            for yq in self.y_quantities
+        ]
+        return MasterCurveSet(curves, quantities=self.y_quantities)

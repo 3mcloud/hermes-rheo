@@ -1,87 +1,88 @@
-"""OWChirp visualisation helpers for processed OWChirp experiments.
+"""Plots for processed OWChirp (optimally windowed chirp) experiments.
 
-This module wraps the boilerplate needed to visualise the output of
-:class:`hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis` into a
-single convenient object, :class:`OWChirpVisualizer`.
+OWChirp probes a broad frequency range in one short arbitrary-wave step by
+applying a windowed chirp and Fourier-transforming the strain and stress
+signals to obtain ``G'`` and ``G''`` [1]_.
 
-After running ``OWChirpAnalysis`` each measurement carries two datasets:
+After :class:`~hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`,
+each measurement holds two datasets:
 
-* ``datasets[0]`` — the frequency-domain moduli
-  (``angular frequency``, ``storage modulus``, ``loss modulus``,
-  ``complex modulus``, ``complex viscosity``, ``tan(delta)`` …).
-* ``datasets[1]`` — the bias-corrected time-domain signal
-  (``adjusted time``/``step time``, ``adjusted strain``,
-  ``adjusted stress``, ``temperature``).
+- ``datasets[0]``: frequency domain (angular frequency, storage and loss
+  modulus, complex modulus and viscosity, tan(delta), Fourier transforms of
+  strain and stress);
+- ``datasets[1]``: time domain (adjusted time, step time, adjusted strain,
+  adjusted stress, temperature).
 
-:class:`OWChirpVisualizer` reads those datasets once and exposes methods
-to plot individual waves, save every wave as a PNG frame, stitch the
-frames into an animation, and inspect the Fourier-domain strain/stress
-signals — without exposing the extraction/plotting boilerplate in a
-notebook.
+Axis labels and units are read from these datasets.
 
-Usage::
+References
+----------
+.. [1] Geri, M., Keshavarz, B., McKinley, G. H., and Bonnecaze, R. T.,
+   Phys. Rev. X 8, 041042 (2018).
 
-    from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
-    from hermes_rheo.visualization import OWChirpVisualizer
-
-    processed = OWChirpAnalysis()(experiment)
-    v = OWChirpVisualizer(processed)
-
-    v.plot_waves(steps=[0, 1, 2])   # plot waves by measurement index
-    v.save_frames("plots")          # write every wave PNG
-    v.to_video("plots")             # stitch frames -> .avi
-    v.plot_fourier(step=10)         # Fourier-domain analysis
+Examples
+--------
+>>> from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
+>>> from hermes_rheo.visualization import OWChirpVisualizer
+>>> viz = OWChirpVisualizer(OWChirpAnalysis()(experiment))  # doctest: +SKIP
+>>> viz.plot_waves(steps=[0, 1, 2])  # doctest: +SKIP
+>>> viz.plot_fourier(step=10)  # doctest: +SKIP
 """
 
 from __future__ import annotations
 
-import copy
 import os
 from collections.abc import Sequence
 from typing import Any
 
 import matplotlib.axes
 import matplotlib.figure
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 
+from hermes_rheo.visualization import _common as c
+from hermes_rheo.visualization import style
+from hermes_rheo.visualization.units import axis_label, get_unit
+
 StepSelector = int | str | Sequence[int] | None
+
+# (data key, dataset index, array name)
+_DATA_ARRAYS = (
+    ("angular_frequencies", 0, c.ANGULAR_FREQUENCY),
+    ("storage_moduli", 0, c.STORAGE_MODULUS),
+    ("loss_moduli", 0, c.LOSS_MODULUS),
+    ("complex_moduli", 0, c.COMPLEX_MODULUS),
+    ("complex_viscosities", 0, c.COMPLEX_VISCOSITY),
+    ("phase_angles", 0, c.TAN_DELTA),
+    ("step_times", 1, c.ADJUSTED_TIME),
+    ("strains", 1, c.ADJUSTED_STRAIN),
+    ("stresses", 1, c.ADJUSTED_STRESS),
+    ("temperatures", 1, c.TEMPERATURE),
+)
 
 
 class OWChirpVisualizer:
-    """Convenience visualiser for a processed OWChirp experiment.
+    """Plot the waves of a processed OWChirp experiment.
 
     Parameters
     ----------
-    processed_experiment : piblin.data.ExperimentSet
-        The result of applying
-        :class:`~hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`
-        to an OWChirp (Arbitrary Wave / Frequency Chirp) experiment. Each
-        step must carry the frequency-domain dataset at ``datasets[0]``
-        and the time-domain dataset at ``datasets[1]``.
+    processed_experiment : ExperimentSet
+        Output of
+        :class:`~hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`.
     moduli_ylim : tuple of float, optional
-        ``(ymin, ymax)`` limits for the moduli axis in :meth:`plot_wave`.
-        Defaults to ``(1e3, 5e8)``.
+        ``(ymin, ymax)`` of the modulus axis in :meth:`plot_wave`.
+        Autoscaled if ``None``.
 
     Attributes
     ----------
     n_waves : int
-        Number of OWChirp waves (steps) in the experiment.
-
-    Examples
-    --------
-    >>> from hermes_rheo.transforms.owchirp_analysis import OWChirpAnalysis
-    >>> from hermes_rheo.visualization import OWChirpVisualizer
-    >>> processed = OWChirpAnalysis()(experiment)          # doctest: +SKIP
-    >>> viz = OWChirpVisualizer(processed)                 # doctest: +SKIP
-    >>> figs, axes = viz.plot_waves(steps="first-middle-last")  # doctest: +SKIP
+        Number of waves (measurements).
     """
 
     def __init__(
         self,
         processed_experiment: Any,
-        moduli_ylim: tuple[float, float] = (1e3, 5e8),
+        moduli_ylim: tuple[float, float] | None = None,
     ) -> None:
         self._experiment = processed_experiment
         self.moduli_ylim = moduli_ylim
@@ -89,91 +90,46 @@ class OWChirpVisualizer:
         self.n_waves = len(self._meas)
         self._data: dict[str, list[np.ndarray]] | None = None
 
-    # ------------------------------------------------------------------
-    # Data extraction
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _xy(dataset, x_name: str, y_name: str) -> tuple[np.ndarray, np.ndarray]:
-        """Return ``(x, y)`` for two named arrays without mutating *dataset*."""
-        ds = copy.deepcopy(dataset)
-        ds.switch_coordinates(independent_name=x_name, dependent_name=y_name)
-        return copy.deepcopy(ds.x_values), copy.deepcopy(ds.y_values)
-
     @property
     def data(self) -> dict[str, list[np.ndarray]]:
-        """Per-wave extracted arrays (lazily computed and cached).
+        """Arrays of every wave, computed once.
 
         Returns
         -------
         dict of list of numpy.ndarray
-            Keys: ``angular_frequencies``, ``storage_moduli``,
+            Keys are ``angular_frequencies``, ``storage_moduli``,
             ``loss_moduli``, ``complex_moduli``, ``complex_viscosities``,
-            ``phase_angles``, ``step_times``, ``strains``, ``stresses``,
-            ``temperatures``. Each value is a list of length
-            :attr:`n_waves`.
+            ``phase_angles``, ``step_times``, ``strains``, ``stresses`` and
+            ``temperatures``; each list has ``n_waves`` entries. Arrays
+            missing from a dataset are returned as empty arrays.
         """
-        if self._data is not None:
-            return self._data
-
-        keys = [
-            "angular_frequencies",
-            "storage_moduli",
-            "loss_moduli",
-            "complex_moduli",
-            "complex_viscosities",
-            "phase_angles",
-            "step_times",
-            "strains",
-            "stresses",
-            "temperatures",
-        ]
-        data: dict[str, list[np.ndarray]] = {k: [] for k in keys}
-
-        for step in range(self.n_waves):
-            freq = self._meas[step].datasets[0]
-            time = self._meas[step].datasets[1]
-
-            omega, storage = self._xy(freq, "angular frequency", "storage modulus")
-            loss, complex_mod = self._xy(freq, "loss modulus", "complex modulus")
-            complex_visc, phase = self._xy(freq, "complex viscosity", "tan(delta)")
-
-            t, strain = self._xy(time, "adjusted time", "adjusted strain")
-            temperature, stress = self._xy(time, "temperature", "adjusted stress")
-
-            data["angular_frequencies"].append(omega)
-            data["storage_moduli"].append(storage)
-            data["loss_moduli"].append(loss)
-            data["complex_moduli"].append(complex_mod)
-            data["complex_viscosities"].append(complex_visc)
-            data["phase_angles"].append(phase)
-            data["step_times"].append(t)
-            data["strains"].append(strain)
-            data["stresses"].append(stress)
-            data["temperatures"].append(temperature)
-
-        self._data = data
-        return data
-
-    # ------------------------------------------------------------------
-    # Step selection
-    # ------------------------------------------------------------------
+        if self._data is None:
+            data: dict[str, list[np.ndarray]] = {key: [] for key, _, _ in _DATA_ARRAYS}
+            for meas in self._meas:
+                for key, index, name in _DATA_ARRAYS:
+                    values = c.array_by_name(meas.datasets[index], name)
+                    data[key].append(np.array([]) if values is None else values.copy())
+            self._data = data
+        return self._data
 
     def _resolve_steps(self, steps: StepSelector) -> list[int]:
-        """Turn a step selector into a concrete, sorted list of indices.
+        """Return the sorted wave indices selected by *steps*.
 
         Parameters
         ----------
-        steps : int, str, sequence of int, or None
-            * ``None`` or ``"all"`` — every wave.
-            * ``"first-middle-last"`` (or ``"endpoints"``) — the first,
-              middle and last wave.
-            * ``int`` — a single wave.
-            * sequence of int — those waves.
+        steps : None, str, int or sequence of int
+            ``None`` or ``"all"`` selects every wave; ``"first-middle-last"``
+            (or ``"endpoints"``) selects the first, middle and last wave;
+            an int or a sequence of ints selects those waves.
 
         Returns
         -------
         list of int
+
+        Raises
+        ------
+        ValueError
+            If *steps* is an unknown string.
         """
         n = self.n_waves
         if steps is None or steps == "all":
@@ -189,31 +145,34 @@ class OWChirpVisualizer:
             return [steps]
         return sorted({int(s) for s in steps})
 
-    # ------------------------------------------------------------------
-    # Per-wave moduli / signal plot
-    # ------------------------------------------------------------------
+    def _title(self, step: int) -> str:
+        """Return ``"Arbitrary Wave N"`` plus the mean temperature if known."""
+        title = f"Arbitrary Wave {step + 1}"
+        temperature = self.data["temperatures"][step]
+        if temperature.size:
+            unit = c.temperature_unit_symbol(get_unit(self._meas[step].datasets[1], c.TEMPERATURE))
+            title += f", {c.TEMPERATURE} = {np.mean(temperature):.2f} {unit}".rstrip()
+        return title
 
     def plot_wave(
         self,
         step: int,
-        figsize: tuple[float, float] = (12, 5),
+        figsize: tuple[float, float] = style.FIGSIZE_WIDE,
         save_dir: str | None = None,
     ) -> tuple[matplotlib.figure.Figure, Sequence[matplotlib.axes.Axes]]:
-        """Plot the moduli and time-domain signal for a single wave.
+        """Plot the moduli, strain and stress of one wave.
 
-        The layout is a moduli panel (``G'``/``G''`` vs angular frequency)
-        on the left and the input strain and output stress traces on the
-        right.
+        The moduli versus angular frequency are on the left; the strain and
+        stress versus time are stacked on the right.
 
         Parameters
         ----------
         step : int
-            Index of the wave to plot (0-based).
+            Wave index (0-based).
         figsize : tuple of float, optional
-            Figure size. Defaults to ``(12, 5)``.
+            Figure size.
         save_dir : str, optional
-            When given, the figure is written to
-            ``<save_dir>/plot_<step+1>.png`` at 100 dpi.
+            If given, write the figure to ``<save_dir>/plot_<step+1>.png``.
 
         Returns
         -------
@@ -221,77 +180,80 @@ class OWChirpVisualizer:
         axes : tuple of matplotlib.axes.Axes
             ``(moduli_ax, strain_ax, stress_ax)``.
         """
+        freq_ds, time_ds = self._meas[step].datasets[:2]
         d = self.data
-        f = d["angular_frequencies"][step]
-        stor = d["storage_moduli"][step]
-        loss = d["loss_moduli"][step]
-        t = d["step_times"][step]
-        strain = d["strains"][step]
-        stress = d["stresses"][step]
-        average_temperature = np.average(d["temperatures"][step])
-        title = f"Arbitrary Wave {step + 1}, Temperature = {average_temperature:.2f} \u00b0C"
 
         fig = plt.figure(figsize=figsize)
-        gs = gridspec.GridSpec(2, 2, width_ratios=[2, 1], height_ratios=[2, 2])
+        gs = fig.add_gridspec(2, 2, width_ratios=[2, 1])
+        ax_mod = fig.add_subplot(gs[:, 0])
+        ax_strain = fig.add_subplot(gs[0, 1])
+        ax_stress = fig.add_subplot(gs[1, 1])
 
-        ax_mod = plt.subplot(gs[:, 0])
-        ax_mod.plot(f, stor, marker="s", label=r"$G'$", color="red", markersize=10, linestyle="-")
+        omega = d["angular_frequencies"][step]
         ax_mod.plot(
-            f,
-            loss,
-            marker="^",
-            label=r"$G''$",
-            color="blue",
-            markersize=10,
-            markerfacecolor="none",
-            linestyle="--",
+            omega,
+            d["storage_moduli"][step],
+            marker=style.MARKER_STORAGE,
+            color=style.COLOR_STORAGE,
+            linewidth=style.LINEWIDTH,
+            markersize=style.MARKERSIZE,
+            label=c.STORAGE_MODULUS,
         )
-        ax_mod.set_title(title, fontsize=15)
-        ax_mod.set_xscale("log")
-        ax_mod.set_yscale("log")
-        ax_mod.set_xlabel(r"$\omega$ (rad/s)", fontsize=20)
-        ax_mod.set_ylabel(r"$G'$, $G''$ (Pa)", fontsize=20)
-        ax_mod.legend(loc="best", frameon=False, prop={"size": 15}, ncol=1)
-        ax_mod.set_ylim(*self.moduli_ylim)
+        ax_mod.plot(
+            omega,
+            d["loss_moduli"][step],
+            marker=style.MARKER_LOSS,
+            color=style.COLOR_LOSS,
+            linewidth=style.LINEWIDTH,
+            markersize=style.MARKERSIZE,
+            label=c.LOSS_MODULUS,
+        )
+        c.decorate_axes(
+            ax_mod,
+            xlabel=axis_label(freq_ds, c.ANGULAR_FREQUENCY),
+            ylabel=axis_label(freq_ds, c.STORAGE_MODULUS, text="modulus"),
+            title=self._title(step),
+            logx=True,
+            logy=True,
+            ylim=self.moduli_ylim,
+        )
+        c.add_legend(ax_mod)
 
-        ax_strain = plt.subplot(gs[0, 1])
-        ax_strain.plot(t, strain, linewidth=2, color="seagreen")
-        ax_strain.set_xlabel("Time (s)", fontsize=16)
-        ax_strain.set_ylabel("Strain", fontsize=16)
-        ax_strain.axhline(0, color="black", linestyle="--", linewidth=1)
-
-        ax_stress = plt.subplot(gs[1, 1])
-        ax_stress.plot(t, stress, linewidth=2, color="darkorange")
-        ax_stress.set_xlabel("Time (s)", fontsize=16)
-        ax_stress.set_ylabel("Stress (Pa)", fontsize=16)
-        ax_stress.axhline(0, color="black", linestyle="--", linewidth=1)
+        time_label = axis_label(time_ds, c.ADJUSTED_TIME, text="time")
+        for ax, key, name, color in (
+            (ax_strain, "strains", c.ADJUSTED_STRAIN, style.COLOR_STRAIN),
+            (ax_stress, "stresses", c.ADJUSTED_STRESS, style.COLOR_STRESS),
+        ):
+            ax.plot(d["step_times"][step], d[key][step], linewidth=style.LINEWIDTH, color=color)
+            ax.axhline(0, color=style.COLOR_GUIDE, linestyle="--", linewidth=style.LINEWIDTH_THIN)
+            c.decorate_axes(
+                ax,
+                xlabel=time_label,
+                ylabel=axis_label(time_ds, name, text=name.removeprefix("adjusted ")),
+            )
 
         fig.tight_layout()
-
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
             fig.savefig(os.path.join(save_dir, f"plot_{step + 1}.png"), dpi=100)
-
         return fig, (ax_mod, ax_strain, ax_stress)
 
     def plot_waves(
         self,
         steps: StepSelector = "first-middle-last",
-        figsize: tuple[float, float] = (12, 5),
+        figsize: tuple[float, float] = style.FIGSIZE_WIDE,
         save_dir: str | None = None,
     ) -> tuple[list[matplotlib.figure.Figure], list[Sequence[matplotlib.axes.Axes]]]:
-        """Plot a selection of waves.
+        """Plot several waves with :meth:`plot_wave`.
 
         Parameters
         ----------
-        steps : int, str, or sequence of int, optional
-            Which waves to plot; see :meth:`_resolve_steps`. Defaults to
-            ``"first-middle-last"``.
+        steps : None, str, int or sequence of int, optional
+            Waves to plot; see :meth:`_resolve_steps`.
         figsize : tuple of float, optional
-            Size of each figure. Defaults to ``(12, 5)``.
+            Size of each figure.
         save_dir : str, optional
-            When given, each figure is also written to
-            ``<save_dir>/plot_<step+1>.png``.
+            If given, write each figure to ``<save_dir>/plot_<step+1>.png``.
 
         Returns
         -------
@@ -306,18 +268,17 @@ class OWChirpVisualizer:
         return figs, axes
 
     def save_frames(self, output_dir: str) -> list[str]:
-        """Render and save every wave as a PNG frame (no inline display).
+        """Save every wave as ``plot_<n>.png`` without showing it.
 
         Parameters
         ----------
         output_dir : str
-            Directory to write ``plot_<n>.png`` files into (created if
-            necessary).
+            Output directory, created if needed.
 
         Returns
         -------
         list of str
-            The paths of the written PNG files, ordered by wave.
+            Paths of the PNG files, in wave order.
         """
         os.makedirs(output_dir, exist_ok=True)
         paths = []
@@ -334,32 +295,30 @@ class OWChirpVisualizer:
         fps: int = 2,
         codec: str = "DIVX",
     ) -> str:
-        """Stitch the per-wave PNG frames into a video.
+        """Combine the ``plot_<n>.png`` frames into a video.
 
-        Frames are (re)generated with :meth:`save_frames` if they are not
-        already present in *output_dir*, then combined in wave order.
+        Frames are created with :meth:`save_frames` if *output_dir* has none.
 
         Parameters
         ----------
         output_dir : str
-            Directory holding (or to hold) the ``plot_<n>.png`` frames and
-            the output video.
+            Directory of the frames and the output video.
         filename : str, optional
-            Output video filename. Defaults to ``"plot_video.avi"``.
+            Video file name.
         fps : int, optional
-            Frames per second. Defaults to ``2``.
+            Frames per second.
         codec : str, optional
-            FourCC codec string. Defaults to ``"DIVX"``.
+            FourCC codec code.
 
         Returns
         -------
         str
-            Path to the written video file.
+            Path of the video file.
 
         Raises
         ------
         ImportError
-            If ``opencv-python`` (``cv2``) is not installed.
+            If ``opencv-python`` is not installed.
         """
         try:
             import cv2
@@ -390,87 +349,76 @@ class OWChirpVisualizer:
         writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*codec), fps, (width, height))
         for frame_path in frames:
             frame = cv2.imread(frame_path)
-            # Tight bounding boxes can make frames differ by a pixel; the
-            # writer silently drops frames that do not match its size.
+            # The writer drops frames whose size differs from the first one.
             if frame.shape[:2] != (height, width):
                 frame = cv2.resize(frame, (width, height))
             writer.write(frame)
         writer.release()
         return video_path
 
-    # ------------------------------------------------------------------
-    # Fourier-domain analysis
-    # ------------------------------------------------------------------
-
     def plot_fourier(
         self,
         step: int = 0,
-        figsize: tuple[float, float] = (10, 7),
+        figsize: tuple[float, float] = style.FIGSIZE_GRID,
     ) -> tuple[matplotlib.figure.Figure, Sequence[matplotlib.axes.Axes]]:
-        """Plot the time- and Fourier-domain strain/stress for one wave.
+        """Plot strain and stress in the time and Fourier domains.
 
-        The 2x2 layout shows the input strain (top-left) and output stress
-        (bottom-left) in the time domain, and the real, imaginary and
-        absolute parts of their Fourier transforms (right column).
+        The left column shows the strain (top) and stress (bottom) versus
+        time. The right column shows the real part, imaginary part and
+        magnitude of their Fourier transforms versus angular frequency.
 
         Parameters
         ----------
         step : int, optional
-            Index of the wave to analyse. Defaults to ``0``.
+            Wave index (0-based).
         figsize : tuple of float, optional
-            Figure size. Defaults to ``(10, 7)``.
+            Figure size.
 
         Returns
         -------
         fig : matplotlib.figure.Figure
         axes : tuple of matplotlib.axes.Axes
-            ``(strain_time_ax, strain_fft_ax, stress_time_ax, stress_fft_ax)``.
+            ``(strain_time, strain_fourier, stress_time, stress_fourier)``.
         """
-        freq = self._meas[step].datasets[0]
-        f, strain_hat = self._xy(freq, "angular frequency", "fourier_transform_strain")
-        _, stress_hat = self._xy(freq, "angular frequency", "fourier_transform_stress")
+        freq_ds, time_ds = self._meas[step].datasets[:2]
+        omega = c.array_by_name(freq_ds, c.ANGULAR_FREQUENCY)
+        t = c.array_by_name(time_ds, c.STEP_TIME)
+        if t is None:
+            t = c.array_by_name(time_ds, c.ADJUSTED_TIME)
+        time_label = axis_label(time_ds, c.STEP_TIME, text="time")
+        omega_label = axis_label(freq_ds, c.ANGULAR_FREQUENCY)
 
-        time_ds = self._meas[step].datasets[1]
-        t, strain = self._xy(time_ds, "step time", "adjusted strain")
-        _, stress = self._xy(time_ds, "step time", "adjusted stress")
-
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=figsize)
-
-        ax1.plot(t, strain, "blue", label="Original Strain")
-        ax1.set_xlabel("t (s)")
-        ax1.set_ylabel(r"$\gamma$")
-        ax1.set_xlim(0, 15)
-
-        ax2.plot(f, np.real(strain_hat), "black", label=r"$\mathfrak{Re}(\tilde\gamma)$")
-        ax2.plot(f, np.imag(strain_hat), "lightgreen", label=r"$\mathfrak{Im}(\tilde\gamma)$")
-        ax2.plot(
-            f,
-            np.abs(strain_hat),
-            "blue",
-            label=r"$\mid\mathfrak{Re}(\tilde\gamma) + i\mathfrak{Im}(\tilde\gamma)\mid$",
+        fig, axes = plt.subplots(2, 2, figsize=figsize)
+        rows = (
+            (c.ADJUSTED_STRAIN, c.FOURIER_STRAIN, style.COLOR_STRAIN),
+            (c.ADJUSTED_STRESS, c.FOURIER_STRESS, style.COLOR_STRESS),
         )
-        ax2.set_xlabel(r"$\omega$ (rad/s)")
-        ax2.set_ylabel(r"$\tilde\gamma$")
-        ax2.set_xlim(0, 60)
-        ax2.legend(fontsize=8).get_frame().set_edgecolor("white")
+        for (time_name, fourier_name, color), (ax_time, ax_ft) in zip(rows, axes):
+            signal = c.array_by_name(time_ds, time_name)
+            spectrum = c.array_by_name(freq_ds, fourier_name)
+            quantity = time_name.removeprefix("adjusted ")
 
-        ax3.plot(t, stress, "red", label="Original Stress")
-        ax3.set_xlabel("t (s)")
-        ax3.set_ylabel(r"$\sigma$ (Pa)")
-        ax3.set_xlim(0, 15)
+            ax_time.plot(t, signal, color=color, linewidth=style.LINEWIDTH, label=quantity)
+            c.decorate_axes(
+                ax_time,
+                xlabel=time_label,
+                ylabel=axis_label(time_ds, time_name, text=quantity),
+            )
 
-        ax4.plot(f, np.real(stress_hat), "black", label=r"$\mathfrak{Re}(\tilde\sigma)$")
-        ax4.plot(f, np.imag(stress_hat), "lightgreen", label=r"$\mathfrak{Im}(\tilde\sigma)$")
-        ax4.plot(
-            f,
-            np.abs(stress_hat),
-            "red",
-            label=r"$\mid\mathfrak{Re}(\tilde\sigma) + i\mathfrak{Im}(\tilde\sigma)\mid$",
-        )
-        ax4.set_xlabel(r"$\omega$ (rad/s)")
-        ax4.set_ylabel(r"$\tilde\sigma$")
-        ax4.set_xlim(0, 60)
-        ax4.legend(fontsize=8).get_frame().set_edgecolor("white")
+            for part, values, part_color in (
+                ("real", np.real(spectrum), style.COLOR_GUIDE),
+                ("imaginary", np.imag(spectrum), style.COLOR_MARK),
+                ("magnitude", np.abs(spectrum), color),
+            ):
+                ax_ft.plot(
+                    omega, values, color=part_color, linewidth=style.LINEWIDTH_THIN, label=part
+                )
+            c.decorate_axes(
+                ax_ft,
+                xlabel=omega_label,
+                ylabel=axis_label(freq_ds, fourier_name, text=f"FT of {quantity}"),
+            )
+            c.add_legend(ax_ft)
 
         fig.tight_layout()
-        return fig, (ax1, ax2, ax3, ax4)
+        return fig, (axes[0, 0], axes[0, 1], axes[1, 0], axes[1, 1])
