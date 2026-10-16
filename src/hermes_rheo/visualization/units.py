@@ -1,73 +1,52 @@
-"""Unit-metadata helpers for building axis labels from piblin datasets.
-
-The two public helpers make it easy for callers (and tutorials) to keep
-plot labels in sync with whatever unit the file-reader actually stored,
-rather than hard-coding strings that can drift from the underlying data:
-
-* :func:`get_unit` — resolve the unit of a named data array from a
-  :class:`~piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset.OneDimensionalCompositeDataset`
-  or from any container that exposes ``measurements`` / ``datasets``.
-* :func:`unit_suffix` — format a unit as an axis-label suffix.
+"""Read units from piblin datasets and build axis labels.
 
 Examples
 --------
 >>> from hermes_rheo.visualization import get_unit, unit_suffix
 >>> u = get_unit(experiment_set, "storage modulus")   # doctest: +SKIP
->>> ax.set_ylabel(f"$G'${unit_suffix(u)}")             # doctest: +SKIP
+>>> ax.set_ylabel("storage modulus" + unit_suffix(u))  # doctest: +SKIP
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-__all__ = ["get_unit", "unit_suffix"]
+__all__ = ["axis_label", "get_unit", "unit_suffix"]
+
+
+def _first_dataset(source: Any) -> Any:
+    """Peel a set, measurement or container down to its first dataset."""
+    ds = source
+    if getattr(ds, "measurements", None):
+        ds = ds.measurements[0]
+    if getattr(ds, "datasets", None):
+        ds = ds.datasets[0]
+    return ds
 
 
 def get_unit(source: Any, name: str) -> str:
-    """Return the unit of a named data array in a piblin composite dataset.
-
-    The helper walks one level down through common piblin containers:
-
-    * :class:`~piblin.data.ExperimentSet` /
-      :class:`~piblin.data.MeasurementSet` /
-      :class:`~piblin.data.Measurement`
-      (peeled to their first measurement's first dataset), or
-    * any object exposing a ``datasets`` attribute (peeled to
-      ``datasets[0]``), or
-    * a dataset directly — anything exposing ``data_array_names`` and
-      ``data_array_units``.
+    """Return the unit of a named data array.
 
     Parameters
     ----------
-    source : object
-        An ``ExperimentSet``, ``MeasurementSet``, ``Measurement``, or a
-        composite dataset.
+    source : ExperimentSet, MeasurementSet, Measurement or dataset
+        Containers are reduced to their first measurement and its first
+        dataset.
     name : str
-        The name of the data array whose unit is requested.  Matched
-        exactly against ``data_array_names``.
+        Name of the data array, matched exactly against
+        ``data_array_names``.
 
     Returns
     -------
     str
-        The stored unit string, or ``""`` when *name* is not registered
-        or the resolved dataset has no unit metadata.
+        The stored unit, or ``""`` if *name* is absent or has no unit.
 
     Examples
     --------
-    >>> from hermes_rheo import read_file  # doctest: +SKIP
-    >>> exp = read_file("data.txt", ...)          # doctest: +SKIP
-    >>> get_unit(exp, "storage modulus")            # doctest: +SKIP
+    >>> get_unit(experiment, "storage modulus")  # doctest: +SKIP
     'MPa'
     """
-    ds = source
-    if hasattr(ds, "measurements"):
-        measurements = getattr(ds, "measurements", None)
-        if measurements:
-            ds = measurements[0]
-    if hasattr(ds, "datasets"):
-        datasets = getattr(ds, "datasets", None)
-        if datasets:
-            ds = datasets[0]
+    ds = _first_dataset(source)
 
     names = list(getattr(ds, "data_array_names", []) or [])
     units = list(getattr(ds, "data_array_units", []) or [])
@@ -113,3 +92,42 @@ def unit_suffix(unit: str, style: str = "paren", sep: str = " ") -> str:
     if style == "bracket":
         return f"{sep}[{unit}]"
     raise ValueError(f"style must be 'paren' or 'bracket', got {style!r}")
+
+
+def axis_label(
+    source: Any,
+    name: str,
+    *,
+    text: str | None = None,
+    unit: str | None = None,
+    style: str = "paren",
+) -> str:
+    """Build a ``"name (unit)"`` axis label from a dataset.
+
+    Parameters
+    ----------
+    source : ExperimentSet, MeasurementSet, Measurement or dataset
+        Where to look up the unit; see :func:`get_unit`.
+    name : str
+        Name of the data array.
+    text : str, optional
+        Label text to use instead of *name*.
+    unit : str, optional
+        Unit to use instead of the one stored in *source*.
+    style : {"paren", "bracket"}, default "paren"
+        Bracket style passed to :func:`unit_suffix`.
+
+    Returns
+    -------
+    str
+        For example ``"storage modulus (kPa)"``; the unit is omitted if
+        it is empty.
+
+    Examples
+    --------
+    >>> axis_label(dataset, "storage modulus")  # doctest: +SKIP
+    'storage modulus (Pa)'
+    """
+    if unit is None:
+        unit = get_unit(source, name)
+    return (text if text is not None else name) + unit_suffix(unit, style=style)

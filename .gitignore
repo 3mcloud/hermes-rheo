@@ -1,164 +1,72 @@
-# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
+
 # Distribution / packaging
-.Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
+*.egg-info/
 .eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
+*.egg
 wheels/
 pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
+# Test and coverage reports
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .tox/
 .nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
 .hypothesis/
-.pytest_cache/
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
+# Type checkers and linters
+.mypy_cache/
+.dmypy.json
+.pyre/
+.ruff_cache/
 
 # Environments
 .env
-.venv
+.venv/
 env/
 venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-/scratch_notebooks/
-
-/_build/
-.idea/
-
-# Tooling
-.DS_Store
-.ruff_cache/
-tutorial_notebooks/_build/
-paper/**/*.aux
-paper/**/*.log
-paper/**/*.out
-paper/**/*.bbl
-paper/**/*.blg
-paper/**/*.synctex.gz
-
-# Tutorial outputs
-tutorial_notebooks/tutorial_data/tutorial_3/plots/
-tutorial_notebooks/_build/
-tutorial_notebooks/results/
-
-# Tutorials 10-13 (not distributed yet)
-tutorial_notebooks/tutorial_data/tutorial_10/
-tutorial_notebooks/tutorial_data/tutorial_11/
-tutorial_notebooks/tutorial_data/tutorial_12/
-tutorial_notebooks/10_*.ipynb
-tutorial_notebooks/11_*.ipynb
-tutorial_notebooks/12_*.ipynb
-tutorial_notebooks/13_*.ipynb
-tutorial_notebooks/tutorial_data/tutorial_13/
-
-# Rheologica Acta manuscript (kept local)
-paper/rheologica_acta/
+.python-version
 
 # uv lockfile is not tracked (license scanners flag transitive deps)
 uv.lock
+
+# Editors and OS files
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Documentation builds
+docs/_build/
+docs/build/
+tutorial_notebooks/_build/
+
+# Tutorial outputs and untrimmed data (available on request)
+tutorial_notebooks/results/
+tutorial_notebooks/tutorial_data_full/
+
+# Local scratch work
+/scratch_notebooks/
+
+# LaTeX build files
+papers/**/*.aux
+papers/**/*.bbl
+papers/**/*.blg
+papers/**/*.out
+papers/**/*.synctex.gz
+
+# Rheologica Acta manuscript (kept local)
+papers/rheologica_acta/

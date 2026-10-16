@@ -12,29 +12,18 @@ These tests lock in that:
 
 from __future__ import annotations
 
-import os
-import shutil
 import sys
 
 import numpy as np
 import pytest
+from piblin.data.data_collections.measurement import Measurement
+from piblin.data.datasets.abc.split_datasets.one_dimensional_composite_dataset import (
+    OneDimensionalCompositeDataset,
+)
+from piblin.transform.pipeline import Pipeline
 
 from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
 from hermes_rheo.transforms.fit_model import FitModel, MultiModeMaxwellModel
-
-
-@pytest.fixture()
-def datadir(tmpdir, request):
-    module_dir = os.path.dirname(request.module.__file__)
-    test_dir = os.path.abspath(os.path.join(module_dir, "..", "fileio", "test_data"))
-    if os.path.isdir(test_dir):
-        shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
-    return tmpdir
-
-
-# ---------------------------------------------------------------------------
-# 1) MultiModeMaxwell NNLS synthetic round-trip
-# ---------------------------------------------------------------------------
 
 
 def test_multimode_maxwell_nnls_recovers_prony_series():
@@ -65,20 +54,17 @@ def test_multimode_maxwell_without_plateau_has_no_equilibrium():
     np.testing.assert_allclose(model.predict(omega)[1], gpp, rtol=1e-2)
 
 
-# ---------------------------------------------------------------------------
-# 2) FitModel single-dataset fitting
-# ---------------------------------------------------------------------------
-
-
 def test_fitmodel_fits_single_dataset_with_maxwell(datadir):
-    filepath = datadir.join("test_frequency_sweep_tts_ARES.txt")
-    experiment = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    filepath = datadir / "test_aresg2_trios_frequency_sweep_tts.txt"
+    experiment = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
 
     fit = FitModel(
         model="custom",
         model_name="MultiModeMaxwell",
         measurement_index=0,
-    )(experiment)
+    )
+    result = fit(experiment)
+    assert isinstance(result, Measurement)
 
     assert fit.fitted_model is not None
     assert fit.omega_common is not None
@@ -90,14 +76,57 @@ def test_fitmodel_fits_single_dataset_with_maxwell(datadir):
 
 
 def test_fitmodel_measurement_index_selects_different_dataset(datadir):
-    filepath = datadir.join("test_frequency_sweep_tts_ARES.txt")
-    experiment = TriosRheoReader().data_from_filepath(str(filepath), create_composite_datasets=True)
+    filepath = datadir / "test_aresg2_trios_frequency_sweep_tts.txt"
+    experiment = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
 
-    fit0 = FitModel(model="custom", model_name="MultiModeMaxwell", measurement_index=0)(experiment)
-    fit1 = FitModel(model="custom", model_name="MultiModeMaxwell", measurement_index=5)(experiment)
+    fit0 = FitModel(model="custom", model_name="MultiModeMaxwell", measurement_index=0)
+    fit1 = FitModel(model="custom", model_name="MultiModeMaxwell", measurement_index=5)
+    fit0(experiment)
+    fit1(experiment)
 
     # Different temperatures -> different moduli magnitudes
     assert not np.allclose(fit0.G_prime.mean(), fit1.G_prime.mean())
+
+
+def test_fitmodel_returns_piblin_measurement_with_metadata(datadir):
+    filepath = datadir / "test_aresg2_trios_frequency_sweep_tts.txt"
+    experiment = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
+
+    result = FitModel(model="custom", model_name="MultiModeMaxwell")(experiment)
+
+    assert isinstance(result, Measurement)
+    dataset = result.datasets[0]
+    assert isinstance(dataset, OneDimensionalCompositeDataset)
+    assert list(dataset.data_array_names) == [
+        "angular frequency",
+        "storage modulus",
+        "loss modulus",
+        "fitted storage modulus",
+        "fitted loss modulus",
+    ]
+    assert list(dataset.data_array_units) == ["rad/s", "Pa", "Pa", "Pa", "Pa"]
+    assert all(np.all(np.isfinite(a)) for a in dataset.data_arrays)
+
+    details = result.details
+    assert details["model"] == "GeneralizedMaxwell"
+    assert len(details["parameters"]["G_modes"]) == len(details["parameters"]["tau_modes"])
+    assert details["goodness_of_fit"]["rss"] >= 0
+    assert 0.5 < details["goodness_of_fit"]["r_squared"] <= 1.0
+    assert details["domain"] == "oscillation"
+    assert any("d0sm00354a" in ref for ref in details["references"])
+    assert details["software"].startswith("hermes-rheo ")
+    assert result.conditions["fitted"] is True
+
+
+def test_fitmodel_works_in_pipeline_and_relaxation_domain(datadir):
+    filepath = datadir / "test_aresg2_trios_frequency_sweep_tts.txt"
+    experiment = TriosRheoReader().data_from_filepath(filepath, create_composite_datasets=True)
+    fit = FitModel(model="custom", model_name="MultiModeMaxwell")
+    assert isinstance(fit + fit, Pipeline)
+    assert isinstance(Pipeline([fit])(experiment), Measurement)
+
+    with pytest.raises(ValueError, match="only valid for domain='oscillation'"):
+        FitModel(model="custom", model_name="MultiModeMaxwell", domain="relaxation")(experiment)
 
 
 @pytest.mark.parametrize("domain", ["oscillation", "relaxation"])

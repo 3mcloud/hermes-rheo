@@ -18,15 +18,26 @@ pip install "hermes-rheo[notebooks]"
 
 | # | Tutorial                                                                                                                      | Topic                                                             |
 | - | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1 | [Reading and visualising common rheological datasets](<./1_read%20and%20visualize%20common%20rheological%20datasets.ipynb>) | TA TRIOS + Anton Paar RheoCompass readers                         |
-| 2 | [Designing an OWChirp waveform](<./2_owchirp%20wave%20design.ipynb>)                                                           | `OWChirpGeneration` — waveform export for TRIOS Arbitrary Wave |
+| 1 | [Reading and visualising common rheological datasets](<./1_read%20and%20visualize%20common%20rheological%20datasets.ipynb>) | [TA Instruments](https://www.tainstruments.com/) [TRIOS](https://www.tainstruments.com/support/software-downloads-support/downloads/) + [Anton Paar](https://www.anton-paar.com/us-en/) [RheoCompass](https://www.anton-paar.com/us-en/products/details/rheometer-software-rheocompass/) readers |
+| 2 | [Designing an OWChirp waveform](<./2_owchirp%20wave%20design.ipynb>)                                                           | `OWChirpGeneration` — waveform export for [TRIOS](https://www.tainstruments.com/support/software-downloads-support/downloads/) Arbitrary Wave |
 | 3 | [Reading and visualising OWChirp experiments](<./3_read%20and%20visualize%20data%20from%20OWChirp%20experiments.ipynb>)        | `OWChirpAnalysis` — FFT-based moduli extraction                |
 | 4 | [Time–Temperature Superposition (TTS)](<./4_time%20temperature%20superposition.ipynb>)                                        | `AutomatedMasterCurve`                                          |
 | 5 | [Time–Cure Superposition (TCS)](<./5_time%20curing%20superposition.ipynb>)                                                 | `CompositeMasterCurve` — cure-time shifting                    |
 | 6 | [Mutation Number](<./6_mutation%20number%20calculation.ipynb>)                                                                 | `MutationNumber` — time-resolved mutation index                |
-| 7 | [Van Gurp–Palmen and Cole–Cole plots](./7_visualization.ipynb)                                                               | Visualisation helpers                                             |
-| 8 | [Temperature Ramp Analysis](<./8_temperature%20ramp%20analysis.ipynb>)                                                         | `TemperatureRampAnalysis` — Tg + interpolated properties       |
+| 7 | [Van Gurp–Palmen and Cole–Cole plots](<./7_van%20gurp-palmen%20and%20cole-cole%20plots.ipynb>)                               | `plot_vgp`, `plot_cole_cole` — thermorheological simplicity checks |
+| 8 | [Temperature Ramp Analysis](<./8_temperature%20ramp%20analysis.ipynb>)                                                         | `TemperatureRampAnalysis` — Tg (tan δ peak / G′ onset), frequency, interpolated properties |
 | 9 | [Kymographs from TORCh experiments](<./9_kymographs%20tutorial.ipynb>)                                                         | `Kymograph` — 2-D T × ω → modulus                           |
+| 10 | [Recovery rheology](<./10_recovery%20rheology.ipynb>) | `RecoveryRheology` — recoverable and unrecoverable strain |
+| 11 | [Rheological model fitting](<./11_rheological%20model%20fitting.ipynb>) | `FitModel` — classical and fractional viscoelastic models |
+| 12 | [Frequency to time relaxation modulus](<./12_frequency%20to%20time%20relaxation%20modulus.ipynb>) | `FrequencyToTime` — G(t) from G*(ω) |
+| 13 | [Relaxation spectrum](<./13_relaxation%20spectrum%20via%20pyrespect.ipynb>) | `RelaxationSpectrum` — H(τ) via pyReSpect |
+
+## Data
+
+Example files are in `tutorial_data/`, named `<instrument>_<software>_<method>`.
+The OWChirp time-domain files were downsampled by a factor of 4 (500 Hz to
+125 Hz) to reduce size; the full-resolution files are available on request
+from Alessandro Perego (aperego@mmm.com).
 
 :::{tip}
 Every tutorial follows the same pipeline pattern:

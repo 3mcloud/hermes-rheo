@@ -127,7 +127,9 @@ Running a chirp-analysis pipeline
        vertical_shift=False,
    )
 
-   master_curve = pipeline(data)
+   master_curve = pipeline(data)  # piblin Measurement: shifted data + shift factors
+   master_curve.details["reference_state"]
+   master_curve.master_curve      # underlying mastercurves.MasterCurve
 
 Learn more
 ----------

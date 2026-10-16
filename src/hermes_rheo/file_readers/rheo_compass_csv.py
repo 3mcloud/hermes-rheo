@@ -169,7 +169,8 @@ class RheoCompassReader(file_reader.FileReader):
             header_tokens = [h.strip() for h in header_tokens if h.strip()]
 
             units_fields = lines[header_idx + 2].rstrip("\n").split(delimiter)[2:]
-            units_fields = [u.strip() for u in units_fields[: len(header_tokens)]]
+            # RheoCompass writes units as "[Pa]"; store them bare, as TRIOS does.
+            units_fields = [u.strip().strip("[]") for u in units_fields[: len(header_tokens)]]
 
             # end of block = next interval or next result
             end_candidates = [p for p in interval_positions if p > idx] + [

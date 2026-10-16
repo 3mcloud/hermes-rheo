@@ -1,14 +1,9 @@
-r"""Frequency-to-time reconstruction of relaxation modulus using iRheoTempo V9
+r"""Relaxation modulus from oscillatory data with i-Rheo-Tempo.
 
-This transform reconstructs the time-domain relaxation modulus :math:`G(t)`
-from frequency-domain oscillatory data :math:`G'(\omega), G''(\omega)`
-through the interval-slope Fourier reconstruction used in iRheoTempo V9
-(Tassieri and Ramirez, 2026) [TassieriRamirez2026]_.
-
-The transform is designed to compose with existing hermes-rheo pipelines,
-for example on raw frequency sweeps, after
-:class:`~hermes_rheo.transforms.split_temperature_sweep.SplitTemperatureSweep`,
-or after :class:`~hermes_rheo.transforms.owchirp_analysis.OWChirpAnalysis`.
+Reconstructs the relaxation modulus :math:`G(t)` from
+:math:`G'(\omega)` and :math:`G''(\omega)` with the interval-slope Fourier
+reconstruction of i-Rheo-Tempo (Ramírez and Tassieri, 2026)
+[RamirezTassieri2026]_, as implemented in iRheoTempo V9.
 
 Notes
 -----
@@ -34,9 +29,12 @@ uses piecewise-linear interval slopes in frequency space:
 
 References
 ----------
-.. [TassieriRamirez2026] Tassieri, M. and Ramirez, J., *i-Rheo Tempo:
-   Open-Access Analytical Tool for Broadband Viscoelastic Characterisation* (2026).
-   DOI: `10.5525/gla.researchdata.2230
+.. [RamirezTassieri2026] Ramírez, J. and Tassieri, M., *i-Rheo-Tempo: A
+   model-free, quadrature-free reconstruction of the shear relaxation modulus
+   from complex viscosity*, J. Rheol. **70**, 1089-1104 (2026).
+   DOI: `10.1122/8.0001232 <https://doi.org/10.1122/8.0001232>`_.
+   Reference implementation (MATLAB/Python): University of Glasgow
+   Research Data, `10.5525/gla.researchdata.2230
    <https://doi.org/10.5525/gla.researchdata.2230>`_.
 """
 
@@ -55,18 +53,18 @@ from scipy.interpolate import CubicSpline, PchipInterpolator, interp1d
 from scipy.optimize import fmin
 
 
-def _sanitize_omega_moduli(
+def _clean_moduli(
     omega: np.ndarray,
     g_prime: np.ndarray,
     g_double_prime: np.ndarray,
     units: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return sorted, finite, unique arrays in angular-frequency units
+    """Return finite, positive-frequency data sorted by unique angular frequency.
 
     Parameters
     ----------
     omega : np.ndarray
-        Frequency axis in either rad/s or Hz
+        Frequency in rad/s or Hz, as given by *units*
     g_prime : np.ndarray
         Storage modulus in Pa
     g_double_prime : np.ndarray
@@ -77,7 +75,7 @@ def _sanitize_omega_moduli(
     Returns
     -------
     tuple of np.ndarray
-        ``(omega, g_prime, g_double_prime)`` sanitized and sorted
+        ``(omega, g_prime, g_double_prime)`` with *omega* in rad/s.
     """
     omega = np.asarray(omega, dtype=float).ravel()
     g_prime = np.asarray(g_prime, dtype=float).ravel()
@@ -148,7 +146,10 @@ def _build_interpolation_dataset(
     hf_fit_decades: float,
     hf_ext_decades: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Build LF anchor + experimental + HF extension interpolation arrays"""
+    """Return the data extended by the :math:`\\omega=0` anchor and a high-frequency extrapolation.
+
+    The extension is a log-log polynomial fit of the highest-frequency data.
+    """
     wmin = float(np.min(omega))
     wmax = float(np.max(omega))
 
@@ -239,7 +240,7 @@ def _build_interpolants(
     raise ValueError("interpolation_method must be one of {'pchip', 'spline', 'csaps'}")
 
 
-def _resample(
+def _resample_on_log_grid(
     w_data: np.ndarray,
     pp1: Callable[[np.ndarray], np.ndarray],
     pp2: Callable[[np.ndarray], np.ndarray],
@@ -247,7 +248,7 @@ def _resample(
     eta20: float,
     resample_points: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Evaluate interpolants on the dense V9 processing grid"""
+    """Evaluate the interpolants on a log-spaced grid from 1e-15 rad/s, plus :math:`\\omega=0`."""
     nres = max(int(resample_points), 50)
     w_lf_min = 1e-15
     w_max = float(np.max(w_data))
@@ -265,12 +266,12 @@ def _resample(
     return w_proc, eta1_proc, eta2_proc
 
 
-def _compute_delta_a(
+def _slope_jumps(
     w: np.ndarray,
     eta1: np.ndarray,
     eta2: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return slope-jump diagnostics for eta1 and eta2"""
+    """Return the jumps of the interval slopes of eta1 and eta2 at each node."""
     dw = np.diff(w)
     a1 = np.diff(eta1) / dw
     a2 = np.diff(eta2) / dw
@@ -281,7 +282,7 @@ def _compute_delta_a(
     return wk, da1, da2
 
 
-def _compute_gt_v8(
+def _reconstruct_relaxation_modulus(
     w: np.ndarray,
     eta1: np.ndarray,
     eta2: np.ndarray,
@@ -290,7 +291,10 @@ def _compute_gt_v8(
     n_time_points: int,
     eta20: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Reconstruct G(t) from interval slopes of eta1 and eta2"""
+    """Return ``(t, G_eta1, G_eta2)`` from the interval slopes of eta1 and eta2.
+
+    Times are log-spaced between ``1/wmax_exp`` and ``1/wmin_exp``.
+    """
     d_w = np.diff(w)
     a1 = np.diff(eta1) / d_w
     a2 = np.diff(eta2) / d_w
@@ -315,7 +319,7 @@ def _compute_constant_threshold(
     eta1_exp: np.ndarray,
     eta2_exp: np.ndarray,
 ) -> float:
-    """Return constant threshold diagnostic from first experimental interval"""
+    """Return the constant-modulus threshold from the lowest-frequency data interval."""
     if w_exp.size < 2:
         return float("nan")
 
@@ -339,7 +343,7 @@ def _compute_mrae(
     t_exp: np.ndarray,
     g_exp: np.ndarray,
 ) -> float | None:
-    """Compute mean relative absolute error on the overlapping log-time domain"""
+    """Return the mean relative absolute error on the overlapping time range, or ``None``."""
     t_model = np.asarray(t_model, dtype=float).ravel()
     g_model = np.asarray(g_model, dtype=float).ravel()
     t_exp = np.asarray(t_exp, dtype=float).ravel()
@@ -369,8 +373,7 @@ def _compute_mrae(
     if np.count_nonzero(overlap) < 3:
         return None
 
-    # Relative error becomes numerically meaningless when the reference
-    # signal approaches machine zero in the long-time tail.
+    # Drop the tail where the reference is ~0 and relative error is meaningless.
     amp_ref = np.max(np.abs(g_e[overlap]))
     valid_amp = np.abs(g_e) >= max(1e-8 * amp_ref, np.finfo(float).tiny)
     overlap = overlap & valid_amp
@@ -530,7 +533,17 @@ def _fit_maxwell_tail(
 
 @dataclass
 class FrequencyToTimeResult:
-    """Container for outputs of :class:`FrequencyToTime`"""
+    """Outputs of :class:`FrequencyToTime`.
+
+    ``omega_exp`` (rad/s) and ``eta1_exp``, ``eta2_exp`` (Pa s) are the
+    cleaned input and the complex viscosity :math:`\\eta^* = \\eta' - i\\eta''`.
+    ``W_interpdata`` / ``W_proc`` are the extended and resampled frequency grids
+    with their viscosities. ``t_report``, ``G_eta1``, ``G_eta2`` are the
+    reconstruction in s and Pa. The ``delta_a*`` fields are slope-jump
+    diagnostics on grid ``W_raw`` (raw) and ``W_proc``. ``mrae_*`` are set only
+    when ``experimental_gt`` is given. ``dataset`` is the dataset added to
+    the measurement; the ``maxwell_*`` fields hold the optional Maxwell tail.
+    """
 
     omega_exp: np.ndarray
     eta1_exp: np.ndarray
@@ -571,53 +584,58 @@ class FrequencyToTimeResult:
 
 
 class FrequencyToTime(MeasurementTransform):
-    """Reconstruct relaxation modulus from oscillatory frequency-domain data
+    """Reconstruct the relaxation modulus from :math:`G'(\\omega)`, :math:`G''(\\omega)`.
 
-    The transform consumes a measurement whose active dataset contains
-    ``angular frequency``, ``storage modulus`` and ``loss modulus`` arrays.
-    It prepends a new time-domain dataset with
-    ``time``, ``G_from_eta1`` and ``G_from_eta2``.
+    Implements i-Rheo-Tempo [RamirezTassieri2026]_. The first dataset of the
+    measurement must contain ``angular frequency``, ``storage modulus`` and
+    ``loss modulus``; otherwise, or if the frequency range spans less than
+    a factor of 2, the measurement is returned unchanged. A dataset with
+    ``time`` (s), ``G_from_eta1`` (Pa) and ``G_from_eta2`` (Pa) is prepended.
+    The two moduli come from :math:`\\eta'` and :math:`\\eta''`; see Notes
+    in the module docstring.
+
+    The reconstruction is stored in ``details["frequency_to_time_result"]``
+    and the method, settings and reference in ``details["frequency_to_time"]``.
 
     Parameters
     ----------
     units : {"rad/s", "Hz"}, default "rad/s"
-        Units of the input frequency axis
+        Unit of the input frequency axis
     lf_poly_order : int, default 1
         Polynomial order for low-frequency :math:`\\eta'(0)` fit
     lf_fit_decades : float, default 0.1
-        Width of low-frequency fitting window in decades
+        Width of the low-frequency fit window in decades
     hf_poly_order : int, default 1
         Polynomial order for high-frequency extension
     hf_fit_decades : float, default 1.0
         Width of high-frequency fitting window in decades
     hf_ext_decades : float, default 1.0
-        High-frequency extension span beyond the maximum measured frequency
+        Span of the high-frequency extension above the maximum frequency, in decades
     interpolation_method : {"pchip", "spline", "csaps"}, default "spline"
-        Interpolant used for viscosity curves
+        Interpolant for the viscosity curves; ``"csaps"`` needs the
+        ``csaps`` package and falls back to ``"spline"`` with a warning
     csaps_smoothing : float, default 0.999
-        Smoothing parameter used when ``interpolation_method='csaps'``
+        Smoothing parameter in [0, 1] for ``"csaps"``
     resample_points : int, default 5000
-        Number of dense resampling points in frequency space
+        Number of points of the resampled frequency grid (at least 50)
     enforce_eta2_zero : bool, default True
         If True, force :math:`\\eta''(0)` to ``eta2_zero``
     eta2_zero : float, default 0.0
         Zero-frequency anchor value for :math:`\\eta''(0)`
     n_time_points : int, default 600
-        Number of time points in the reconstructed output window
+        Number of output time points (at least 100)
     experimental_gt : tuple[np.ndarray, np.ndarray] or None, default None
-        Optional ``(t, G(t))`` used only for MRAE diagnostics
+        Reference ``(t, G(t))`` used only for the MRAE diagnostics
     fit_maxwell_tail : bool, default False
-        If True, fit a single-mode Maxwell to the low-frequency region
-        below the first :math:`G'=G''` crossover.  The fitted
-        :math:`G_0,\\tau,\\omega_c` and the long-time exponential tail
-        :math:`G_{\\mathrm{tail}}(t)=G_0\\exp(-t/\\tau)` are stored on the
-        result and made available on ``target.details``.
+        Fit a single-mode Maxwell model to the data below the lowest
+        :math:`G'=G''` crossover. The fitted :math:`G_0, \\tau, \\omega_c`
+        and the tail :math:`G_0\\exp(-t/\\tau)` are stored in the result.
     use_maxwell_eta10 : bool, default False
-        If True and the Maxwell fit succeeds, override the polynomial
-        estimate of :math:`\\eta'(0)` with :math:`G_0\\tau`.  Ignored when
-        ``fit_maxwell_tail=False``.
+        If the Maxwell fit succeeds, use :math:`G_0\\tau` instead of the
+        polynomial estimate of :math:`\\eta'(0)`. Requires
+        ``fit_maxwell_tail=True``.
     n_maxwell_tail_points : int, default 200
-        Number of log-spaced time samples in the reported Maxwell tail
+        Number of time samples of the Maxwell tail (at least 50)
 
     Examples
     --------
@@ -677,12 +695,6 @@ class FrequencyToTime(MeasurementTransform):
         return self._result
 
     def _apply(self, target: Any, **kwargs: Any) -> Any:
-        # Detection is based on the presence of the required frequency-domain
-        # columns on ``target.datasets[0]``. This makes the transform work for
-        # any upstream that leaves ``angular frequency``, ``storage modulus``
-        # and ``loss modulus`` on the active dataset — including OWChirp-
-        # processed steps and TORCh files that already store pre-computed
-        # frequency-domain moduli under non-standard method names.
         if not hasattr(target, "datasets") or len(target.datasets) == 0:
             return target
 
@@ -703,10 +715,7 @@ class FrequencyToTime(MeasurementTransform):
         gp_raw = np.asarray(dataset.data_arrays[idx_gp], dtype=float)
         gpp_raw = np.asarray(dataset.data_arrays[idx_gpp], dtype=float)
 
-        # Numerical gate: require an actually swept ω-axis. Temperature ramps,
-        # creep and stress-relaxation steps often carry ``angular frequency``
-        # as a constant single-frequency oscillation, which is not a valid
-        # source for the frequency → time inversion.
+        # Skip single-frequency data (e.g. temperature ramps at fixed omega).
         omega_finite = omega_raw[np.isfinite(omega_raw) & (omega_raw > 0.0)]
         if omega_finite.size < 3:
             return target
@@ -715,7 +724,7 @@ class FrequencyToTime(MeasurementTransform):
         if omega_max / omega_min < 2.0:
             return target
 
-        omega_exp, gp_exp, gpp_exp = _sanitize_omega_moduli(omega_raw, gp_raw, gpp_raw, self.units)
+        omega_exp, gp_exp, gpp_exp = _clean_moduli(omega_raw, gp_raw, gpp_raw, self.units)
         eta1_exp = gpp_exp / omega_exp
         eta2_exp = gp_exp / omega_exp
 
@@ -728,8 +737,6 @@ class FrequencyToTime(MeasurementTransform):
 
         eta20 = float(self.eta2_zero if self.enforce_eta2_zero else eta2_exp[0])
 
-        # Optional single-mode Maxwell terminal tail (mirrors the iRheoTempo
-        # V9 GUI "Overlay Maxwell tail" option, but purely numerical here).
         maxwell_available = False
         maxwell_G0 = float("nan")
         maxwell_tau = float("nan")
@@ -777,7 +784,7 @@ class FrequencyToTime(MeasurementTransform):
             csaps_smoothing=self.csaps_smoothing,
         )
 
-        w_proc, eta1_proc, eta2_proc = _resample(
+        w_proc, eta1_proc, eta2_proc = _resample_on_log_grid(
             w_interpdata,
             pp1,
             pp2,
@@ -786,7 +793,7 @@ class FrequencyToTime(MeasurementTransform):
             resample_points=self.resample_points,
         )
 
-        t_report, g_eta1, g_eta2 = _compute_gt_v8(
+        t_report, g_eta1, g_eta2 = _reconstruct_relaxation_modulus(
             w_proc,
             eta1_proc,
             eta2_proc,
@@ -796,8 +803,8 @@ class FrequencyToTime(MeasurementTransform):
             eta20=eta20,
         )
 
-        w_raw, delta_a1_raw, delta_a2_raw = _compute_delta_a(omega_exp, eta1_exp, eta2_exp)
-        _, delta_a1_proc, delta_a2_proc = _compute_delta_a(w_proc, eta1_proc, eta2_proc)
+        w_raw, delta_a1_raw, delta_a2_raw = _slope_jumps(omega_exp, eta1_exp, eta2_exp)
+        _, delta_a1_proc, delta_a2_proc = _slope_jumps(w_proc, eta1_proc, eta2_proc)
 
         g_threshold_const = _compute_constant_threshold(omega_exp, eta1_exp, eta2_exp)
 
@@ -851,10 +858,33 @@ class FrequencyToTime(MeasurementTransform):
         )
 
         self._result = result
-        try:
-            if hasattr(target, "details") and isinstance(target.details, dict):
-                target.details["frequency_to_time_result"] = result
-        except Exception:
-            pass
+        provenance = {
+            "method": "i-Rheo-Tempo",
+            "settings": {
+                "units": self.units,
+                "lf_poly_order": self.lf_poly_order,
+                "lf_fit_decades": self.lf_fit_decades,
+                "hf_poly_order": self.hf_poly_order,
+                "hf_fit_decades": self.hf_fit_decades,
+                "hf_ext_decades": self.hf_ext_decades,
+                "interpolation_method": self.interpolation_method,
+                "csaps_smoothing": self.csaps_smoothing,
+                "resample_points": self.resample_points,
+                "enforce_eta2_zero": self.enforce_eta2_zero,
+                "eta2_zero": self.eta2_zero,
+                "n_time_points": self.n_time_points,
+                "fit_maxwell_tail": self.fit_maxwell_tail,
+                "use_maxwell_eta10": self.use_maxwell_eta10,
+            },
+            "references": [
+                "Ramirez and Tassieri, J. Rheol. 70, 1089 (2026), doi:10.1122/8.0001232"
+            ],
+        }
+        for key, value in (
+            ("frequency_to_time_result", result),
+            ("frequency_to_time", provenance),
+        ):
+            # Measurement.details returns a copy, so use the setters.
+            target.update_detail(key, value)
 
         return target

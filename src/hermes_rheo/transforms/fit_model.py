@@ -1,41 +1,69 @@
-"""Rheological-model fitting of storage and loss moduli.
+"""Model fitting of linear viscoelastic moduli.
 
-Two complementary fitting engines are exposed:
+* :class:`MultiModeMaxwellModel`: generalized Maxwell (Prony series) fit
+  of :math:`G'(\\omega)` and :math:`G''(\\omega)` by non-negative least
+  squares (default) or multistart nonlinear optimisation. This class *fits*
+  data; to *simulate* a multimode Maxwell material use
+  :class:`hermes_rheo.lve_models.MultiModeMaxwellModel`.
+* :class:`FitModel`: piblin transform that fits the above or a classical or
+  fractional model from pyRheo to one frequency sweep, a master curve, or
+  (``domain="relaxation"``) a relaxation curve :math:`G(t)`. It returns a
+  piblin ``Measurement`` holding measured and fitted data, with the fitted
+  parameters and goodness of fit in ``details``.
 
-* :class:`MultiModeMaxwellModel` — a generalized Maxwell (Prony series)
-  model fitted by non-negative least squares (default) or multistart
-  nonlinear optimisation, with an optional rubbery-plateau modulus.
-* :class:`FitModel` — a pipeline step that fits either the built-in
-  generalized Maxwell model or one of the fractional/classical
-  viscoelastic models provided by `pyRheo
-  <https://github.com/mirandi1/pyRheo>`_ (Miranda-Valdez *et al.*,
-  Digital Discovery 4, 1075, 2025; arXiv:2412.15941) to a single
-  frequency sweep or a TTS master curve.
+Classical models (Maxwell, Kelvin-Voigt, Zener) combine springs and
+dashpots. Fractional models replace the dashpot by a spring-pot, whose
+stress is proportional to a fractional derivative of the strain of order
+:math:`\\alpha` (0 = elastic, 1 = viscous). They describe the power-law
+response of soft materials with few parameters.
 
 pyRheo is an optional dependency (GPL-3.0, not distributed on PyPI) and is
-imported only when a pyRheo model is requested.  Install it with::
+imported only when a pyRheo model is requested. Install it with::
 
     pip install git+https://github.com/mirandi1/pyRheo.git
+
+References
+----------
+.. [Bonfanti2020] Bonfanti, A., Kaplan, J. L., Charras, G., Kabla, A.,
+   *Fractional viscoelastic models for power-law materials*, Soft Matter
+   16(26), 6002-6020 (2020). DOI: `10.1039/d0sm00354a
+   <https://doi.org/10.1039/d0sm00354a>`_.
+.. [Song2023] Song, J., Holten-Andersen, N., McKinley, G. H.,
+   *Non-Maxwellian viscoelastic stress relaxations in soft matter*, Soft
+   Matter 19(41), 7885-7906 (2023). DOI: `10.1039/d3sm00736g
+   <https://doi.org/10.1039/d3sm00736g>`_.
+.. [pyRheo] Miranda-Valdez, I. Y., Niinisto, J., Makinen, T., Lejon, J.,
+   Koivisto, J., Alava, M. J., *pyRheo: an open-source Python package for
+   complex rheology*, Digital Discovery 4(4), 1075-1082 (2025). DOI:
+   `10.1039/d5dd00021a <https://doi.org/10.1039/d5dd00021a>`_.
 """
 
 import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
+from piblin.data.data_collections import measurement as _measurement
+from piblin.data.datasets.abc.split_datasets import (
+    one_dimensional_composite_dataset as _composite,
+)
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize, nnls
+
+from hermes_rheo import __version__
 
 _TINY = np.finfo(float).tiny
 
 
 class MultiModeMaxwellModel:
-    r"""Generalized Maxwell (Prony series) model for :math:`G'(\omega)`, :math:`G''(\omega)`.
+    r"""Fit a generalized Maxwell (Prony series) model to :math:`G'(\omega)`, :math:`G''(\omega)`.
 
-    The generalized Maxwell model represents the linear viscoelastic
-    response as a sum of :math:`N` Maxwell elements (a spring
-    :math:`G_i` in series with a dashpot, relaxation time
-    :math:`\tau_i`) optionally in parallel with an equilibrium
-    (rubbery-plateau) spring :math:`G_e`:
+    This class fits data. To simulate a multimode Maxwell material see
+    :class:`hermes_rheo.lve_models.MultiModeMaxwellModel`.
+
+    The model is a sum of :math:`N` Maxwell elements (modulus :math:`G_i`,
+    relaxation time :math:`\tau_i`) in parallel with an optional equilibrium
+    spring :math:`G_e`:
 
     .. math::
 
@@ -44,68 +72,62 @@ class MultiModeMaxwellModel:
         G''(\omega) &= \sum_{i=1}^{N} G_i
                        \frac{\omega\tau_i}{1 + (\omega\tau_i)^2}.
 
-    Two fitting strategies are provided:
+    Fit modes:
 
     ``"nnls"`` (default)
-        The relaxation times :math:`\tau_i` are held fixed on a
-        logarithmic grid spanning the data and the mode moduli
-        :math:`G_i \ge 0` are recovered by a single **non-negative
-        least-squares** solve.  This is the standard, fast and robust
-        way to fit a Prony series and requires no random restarts.
+        The :math:`\tau_i` are fixed on a log-spaced grid and the
+        :math:`G_i \ge 0` follow from one non-negative least-squares solve.
     ``"nonlinear"``
-        Both :math:`G_i` and :math:`\tau_i` are optimised in log-space
-        by multistart local minimisation (the historical behaviour), for
-        compact fits with a small number of free modes.
+        :math:`G_i` and :math:`\tau_i` are optimised in log space by
+        multistart local minimisation.
 
     Parameters
     ----------
     n_modes : int, optional
-        Number of Maxwell modes.  For ``mode="nnls"`` it defaults to
-        ``modes_per_decade`` per frequency decade; for
-        ``mode="nonlinear"`` it must be given.
+        Number of modes. For ``mode="nnls"`` the default is
+        ``modes_per_decade`` per decade of the :math:`\tau` grid; required
+        for ``mode="nonlinear"``.
     mode : {"nnls", "nonlinear"}, optional
-        Fitting strategy.  Defaults to ``"nnls"``.
+        Fit mode. Default ``"nnls"``.
     equilibrium_modulus : bool, optional
-        If *True*, fit an additional rubbery-plateau modulus
-        :math:`G_e \ge 0` (useful for cross-linked/elastomeric
-        materials).  Defaults to *False*.
+        Fit :math:`G_e \ge 0` (``mode="nnls"`` only). Default False.
     tau_range : tuple of float, optional
-        ``(tau_min, tau_max)`` for the fixed relaxation-time grid
-        (``mode="nnls"``).  Defaults to
-        :math:`(1/\omega_{\max},\ 1/\omega_{\min})`.
+        ``(tau_min, tau_max)`` of the :math:`\tau` grid for ``"nnls"``.
+        Default :math:`(1/\omega_{\max}, 1/\omega_{\min})`.
     modes_per_decade : int, optional
-        Density of the relaxation-time grid when ``n_modes`` is not given
-        (``mode="nnls"``).  Defaults to ``2``.
+        Grid density when ``n_modes`` is None. Default 2.
     weighting : {"relative", "none"}, optional
-        ``"relative"`` (default) weights each residual by ``1/|data|`` so
-        the fit is balanced across the many decades typical of moduli;
-        ``"none"`` uses ordinary residuals.
+        ``"relative"`` (default) weights residuals by ``1/|data|``.
     cost_function : {"RSS", "MSE", "BIC"}, optional
-        Reported goodness-of-fit metric (and the objective for
-        ``mode="nonlinear"``).  Defaults to ``"RSS"``.
+        Reported fit metric, and the objective for ``"nonlinear"``.
+        Default ``"RSS"``.
     initial_guesses, num_initial_guesses, minimization_algorithm, bounds, initial_guess
-        Options for ``mode="nonlinear"`` (see Notes).
+        Options for ``mode="nonlinear"``: ``initial_guesses="random"``
+        draws ``num_initial_guesses`` perturbed starts and keeps the best;
+        ``bounds="auto"`` means unbounded; ``initial_guess`` is an explicit
+        start vector ``[log G_1, log eta_1, ...]``.
 
     Attributes
     ----------
     G_modes : numpy.ndarray
-        Fitted mode moduli :math:`G_i` (Pa).
+        Fitted :math:`G_i` (Pa).
     tau_modes : numpy.ndarray
-        Relaxation times :math:`\tau_i` (s).
+        Fitted :math:`\tau_i` (s).
     equilibrium_modulus_value : float
-        Fitted :math:`G_e` (0 when ``equilibrium_modulus`` is *False*).
+        Fitted :math:`G_e` (Pa); 0 if not fitted.
     parameters : numpy.ndarray
-        Interleaved ``[G1, eta1, ...]`` with :math:`\eta_i = G_i \tau_i`
-        (kept for backward compatibility).
+        Interleaved ``[G_1, eta_1, G_2, eta_2, ...]`` with
+        :math:`\eta_i = G_i \tau_i` (Pa s).
+    rss, mse, bic, cost : float
+        Fit metrics on the concatenated :math:`G'` and :math:`G''` residuals;
+        ``cost`` is the one selected by ``cost_function``.
 
     Examples
     --------
     >>> import numpy as np
-    >>> from hermes_rheo.transforms.fit_model import MultiModeMaxwellModel
     >>> omega = np.logspace(-2, 2, 60)
-    >>> model = MultiModeMaxwellModel(equilibrium_modulus=True).fit(
-    ...     omega, *MultiModeMaxwellModel().fit(omega, omega, omega).predict(omega)
-    ... )  # doctest: +SKIP
+    >>> g_prime, g_double_prime = MultiModeMaxwellModel._moduli(omega, [1e3], [1.0])
+    >>> model = MultiModeMaxwellModel().fit(omega, g_prime, g_double_prime)  # doctest: +SKIP
     """
 
     def __init__(
@@ -147,13 +169,9 @@ class MultiModeMaxwellModel:
         self._y_true = None
         self._y_pred = None
 
-    # ------------------------------------------------------------------
-    # Forward model (vectorised)
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _moduli(omega, Gs, taus, Ge=0.0):
-        """Vectorised generalized-Maxwell moduli.
+        """Return ``(G', G'')`` of a generalized Maxwell model.
 
         Parameters
         ----------
@@ -168,7 +186,7 @@ class MultiModeMaxwellModel:
         omega = np.asarray(omega, dtype=float)
         Gs = np.asarray(Gs, dtype=float)
         taus = np.asarray(taus, dtype=float)
-        wt = np.outer(omega, taus)  # (N, M)
+        wt = np.outer(omega, taus)
         denom = 1.0 + wt * wt
         g_prime = (Gs * wt * wt / denom).sum(axis=1) + Ge
         g_double_prime = (Gs * wt / denom).sum(axis=1)
@@ -179,10 +197,6 @@ class MultiModeMaxwellModel:
         if self.G_modes is None:
             raise ValueError("Model parameters have not been fitted yet.")
         return self._moduli(omega, self.G_modes, self.tau_modes, self.equilibrium_modulus_value)
-
-    # ------------------------------------------------------------------
-    # Relaxation-time grid + weights
-    # ------------------------------------------------------------------
 
     def _make_taus(self, omega):
         """Return a fixed log-spaced relaxation-time grid for NNLS."""
@@ -198,13 +212,10 @@ class MultiModeMaxwellModel:
         return np.logspace(np.log10(tau_min), np.log10(tau_max), int(n))
 
     def _weights(self, data):
+        """Return residual weights for *data* according to ``weighting``."""
         if self.weighting == "relative":
             return 1.0 / np.maximum(np.abs(data), _TINY)
         return np.ones_like(data)
-
-    # ------------------------------------------------------------------
-    # Metrics
-    # ------------------------------------------------------------------
 
     def _n_params(self):
         if self.mode == "nnls":
@@ -233,16 +244,13 @@ class MultiModeMaxwellModel:
         self.cost = {"RSS": self.rss, "MSE": self.mse, "BIC": self.bic}[self.cost_function]
         return self
 
-    # ------------------------------------------------------------------
-    # Non-negative least-squares (NNLS) (linear Prony) fit
-    # ------------------------------------------------------------------
-
     def _fit_nnls(self, omega, Gp_data, Gpp_data):
+        """Fit ``G_i`` (and ``G_e``) on a fixed tau grid by NNLS."""
         taus = self._make_taus(omega)
         wt = np.outer(omega, taus)
         denom = 1.0 + wt * wt
-        a_prime = wt * wt / denom  # (N, M)  -> G'
-        a_double = wt / denom  # (N, M)  -> G''
+        a_prime = wt * wt / denom
+        a_double = wt / denom
 
         if self.equilibrium_modulus:
             # G_e contributes to G' (column of ones) and not to G''.
@@ -266,10 +274,6 @@ class MultiModeMaxwellModel:
             self.equilibrium_modulus_value = 0.0
         self.tau_modes = taus
         return self._finalise(omega, Gp_data, Gpp_data)
-
-    # ------------------------------------------------------------------
-    # Nonlinear (free tau) fit
-    # ------------------------------------------------------------------
 
     def _predict_from_log_params(self, omega, params_log):
         Gs = np.exp(params_log[0::2])
@@ -298,6 +302,7 @@ class MultiModeMaxwellModel:
         return x0
 
     def _fit_nonlinear(self, omega, Gp_data, Gpp_data):
+        """Fit ``G_i`` and ``tau_i`` by multistart minimisation in log space."""
         if self.n_modes is None:
             raise ValueError("n_modes must be specified for mode='nonlinear'.")
         w_p = self._weights(Gp_data)
@@ -326,10 +331,6 @@ class MultiModeMaxwellModel:
         self.tau_modes = np.exp(best.x[1::2]) / Gs
         return self._finalise(omega, Gp_data, Gpp_data)
 
-    # ------------------------------------------------------------------
-    # Public fit
-    # ------------------------------------------------------------------
-
     def fit(self, omega, Gp_data, Gpp_data):
         """Fit the model to storage/loss modulus data.
 
@@ -354,11 +355,8 @@ class MultiModeMaxwellModel:
             return self._fit_nonlinear(omega, Gp_data, Gpp_data)
         raise ValueError("mode must be 'nnls' or 'nonlinear'.")
 
-    # ------------------------------------------------------------------
-    # Reporting
-    # ------------------------------------------------------------------
-
     def print_parameters(self):
+        """Print the fitted ``G_e`` (if any) and each mode's G, tau and eta."""
         if self.G_modes is None:
             raise ValueError("Model parameters have not been fitted yet.")
         n = len(self.G_modes)
@@ -369,6 +367,7 @@ class MultiModeMaxwellModel:
             print(f"  Mode {i}: G = {G:.3e} Pa, tau = {tau:.3e} s, eta = {G * tau:.3e} Pa.s")
 
     def print_error(self):
+        """Print the mean percentage error and the cost; return the cost."""
         if self._y_true is None or self._y_pred is None:
             raise AttributeError("No stored prediction data available for error calculation.")
         absolute_error = np.abs(self._y_true - self._y_pred)
@@ -400,77 +399,100 @@ def _load_pyrheo_model(domain):
     return model_class
 
 
+_REFERENCES = [
+    "Bonfanti, Kaplan, Charras, Kabla, Soft Matter 16(26), 6002-6020 (2020), "
+    "doi:10.1039/d0sm00354a",
+    "Song, Holten-Andersen, McKinley, Soft Matter 19(41), 7885-7906 (2023), doi:10.1039/d3sm00736g",
+    "Miranda-Valdez et al., Digital Discovery 4(4), 1075-1082 (2025), doi:10.1039/d5dd00021a",
+]
+
+
 def _is_default_saos(model):
     return model is None or getattr(model, "__name__", None) == "SAOSModel"
 
 
-class FitModel:
-    """Fit a rheological model to storage/loss moduli from many input types.
+class FitModel(MeasurementSetTransform):
+    r"""Fit a rheological model to linear viscoelastic data.
 
-    ``FitModel`` fits :math:`G'(\\omega)` and :math:`G''(\\omega)` with either
-    a `pyRheo <https://github.com/mirandi1/pyRheo>`_ constitutive model
-    (fractional and classical viscoelastic models) or the built-in
-    :class:`MultiModeMaxwellModel` (generalized Maxwell / Prony series).
+    Fits :math:`G'(\omega)` and :math:`G''(\omega)` (or, with
+    ``domain="relaxation"``, :math:`G(t)`) with a classical or fractional
+    model from pyRheo, or with the built-in :class:`MultiModeMaxwellModel`
+    (a Prony series, :math:`G(t) = G_e + \sum_i G_i e^{-t/\tau_i}`).
+    Fractional models use spring-pots of order :math:`\alpha`, so a few
+    parameters describe power-law relaxation. Parameters are found by
+    minimising a cost (RSS, MSE or BIC) of the model against the data from
+    many random starts. The simulator of the same name,
+    :class:`hermes_rheo.lve_models.MultiModeMaxwellModel`, generates data
+    instead.
 
-    The moduli can come from:
+    The input may be a ``Measurement``, a ``MeasurementSet`` or
+    ``ExperimentSet`` (``measurement_index`` picks one measurement), a
+    dataset, or a
+    :class:`~hermes_rheo.transforms.automated_mastercurve.CompositeMasterCurve`
+    whose storage and loss curves are interpolated onto a common log grid.
+    ``domain="relaxation"`` fits one dataset, such as the output of
+    :class:`~hermes_rheo.transforms.frequency_to_time.FrequencyToTime`.
 
-    * a **single dataset** — an isothermal frequency sweep or one
-      temperature of a TTS experiment (pass a ``Measurement``,
-      ``MeasurementSet``/``ExperimentSet`` — one dataset selected by
-      ``measurement_index`` — or a dataset directly); or
-    * a **master curve** — a
-      :class:`~hermes_rheo.transforms.automated_mastercurve.CompositeMasterCurve`
-      (the two moduli curves are interpolated onto a common grid).
+    Returns
+    -------
+    piblin.data.data_collections.measurement.Measurement
+        One :class:`OneDimensionalCompositeDataset`. Oscillation arrays:
+        ``angular frequency`` (rad/s), ``storage modulus``, ``loss modulus``,
+        ``fitted storage modulus``, ``fitted loss modulus`` (Pa). Relaxation
+        arrays: ``time`` (s), ``relaxation modulus``,
+        ``fitted relaxation modulus`` (Pa). ``conditions`` hold ``fit_model``
+        and ``fitted``. ``details`` hold ``model``, ``parameters``,
+        ``goodness_of_fit`` (cost, metric, RSS and R-squared; parameter
+        uncertainties are not estimated), ``method``, ``domain``,
+        ``references`` and ``software``.
 
-        For ``domain="relaxation"``, the transform instead fits a time-domain
-        relaxation curve :math:`G(t)` using pyRheo
-        :class:`pyRheo.relaxation_model.RelaxationModel`.
-
-    Because it accepts either, ``FitModel`` can be used stand-alone on a
-    single sweep *or* chained after master-curve construction, e.g.
-    ``OWChirpAnalysis() + CompositeMasterCurve(...) + FitModel(...)``.
+    The fitted model stays available as :attr:`fitted_model`,
+    :attr:`fit_params` and :attr:`fit_measurement`, and the fitted data as
+    ``omega_common``, ``G_prime``, ``G_double_prime`` or ``t_common``,
+    ``G_relax``.
 
     Parameters
     ----------
     model : callable, {"custom"} or None, optional
-        A pyRheo model class or the string ``"custom"`` together with
-        ``model_name="MultiModeMaxwell"`` for the built-in generalized
-        Maxwell model.  ``None`` (default) selects pyRheo's
-        :class:`~pyRheo.oscillation_model.SAOSModel` for
-        ``domain="oscillation"`` and
-        :class:`~pyRheo.relaxation_model.RelaxationModel` for
-        ``domain="relaxation"``; pyRheo is then imported on first use.
+        pyRheo model class, or ``"custom"`` with
+        ``model_name="MultiModeMaxwell"`` for the built-in fit. None
+        (default) selects ``pyRheo.oscillation_model.SAOSModel`` or, for
+        ``domain="relaxation"``, ``pyRheo.relaxation_model.RelaxationModel``.
     model_name : str, optional
         pyRheo model name (e.g. ``"FractionalZener"``) or
-        ``"MultiModeMaxwell"``.  Defaults to ``"FractionalZener"``.
+        ``"MultiModeMaxwell"``. Default ``"FractionalZener"``.
     n_modes, mode, equilibrium_modulus : optional
-        Forwarded to :class:`MultiModeMaxwellModel` when
-        ``model="custom"``.
+        Passed to :class:`MultiModeMaxwellModel` for ``model="custom"``.
+    initial_guesses, cost_function, bounds, num_initial_guesses, minimization_algorithm : optional
+        Optimiser options passed to the fitted model.
     measurement_index : int, optional
-        Which measurement to fit when the input is an
-        ``ExperimentSet``/``MeasurementSet``.  Defaults to ``0``.
+        Measurement to fit in a set. Default 0.
     dataset_index : int, optional
-        Which dataset within the selected measurement to fit.  Defaults
-        to ``0``.
+        Dataset to fit within the measurement. Default 0.
     x_name, storage_name, loss_name : str, optional
-        Data-array names for angular frequency and the two moduli.
+        Names of the angular frequency, storage and loss modulus arrays.
     n_interp : int, optional
-        Number of points on the common grid used when fitting a master
-        curve.  Defaults to ``100``.
+        Points of the common grid for master curves. Default 100.
     domain : {"oscillation", "relaxation"}, optional
-        Fitting domain. ``"oscillation"`` (default) fits
-        :math:`G'(\\omega), G''(\\omega)`. ``"relaxation"`` fits
-        :math:`G(t)`.
+        Fit :math:`G'(\omega), G''(\omega)` (default) or :math:`G(t)`.
     time_name, relaxation_name : str, optional
-        Data-array names used in ``domain="relaxation"`` mode.
+        Array names for ``domain="relaxation"``. Default ``"time"`` and
+        ``"G_from_eta1"`` (the output of ``FrequencyToTime``).
 
     References
     ----------
-    .. [pyRheo] Miranda-Valdez, I. Y. *et al.*, *pyRheo: an open-source
-       Python package for complex rheology*, Digital Discovery 4, 1075
-       (2025).  DOI: `10.1039/D4DD00378K
-       <https://doi.org/10.1039/D4DD00378K>`_ —
-       preprint `arXiv:2412.15941 <https://arxiv.org/abs/2412.15941>`_.
+    .. [Bonfanti2020] Bonfanti, A., Kaplan, J. L., Charras, G., Kabla, A.,
+       *Fractional viscoelastic models for power-law materials*, Soft Matter
+       16(26), 6002-6020 (2020). DOI: `10.1039/d0sm00354a
+       <https://doi.org/10.1039/d0sm00354a>`_.
+    .. [Song2023] Song, J., Holten-Andersen, N., McKinley, G. H.,
+       *Non-Maxwellian viscoelastic stress relaxations in soft matter*, Soft
+       Matter 19(41), 7885-7906 (2023). DOI: `10.1039/d3sm00736g
+       <https://doi.org/10.1039/d3sm00736g>`_.
+    .. [pyRheo] Miranda-Valdez, I. Y., Niinisto, J., Makinen, T., Lejon, J.,
+       Koivisto, J., Alava, M. J., *pyRheo: an open-source Python package for
+       complex rheology*, Digital Discovery 4(4), 1075-1082 (2025). DOI:
+       `10.1039/d5dd00021a <https://doi.org/10.1039/d5dd00021a>`_.
     """
 
     def __init__(
@@ -494,7 +516,10 @@ class FitModel:
         time_name="time",
         relaxation_name="G_from_eta1",
         n_interp=100,
+        *args,
+        **kwargs,
     ):
+        super().__init__(*args, **kwargs)
         self.model = model
         self.model_name = model_name
         self.n_modes = n_modes
@@ -521,10 +546,7 @@ class FitModel:
         self.G_double_prime = None
         self.t_common = None
         self.G_relax = None
-
-    # ------------------------------------------------------------------
-    # Input adapters
-    # ------------------------------------------------------------------
+        self.fit_measurement = None
 
     @staticmethod
     def _xy(dataset, x_name, y_name):
@@ -545,6 +567,7 @@ class FitModel:
         raise TypeError(f"FitModel could not locate a dataset to fit in a {type(target).__name__}.")
 
     def _extract_from_measurements(self, target):
+        """Return finite ``(omega, G', G'')`` sorted by frequency."""
         dataset = self._select_dataset(target)
         omega, g_prime = self._xy(dataset, self.x_name, self.storage_name)
         _, g_double_prime = self._xy(dataset, self.x_name, self.loss_name)
@@ -553,6 +576,7 @@ class FitModel:
         return omega[mask][order], g_prime[mask][order], g_double_prime[mask][order]
 
     def _extract_from_composite(self, composite):
+        """Return ``(omega, G', G'')`` on a common log grid from a master curve."""
         for q in (self.storage_name, self.loss_name):
             if q not in composite.available_quantities:
                 raise ValueError(f"FitModel requires '{q}' in the CompositeMasterCurve quantities.")
@@ -601,14 +625,9 @@ class FitModel:
         order = np.argsort(t[mask])
         return t[mask][order], g_relax[mask][order]
 
-    # ------------------------------------------------------------------
-    # Fit
-    # ------------------------------------------------------------------
-
-    def __call__(self, target):
+    def _build_model(self):
+        """Return an unfitted model object for the current settings."""
         if self.domain == "relaxation":
-            t_common, g_relax = self._extract_relaxation(target)
-
             # An explicit SAOSModel is swapped for RelaxationModel so that
             # code written for oscillation fits keeps working here.
             if _is_default_saos(self.model):
@@ -619,30 +638,8 @@ class FitModel:
                 )
             else:
                 model_class = self.model
-
-            model = model_class(
-                model=self.model_name,
-                initial_guesses=self.initial_guesses,
-                cost_function=self.cost_function,
-                bounds=self.bounds,
-                num_initial_guesses=self.num_initial_guesses,
-                minimization_algorithm=self.minimization_algorithm,
-            )
-            model.fit(t_common, g_relax)
-
-            self.fitted_model = model
-            self.fit_params = getattr(model, "parameters", None)
-            self.t_common = t_common
-            self.G_relax = g_relax
-            self.omega_common = None
-            self.G_prime = None
-            self.G_double_prime = None
-            return self
-
-        omega_common, g_prime, g_double_prime = self._extract_moduli(target)
-
-        if self.model == "custom" and self.model_name == "MultiModeMaxwell":
-            model = MultiModeMaxwellModel(
+        elif self.model == "custom" and self.model_name == "MultiModeMaxwell":
+            return MultiModeMaxwellModel(
                 n_modes=self.n_modes,
                 mode=self.mode,
                 equilibrium_modulus=self.equilibrium_modulus,
@@ -654,49 +651,170 @@ class FitModel:
             )
         else:
             model_class = _load_pyrheo_model("oscillation") if self.model is None else self.model
-            model = model_class(
-                model=self.model_name,
-                initial_guesses=self.initial_guesses,
-                cost_function=self.cost_function,
-                bounds=self.bounds,
-                num_initial_guesses=self.num_initial_guesses,
-                minimization_algorithm=self.minimization_algorithm,
-            )
+        return model_class(
+            model=self.model_name,
+            initial_guesses=self.initial_guesses,
+            cost_function=self.cost_function,
+            bounds=self.bounds,
+            num_initial_guesses=self.num_initial_guesses,
+            minimization_algorithm=self.minimization_algorithm,
+        )
 
-        model.fit(omega_common, g_prime, g_double_prime)
+    @staticmethod
+    def _plain(value):
+        """Convert numpy values to plain Python for ``details``."""
+        if isinstance(value, dict):
+            return {str(k): FitModel._plain(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return [FitModel._plain(v) for v in np.asarray(value).tolist()]
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
+
+    def _parameter_details(self, model):
+        """Return ``(parameters, goodness_of_fit)`` dicts for the fitted model."""
+        if isinstance(model, MultiModeMaxwellModel):
+            params = {
+                "G_modes": model.G_modes,
+                "tau_modes": model.tau_modes,
+                "equilibrium_modulus": model.equilibrium_modulus_value,
+            }
+            gof = {
+                "cost_function": model.cost_function,
+                "cost": model.cost,
+                "rss": model.rss,
+                "mse": model.mse,
+                "bic": model.bic,
+            }
+        else:
+            raw = dict(model.get_parameters()) if hasattr(model, "get_parameters") else {}
+            cost = raw.pop("Cost", getattr(model, "cost_", None))
+            metric = raw.pop("Cost Metric", self.cost_function)
+            params = raw
+            gof = {"cost_function": metric, "cost": cost}
+        return self._plain(params), self._plain(gof)
+
+    def _to_measurement(self, model, x, y, y_fit, x_names, y_names, units, source):
+        """Build the output measurement from measured and fitted arrays."""
+        params, gof = self._parameter_details(model)
+        residual = np.concatenate([np.ravel(a) - np.ravel(b) for a, b in zip(y, y_fit)])
+        measured = np.concatenate([np.ravel(a) for a in y])
+        ss_tot = float(np.sum((measured - measured.mean()) ** 2))
+        gof["r_squared"] = float(1.0 - np.sum(residual**2) / ss_tot) if ss_tot > 0 else None
+        gof["uncertainties"] = "not estimated"
+
+        name = getattr(model, "model", None) or self.model_name
+        names = [x_names[0], *y_names]
+        dataset = _composite.OneDimensionalCompositeDataset(
+            data_arrays=[x, *y, *y_fit],
+            data_array_names=names + [f"fitted {n}" for n in y_names],
+            data_array_units=units,
+            default_independent_name=x_names[0],
+            default_dependent_name=y_names[0],
+            source=source,
+        )
+        details = {
+            "model": name,
+            "parameters": params,
+            "goodness_of_fit": gof,
+            "method": f"{type(model).__name__} fit, cost {gof['cost_function']}",
+            "domain": self.domain,
+            "grid": {
+                "variable": x_names[0],
+                "min": float(np.min(x)),
+                "max": float(np.max(x)),
+                "points": int(np.size(x)),
+            },
+            "references": list(_REFERENCES),
+            "software": f"hermes-rheo {__version__}",
+        }
+        return _measurement.Measurement(
+            datasets=[dataset],
+            conditions={"fit_model": name, "fitted": True},
+            details=details,
+        )
+
+    def _fit(self, target):
+        """Fit *target* and return the output ``Measurement``."""
+        model = self._build_model()
+        if self.domain == "relaxation":
+            t, g_relax = self._extract_relaxation(target)
+            model.fit(t, g_relax)
+            g_fit = np.asarray(model.predict(t), dtype=float)
+            out = self._to_measurement(
+                model,
+                t,
+                [g_relax],
+                [g_fit],
+                ["time"],
+                ["relaxation modulus"],
+                ["s", "Pa", "Pa"],
+                f"{self.model_name} fit of relaxation modulus",
+            )
+            omega = g_prime = g_double_prime = None
+            self.t_common, self.G_relax = t, g_relax
+        else:
+            omega, g_prime, g_double_prime = self._extract_moduli(target)
+            model.fit(omega, g_prime, g_double_prime)
+            gp_fit, gpp_fit = (np.asarray(v, dtype=float) for v in model.predict(omega))
+            out = self._to_measurement(
+                model,
+                omega,
+                [g_prime, g_double_prime],
+                [gp_fit, gpp_fit],
+                ["angular frequency"],
+                ["storage modulus", "loss modulus"],
+                ["rad/s", "Pa", "Pa", "Pa", "Pa"],
+                f"{self.model_name} fit of storage and loss modulus",
+            )
+            self.t_common = self.G_relax = None
 
         self.fitted_model = model
         self.fit_params = getattr(model, "parameters", None)
-        self.omega_common = omega_common
-        self.G_prime = g_prime
-        self.G_double_prime = g_double_prime
-        self.t_common = None
-        self.G_relax = None
-        return self
+        if self.fit_params is None and hasattr(model, "get_parameters"):
+            self.fit_params = model.get_parameters()
+        self.omega_common, self.G_prime, self.G_double_prime = omega, g_prime, g_double_prime
+        self.fit_measurement = out
+        return out
+
+    def _apply(self, target, **kwargs):
+        return self._fit(target)
 
     def apply_to(self, target, make_copy=False, **kwargs):
-        return self.__call__(target)
+        """Fit *target* and return a piblin ``Measurement``.
+
+        *target* may also be a ``CompositeMasterCurve``. *make_copy* is
+        ignored because the input is never modified.
+        """
+        return self._fit(target)
+
+    def __call__(self, target, make_copy=False, **kwargs):
+        """See :meth:`apply_to`."""
+        return self._fit(target)
 
     @property
     def model_fit_params(self):
+        """Fitted parameters of the model (alias of :attr:`fit_params`)."""
         return self.fit_params
 
     @property
     def model_fit_object(self):
+        """Fitted model object (alias of :attr:`fitted_model`)."""
         return self.fitted_model
 
     @property
     def model_fit_plot(self):
+        """Plot the fit; see :meth:`plot`."""
         return self.plot()
 
     def plot(self, *args, **kwargs):
         """Plot the fitted moduli against the data.
 
-        Delegates to
-        :func:`hermes_rheo.visualization.fit.plot_model_fit`.  Accepts
-        ``show_residuals``, ``ax``, ``figsize``, ``xlabel``, ``ylabel``,
-        ``title``, ``xlim``, ``ylim`` and, for backward compatibility,
-        ``savefig``/``format``/``dpi``.  Returns ``(figure, axes)``.
+        Calls :func:`hermes_rheo.visualization.fit.plot_model_fit`, which
+        accepts ``show_residuals``, ``ax``, ``figsize``, ``xlabel``,
+        ``ylabel``, ``title``, ``xlim`` and ``ylim``. ``savefig``,
+        ``format``, ``dpi`` and ``show`` are handled here. Returns
+        ``(figure, axes)``.
         """
         from hermes_rheo.visualization.fit import plot_model_fit
 
@@ -713,12 +831,14 @@ class FitModel:
         return fig, ax
 
     def print_parameters(self, *args, **kwargs):
+        """Print the parameters of the fitted model."""
         if self.fitted_model is not None and hasattr(self.fitted_model, "print_parameters"):
             return self.fitted_model.print_parameters(*args, **kwargs)
         else:
             raise AttributeError("No fitted model available or print_parameters method not found.")
 
     def print_error(self, *args, **kwargs):
+        """Print the error of the fitted model."""
         if self.fitted_model is not None and hasattr(self.fitted_model, "print_error"):
             return self.fitted_model.print_error(*args, **kwargs)
         else:

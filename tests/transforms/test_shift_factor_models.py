@@ -1,14 +1,4 @@
-"""Tests for :mod:`hermes_rheo.transforms.shift_factor_models`.
-
-These tests lock in that:
-
-1. :class:`WLFModel` and :class:`ArrheniusModel` recover the generating
-   parameters from synthetic ``log10(a_T)`` data.
-2. :class:`ShiftFactorModel` reads shift factors from an
-   ``AutomatedMasterCurve``-style object (``states`` + ``hparams``) as
-   well as from a plain ``(temperatures, shift_factors)`` tuple.
-3. The Arrhenius model honours the Celsius/Kelvin unit conversion.
-"""
+"""Tests for shift-factor models."""
 
 from __future__ import annotations
 
@@ -33,15 +23,8 @@ class _MockMasterCurve:
         self.hparams = [list(shift_factors)]
 
 
-# ---------------------------------------------------------------------------
-# 1) Synthetic round-trips
-# ---------------------------------------------------------------------------
-
-
 def test_wlf_recovers_constants():
     temperatures = np.linspace(-40.0, 150.0, 25)
-    # Reference at the low end so C2 + (T - Tref) stays positive over the whole
-    # range (no WLF pole inside the fitted window).
     c1, c2, t_ref = 15.0, 120.0, -40.0
     log_aT = -c1 * (temperatures - t_ref) / (c2 + (temperatures - t_ref))
 
@@ -82,11 +65,6 @@ def test_arrhenius_unit_conversion_matches_kelvin_input():
     )
 
     assert model_c.activation_energy == pytest.approx(model_k.activation_energy, rel=1e-6)
-
-
-# ---------------------------------------------------------------------------
-# 2) ShiftFactorModel input adapters
-# ---------------------------------------------------------------------------
 
 
 def test_shift_factor_model_reads_mastercurve_object():

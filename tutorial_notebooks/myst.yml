@@ -25,9 +25,13 @@ project:
     - file: 4_time temperature superposition.ipynb
     - file: 5_time curing superposition.ipynb
     - file: 6_mutation number calculation.ipynb
-    - file: 7_visualization.ipynb
+    - file: 7_van gurp-palmen and cole-cole plots.ipynb
     - file: 8_temperature ramp analysis.ipynb
     - file: 9_kymographs tutorial.ipynb
+    - file: 10_recovery rheology.ipynb
+    - file: 11_rheological model fitting.ipynb
+    - file: 12_frequency to time relaxation modulus.ipynb
+    - file: 13_relaxation spectrum via pyrespect.ipynb
   # Notebooks are committed with outputs; the docs build does not execute them.
   jupyter: false
   # Drop the ``<matplotlib.axes... at 0x...>`` repr strings that

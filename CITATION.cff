@@ -5,16 +5,16 @@ cff-version: 1.2.0
 title: hermes-rheo
 version: 2.0.0
 message: >-
-  If you use this software, please cite it using the  
+  If you use this software, please cite it using the
   metadata from this file.
 type: software
 authors:
-  - given-names: 'Alessandro '
+  - given-names: Alessandro
     family-names: Perego
     email: aperego@mmm.com
     affiliation: 3M
     orcid: 'https://orcid.org/0000-0002-0570-3210'
-  - given-names: Mathew J. L.
+  - given-names: Matthew J. L.
     family-names: Mills
     email: mmills2@mmm.com
     affiliation: 3M

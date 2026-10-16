@@ -1,22 +1,18 @@
 """Continuous and discrete relaxation spectra via pyReSpect.
 
-This transform wraps the two open-source pyReSpect solvers behind a
-single hermes-rheo ``MeasurementTransform`` interface:
+Two vendored pyReSpect solvers are exposed through one
+``MeasurementTransform``:
 
-* :mod:`pyrespect_time` --- given :math:`G(t)` from a stress-relaxation
-  experiment, recover the continuous relaxation spectrum
-  :math:`H(s)` via Tikhonov regularisation with Bayesian
-  :math:`\\lambda` selection [Shanbhag2019]_ [TakehShanbhag2013]_ and
-  a discrete Prony series :math:`(g_i, \\tau_i)` by AIC minimisation.
+* ``domain="time"``: pyReSpect-time [Shanbhag2019]_ computes the continuous
+  spectrum :math:`H(s)` from a relaxation modulus :math:`G(t)` by Tikhonov
+  regularisation with Bayesian selection of the regularisation parameter,
+  and a discrete spectrum :math:`(g_i, \\tau_i)` by AIC minimisation.
+* ``domain="frequency"``: pyReSpect-freq [Shanbhag2020]_ [TakehShanbhag2013]_
+  computes the same quantities from :math:`G'(\\omega)` and
+  :math:`G''(\\omega)`.
 
-* :mod:`pyrespect_freq` --- given oscillatory moduli
-  :math:`G'(\\omega), G''(\\omega)`, recover the same
-  :math:`H(s)` / :math:`(g_i, \\tau_i)` [Shanbhag2020]_.
-
-Both solvers are vendored in :mod:`hermes_rheo._vendor` (MIT licence,
-see ``_vendor/README.md``) and need no separate installation.
-
-Given the following inverse problems:
+The solvers are vendored in :mod:`hermes_rheo._vendor` (MIT licence, see
+``_vendor/README.md``). The inverse problems are
 
 .. math::
 
@@ -32,20 +28,17 @@ Given the following inverse problems:
    G''(\\omega) = \\int_{-\\infty}^{\\infty}
        \\frac{\\omega s}{1 + \\omega^2 s^2} H(s)\\, d\\ln s
 
-the transform returns two composite datasets prepended onto the input
-measurement:
+The transform prepends two composite datasets to the measurement:
 
-1. ``continuous relaxation spectrum`` --- ``s`` (s), ``H`` (log CRS,
-   dimensionless), ``h`` (Pa; :math:`h = \\exp(H)`) and, when
-   available, ``dH`` (log CRS error band from the frequency branch).
-2. ``discrete relaxation spectrum`` --- ``discrete relaxation time``
-   (s), ``g`` (Pa) and, when available, ``dtau`` (s; the time branch's
-   NLLS uncertainty estimate).
+1. ``relaxation time`` (s), ``H`` (log spectrum, dimensionless),
+   ``h = exp(H)`` (Pa) and, for the frequency branch, ``dH``.
+2. ``discrete relaxation time`` (s), ``g`` (Pa) and, for the time branch,
+   ``dtau`` (s).
 
-The full solver output is stashed on
-``target.details["relaxation_spectrum_result"]`` as a
-:class:`RelaxationSpectrumResult` dataclass for downstream code (plots,
-model fits, tutorials).
+The full solver output is stored in
+``details["relaxation_spectrum_result"]`` as a
+:class:`RelaxationSpectrumResult`; the method, domain, solver settings and
+references are stored in ``details["relaxation_spectrum"]``.
 
 References
 ----------
@@ -64,7 +57,8 @@ References
 .. [TakehShanbhag2013] Takeh, A. and Shanbhag, S., *A computer program
    to extract the continuous and discrete relaxation spectra from
    dynamic viscoelastic measurements*, Applied Rheology **23**, 24628
-   (2013).
+   (2013). DOI: `10.3933/applrheol-23-24628
+   <https://doi.org/10.3933/applrheol-23-24628>`_.
 """
 
 from __future__ import annotations
@@ -79,18 +73,12 @@ from piblin.transform.abc.measurement_transform import MeasurementTransform
 __all__ = ["RelaxationSpectrum", "RelaxationSpectrumResult"]
 
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
 _DOMAIN_TIME = "time"
 _DOMAIN_FREQUENCY = "frequency"
 _VALID_DOMAINS = (_DOMAIN_TIME, _DOMAIN_FREQUENCY)
 
-#: Aliases accepted for the relaxation-modulus column in the time branch.
-#: The first hit wins.  ``G_from_eta1`` / ``G_from_eta2`` let the transform
-#: chain seamlessly after
-#: :class:`~hermes_rheo.transforms.frequency_to_time.FrequencyToTime`.
+# Fallback column names for the relaxation modulus; the first match wins.
+# ``G_from_eta1`` / ``G_from_eta2`` are written by FrequencyToTime.
 _RELAXATION_ALIASES = (
     "G_from_eta1",
     "G_from_eta2",
@@ -101,13 +89,18 @@ _RELAXATION_ALIASES = (
 
 _TIME_ALIASES = ("time", "step time")
 
+_REFERENCES = {
+    _DOMAIN_TIME: (
+        "Shanbhag, Macromol. Theory Simul. 28, 1900005 (2019), doi:10.1002/mats.201900005",
+    ),
+    _DOMAIN_FREQUENCY: (
+        "Shanbhag, Rheol. Acta 59, 509 (2020), doi:10.1007/s00397-020-01212-w",
+        "Takeh and Shanbhag, Appl. Rheol. 23, 24628 (2013), doi:10.3933/applrheol-23-24628",
+    ),
+}
 
-# ---------------------------------------------------------------------------
-# Import helper
-# ---------------------------------------------------------------------------
 
-
-def _require_pyrespect(domain: str):
+def _load_pyrespect(domain: str):
     """Return the vendored pyReSpect module for *domain*."""
     if domain == _DOMAIN_TIME:
         from hermes_rheo._vendor import pyrespect_time
@@ -120,11 +113,6 @@ def _require_pyrespect(domain: str):
     raise ValueError(f"Unknown domain {domain!r}")  # pragma: no cover
 
 
-# ---------------------------------------------------------------------------
-# Result container
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class RelaxationSpectrumResult:
     """Unified container for pyReSpect-time and pyReSpect-freq outputs.
@@ -134,9 +122,7 @@ class RelaxationSpectrumResult:
     domain : {"time", "frequency"}
         Which pyReSpect branch produced the result.
     config : dict
-        Snapshot of the ``ReSpectConfig`` values actually passed to
-        pyReSpect.  Useful for reproducibility and for stashing on the
-        measurement ``details``.
+        ``ReSpectConfig`` values passed to pyReSpect.
 
     Continuous relaxation spectrum:
 
@@ -155,10 +141,9 @@ class RelaxationSpectrumResult:
         :math:`[G' \\| G'']` (frequency branch) from the continuous
         spectrum, in Pa.
     lam, rho, eta, log_P, H_lam, dH : np.ndarray or None
-        L-curve / evidence / snapshot diagnostics.  Some are only
-        populated by one of the two branches --- see
-        :class:`~pyrespect_time.continuous.ContinuousResult` and
-        :class:`~pyrespect_freq.continuous.ContinuousResult`.
+        L-curve and evidence diagnostics. Some are populated by only one
+        branch; see the ``ContinuousResult`` classes in ``pyrespect_time``
+        and ``pyrespect_freq``.
 
     Discrete relaxation spectrum:
 
@@ -174,12 +159,13 @@ class RelaxationSpectrumResult:
     G_fit_disc : np.ndarray
         Predicted response from the discrete spectrum.
     G0_disc : float
+        Plateau modulus of the discrete fit, in Pa.
     wt_base, AIC_bst, N_bst : np.ndarray or None
         AIC-scan diagnostics.
 
     dataset_continuous, dataset_discrete : OneDimensionalCompositeDataset
-        The two composite datasets prepended onto the input
-        measurement's ``.datasets`` list.
+        The datasets prepended to the measurement; the discrete one is
+        ``None`` when no modes were found.
     """
 
     domain: str
@@ -216,19 +202,14 @@ class RelaxationSpectrumResult:
     dataset_discrete: one_d_composite_dataset.OneDimensionalCompositeDataset | None = None
 
 
-# ---------------------------------------------------------------------------
-# Small helpers
-# ---------------------------------------------------------------------------
-
-
-def _find_first(names: tuple[str, ...], catalogue: list) -> str | None:
-    for candidate in names:
-        if candidate in catalogue:
+def _first_present(candidates: tuple[str, ...], available: list) -> str | None:
+    for candidate in candidates:
+        if candidate in available:
             return candidate
     return None
 
 
-def _sanitize_time(t: np.ndarray, g_t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _clean_time_series(t: np.ndarray, g_t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     t = np.asarray(t, dtype=float).ravel()
     g_t = np.asarray(g_t, dtype=float).ravel()
     mask = np.isfinite(t) & np.isfinite(g_t) & (t > 0.0) & (g_t > 0.0)
@@ -242,14 +223,14 @@ def _sanitize_time(t: np.ndarray, g_t: np.ndarray) -> tuple[np.ndarray, np.ndarr
     order = np.argsort(t)
     t = t[order]
     g_t = g_t[order]
-    # Deduplicate coincident time samples (some rheometers repeat step-time
-    # values across segments); pyReSpect requires strictly monotonic input.
+    # Repeated time values (e.g. across segments) break pyReSpect's
+    # requirement of strictly increasing input.
     t, idx = np.unique(t, return_index=True)
     g_t = g_t[idx]
     return t, g_t
 
 
-def _sanitize_frequency(
+def _clean_frequency_series(
     omega: np.ndarray, gp: np.ndarray, gpp: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     omega = np.asarray(omega, dtype=float).ravel()
@@ -281,89 +262,84 @@ def _sanitize_frequency(
     return omega, gp, gpp
 
 
-def _config_kwargs() -> tuple[str, ...]:
-    """The full set of ``ReSpectConfig`` kwargs shared by both branches."""
-    return (
-        "ns",
-        "plateau",
-        "freq_end",
-        "lam_min",
-        "lam_max",
-        "lam_C",
-        "lam_density",
-        "SmFacLam",
-        "max_num_modes",
-        "delta_base_weight_dist",
-        "min_tau_spacing",
-        "resample",
-        "n_resample",
-    )
-
-
-# ---------------------------------------------------------------------------
-# Main transform
-# ---------------------------------------------------------------------------
+# ``ReSpectConfig`` fields shared by both branches.
+_CONFIG_FIELDS = (
+    "ns",
+    "plateau",
+    "freq_end",
+    "lam_min",
+    "lam_max",
+    "lam_C",
+    "lam_density",
+    "SmFacLam",
+    "max_num_modes",
+    "delta_base_weight_dist",
+    "min_tau_spacing",
+    "resample",
+    "n_resample",
+)
 
 
 class RelaxationSpectrum(MeasurementTransform):
     """Continuous and discrete relaxation spectra via pyReSpect.
 
-    Wraps :class:`pyrespect_time.ReSpect` (``domain="time"``) and
-    :class:`pyrespect_freq.ReSpect` (``domain="frequency"``) behind a
-    single hermes-rheo transform.  Both solvers are vendored and imported
-    on first use.
+    Uses ``pyrespect_time`` for ``domain="time"`` [Shanbhag2019]_ and
+    ``pyrespect_freq`` for ``domain="frequency"`` [Shanbhag2020]_
+    [TakehShanbhag2013]_. If the required columns are missing or fewer
+    than five valid points remain, the measurement is returned unchanged.
 
     Parameters
     ----------
     domain : {"time", "frequency"}, default "frequency"
-        Which pyReSpect branch to invoke.  ``"time"`` operates on the
-        relaxation modulus :math:`G(t)`; ``"frequency"`` operates on the
-        oscillatory moduli :math:`G'(\\omega), G''(\\omega)`.
+        ``"time"`` uses the relaxation modulus :math:`G(t)`; ``"frequency"``
+        uses :math:`G'(\\omega)` and :math:`G''(\\omega)`.
     plateau : bool, default False
-        Fit a non-zero plateau modulus :math:`G_\\infty`.  Set to
-        ``True`` for viscoelastic solids.
+        Fit a plateau modulus :math:`G_\\infty` (viscoelastic solids).
     ns : int, default 100
         Discretisation points on the :math:`s` axis.
     freq_end : {"lenient", "neutral", "strict"}, default "lenient"
-        Extent of the :math:`s`-axis window relative to the data window.
+        Width of the :math:`s` window relative to the data window.
     lam_min, lam_max : float
-        L-curve search bounds for :math:`\\lambda`.
+        Search bounds for the regularisation parameter :math:`\\lambda`.
     lam_C : float or None
-        Pre-specified :math:`\\lambda`; skips the L-curve when set.
+        Fixed :math:`\\lambda`; skips the :math:`\\lambda` search when set.
     SmFacLam : float, default 0.0
-        Smoothness nudge in :math:`[-1, 1]`.
+        Smoothing shift of the selected :math:`\\lambda`, in :math:`[-1, 1]`.
     max_num_modes : int or None
-        Cap on the number of discrete Maxwell modes.
+        Maximum number of discrete modes.
     delta_base_weight_dist : float, default 0.2
-        Step size for the AIC scan.
+        Step size of the base-weight scan in the AIC search.
     min_tau_spacing : float, default 1.25
-        Minimum :math:`\\tau_{i+1}/\\tau_i` before merging.
+        Minimum ratio :math:`\\tau_{i+1}/\\tau_i`; closer modes are merged.
     resample : bool, default True
-        Resample the input onto a geometric grid before fitting.
+        Resample the input onto a geometric grid before fitting (applied
+        in the time branch only).
     n_resample : int, default 100
-        Number of points for the geometric-grid resample.
+        Number of points of the resampled grid.
     lam_density : int, default 2
-        :math:`\\lambda` grid density per decade.  Frequency branch only
-        (silently ignored in the time branch).
+        :math:`\\lambda` grid points per decade.
     time_name : str, default "time"
-        Column name of the time axis in the input dataset.  Falls back
-        to ``"step time"`` when the requested name is not present.
+        Time column; falls back to ``"step time"``.
     relaxation_name : str, default "G_from_eta1"
-        Column name of :math:`G(t)` in the input dataset.  Falls back
-        to :data:`_RELAXATION_ALIASES` (``G_from_eta2``,
-        ``relaxation modulus``, ``G_relax``, ``modulus``) so the
-        transform composes cleanly with
-        :class:`~hermes_rheo.transforms.frequency_to_time.FrequencyToTime`
-        and with the TRIOS reader's ``modulus`` column.
+        :math:`G(t)` column. Falls back to ``G_from_eta1`` / ``G_from_eta2``
+        (written by
+        :class:`~hermes_rheo.transforms.frequency_to_time.FrequencyToTime`),
+        ``relaxation modulus``, ``G_relax`` and ``modulus``.
     omega_name : str, default "angular frequency"
-        Column name of the frequency axis in the input dataset.
+        Angular-frequency column (frequency branch).
     storage_name, loss_name : str
-        Column names of :math:`G'` and :math:`G''` in the input
-        dataset (defaults ``"storage modulus"``, ``"loss modulus"``).
+        :math:`G'` and :math:`G''` columns (defaults ``"storage modulus"``,
+        ``"loss modulus"``).
+
+    Notes
+    -----
+    Input is expected in SI units (s, rad/s, Pa). Non-positive and
+    non-finite samples are dropped. In the frequency branch the data must
+    span at least a factor of 2 in :math:`\\omega`.
 
     Examples
     --------
-    Frequency-domain example on a real TRIOS frequency sweep:
+    Frequency sweep from a TRIOS file:
 
     >>> from hermes_rheo.file_readers.trios_rheo_txt import TriosRheoReader
     >>> from hermes_rheo.transforms.relaxation_spectrum import RelaxationSpectrum
@@ -372,15 +348,14 @@ class RelaxationSpectrum(MeasurementTransform):
     ... )  # doctest: +SKIP
     >>> out = RelaxationSpectrum(domain="frequency")(exp)  # doctest: +SKIP
 
-    Time-domain example on synthetic multi-mode Maxwell data:
+    Relaxation modulus simulated with
+    :class:`hermes_rheo.lve_models.MultiModeMaxwellModel`:
 
     >>> import numpy as np
-    >>> from hermes_rheo.synthetic import SyntheticRheometry
-    >>> model = SyntheticRheometry.multi_mode_maxwell(
-    ...     g=[1e5, 1e4], tau=[0.1, 1.0]
-    ... )
+    >>> from hermes_rheo.lve_models import MultiModeMaxwellModel, Protocols
+    >>> model = MultiModeMaxwellModel(g=[1e5, 1e4], tau=[0.1, 1.0])
     >>> t = np.geomspace(1e-3, 1e2, 200)
-    >>> meas = model.to_measurement(experiment="stress_relaxation", x=t)
+    >>> meas = Protocols.stress_relaxation(model, t)
     >>> out = RelaxationSpectrum(
     ...     domain="time",
     ...     relaxation_name="relaxation modulus",
@@ -437,18 +412,10 @@ class RelaxationSpectrum(MeasurementTransform):
 
         self._result: RelaxationSpectrumResult | None = None
 
-    # ------------------------------------------------------------------
-    # Public accessors
-    # ------------------------------------------------------------------
-
     @property
     def result(self) -> RelaxationSpectrumResult | None:
-        """Most recent :class:`RelaxationSpectrumResult` produced by ``_apply``."""
+        """Result of the most recent application, or ``None``."""
         return self._result
-
-    # ------------------------------------------------------------------
-    # Core dispatch
-    # ------------------------------------------------------------------
 
     def _apply(self, target: Any, **kwargs: Any) -> Any:
         if not hasattr(target, "datasets") or len(target.datasets) == 0:
@@ -468,110 +435,83 @@ class RelaxationSpectrum(MeasurementTransform):
         if result is None:
             return target
 
-        # Prepend the two new spectrum datasets in front of the existing ones.
-        # Continuous first, discrete second, then the original active dataset.
         prepended = [result.dataset_continuous, result.dataset_discrete]
         target.datasets = [ds for ds in prepended if ds is not None] + list(target.datasets)
 
         self._result = result
-        try:
-            if hasattr(target, "add_detail") and hasattr(target, "update_detail"):
-                # Measurement.details is a deep-copy property; use the proper
-                # setters instead of mutating the copy.
-                if "relaxation_spectrum_result" in target.detail_names:
-                    target.update_detail("relaxation_spectrum_result", result)
-                else:
-                    target.add_detail("relaxation_spectrum_result", result)
-            elif hasattr(target, "details") and isinstance(target.details, dict):
-                target.details["relaxation_spectrum_result"] = result
-        except Exception:  # pragma: no cover - defensive: never fail the transform
-            pass
+        provenance = {
+            "method": f"pyReSpect-{result.domain}",
+            "domain": result.domain,
+            "settings": dict(result.config),
+            "references": list(_REFERENCES[result.domain]),
+        }
+        for key, value in (
+            ("relaxation_spectrum_result", result),
+            ("relaxation_spectrum", provenance),
+        ):
+            # Measurement.details returns a copy, so use the setters.
+            target.update_detail(key, value)
 
         return target
 
-    # ------------------------------------------------------------------
-    # Domain-specific branches
-    # ------------------------------------------------------------------
-
     def _apply_time(self, dataset: Any, names: list) -> RelaxationSpectrumResult | None:
-        time_col = self.time_name if self.time_name in names else _find_first(_TIME_ALIASES, names)
+        time_col = (
+            self.time_name if self.time_name in names else _first_present(_TIME_ALIASES, names)
+        )
         modulus_col = (
             self.relaxation_name
             if self.relaxation_name in names
-            else _find_first(_RELAXATION_ALIASES, names)
+            else _first_present(_RELAXATION_ALIASES, names)
         )
         if time_col is None or modulus_col is None:
-            return None  # silent no-op — required columns not present
+            return None
 
         t_raw = np.asarray(dataset.data_arrays[names.index(time_col)], dtype=float)
         g_raw = np.asarray(dataset.data_arrays[names.index(modulus_col)], dtype=float)
         try:
-            t, g_t = _sanitize_time(t_raw, g_raw)
+            t, g_t = _clean_time_series(t_raw, g_raw)
         except ValueError:
             return None
 
-        pr_mod = _require_pyrespect(_DOMAIN_TIME)
-        kwarg_names = _config_kwargs()
-        config = self._build_config(pr_mod, kwarg_names)
+        pr_mod = _load_pyrespect(_DOMAIN_TIME)
+        config = self._build_config(pr_mod)
         solver = pr_mod.ReSpect(config)
         solver.fit(source=(t, g_t), resample=self.resample)
-
-        cont = solver.continuous
-        disc = solver.discrete
         return self._pack_result(
-            domain=_DOMAIN_TIME,
-            config=self._config_snapshot(config, kwarg_names),
-            cont=cont,
-            disc=disc,
+            _DOMAIN_TIME, self._config_snapshot(config), solver.continuous, solver.discrete
         )
 
     def _apply_frequency(self, dataset: Any, names: list) -> RelaxationSpectrumResult | None:
         for required in (self.omega_name, self.storage_name, self.loss_name):
             if required not in names:
-                return None  # silent no-op
+                return None
 
         omega_raw = np.asarray(dataset.data_arrays[names.index(self.omega_name)], dtype=float)
         gp_raw = np.asarray(dataset.data_arrays[names.index(self.storage_name)], dtype=float)
         gpp_raw = np.asarray(dataset.data_arrays[names.index(self.loss_name)], dtype=float)
         try:
-            omega, gp, gpp = _sanitize_frequency(omega_raw, gp_raw, gpp_raw)
+            omega, gp, gpp = _clean_frequency_series(omega_raw, gp_raw, gpp_raw)
         except ValueError:
             return None
 
-        # Refuse to run on effectively single-frequency oscillations (e.g. a
-        # temperature ramp carrying a constant ω column).
+        # Skip near-single-frequency data (e.g. a temperature ramp at fixed omega).
         if float(omega.max()) / float(omega.min()) < 2.0:
             return None
 
-        pr_mod = _require_pyrespect(_DOMAIN_FREQUENCY)
-        kwarg_names = _config_kwargs()
-        config = self._build_config(pr_mod, kwarg_names)
+        pr_mod = _load_pyrespect(_DOMAIN_FREQUENCY)
+        config = self._build_config(pr_mod)
         solver = pr_mod.ReSpect(config)
         solver.fit(source=(omega, gp, gpp))
-
-        cont = solver.continuous
-        disc = solver.discrete
         return self._pack_result(
-            domain=_DOMAIN_FREQUENCY,
-            config=self._config_snapshot(config, kwarg_names),
-            cont=cont,
-            disc=disc,
+            _DOMAIN_FREQUENCY, self._config_snapshot(config), solver.continuous, solver.discrete
         )
 
-    # ------------------------------------------------------------------
-    # Config plumbing
-    # ------------------------------------------------------------------
+    def _build_config(self, pr_mod: Any):
+        return pr_mod.ReSpectConfig(**{name: getattr(self, name) for name in _CONFIG_FIELDS})
 
-    def _build_config(self, pr_mod: Any, kwarg_names: tuple[str, ...]):
-        payload = {name: getattr(self, name) for name in kwarg_names}
-        return pr_mod.ReSpectConfig(**payload)
-
-    def _config_snapshot(self, config: Any, kwarg_names: tuple[str, ...]) -> dict:
-        return {name: getattr(config, name) for name in kwarg_names}
-
-    # ------------------------------------------------------------------
-    # Result packing
-    # ------------------------------------------------------------------
+    @staticmethod
+    def _config_snapshot(config: Any) -> dict:
+        return {name: getattr(config, name) for name in _CONFIG_FIELDS}
 
     def _pack_result(
         self,
@@ -580,9 +520,8 @@ class RelaxationSpectrum(MeasurementTransform):
         cont: Any,
         disc: Any,
     ) -> RelaxationSpectrumResult:
-        # Both pyReSpect variants store the CRS on s / H; the freq variant
-        # uses ``lamC`` / ``logP`` while the time variant uses ``lam_C`` /
-        # ``log_P``.  Read whichever is present.
+        # The two solvers use different attribute names (lam_C / lamC,
+        # log_P / logP, ...); read whichever exists.
         s = np.asarray(cont.s, dtype=float)
         H = np.asarray(cont.H, dtype=float)
         h = np.exp(H)
@@ -597,7 +536,6 @@ class RelaxationSpectrum(MeasurementTransform):
         H_lam = getattr(cont, "H_lam", None)
         dH = getattr(cont, "dH", None)
 
-        # Discrete result — attribute names diverge between the two branches.
         if disc is None:
             g = np.array([], dtype=float)
             tau = np.array([], dtype=float)
@@ -623,8 +561,7 @@ class RelaxationSpectrum(MeasurementTransform):
             AIC_bst = None if AIC_bst is None else np.asarray(AIC_bst, dtype=float)
             N_bst = None if N_bst is None else np.asarray(N_bst, dtype=float)
 
-            # Sort discrete modes by ascending tau so their storage matches
-            # SyntheticRheometry.multi_mode_maxwell and other tools.
+            # Ascending tau, as in lve_models.MultiModeMaxwellModel.
             if tau.size > 1:
                 order = np.argsort(tau)
                 tau = tau[order]
@@ -662,10 +599,6 @@ class RelaxationSpectrum(MeasurementTransform):
             dataset_continuous=dataset_cont,
             dataset_discrete=dataset_disc,
         )
-
-    # ------------------------------------------------------------------
-    # Dataset builders
-    # ------------------------------------------------------------------
 
     def _build_continuous_dataset(
         self,

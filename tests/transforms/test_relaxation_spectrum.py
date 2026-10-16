@@ -1,10 +1,10 @@
-"""Tests for :mod:`hermes_rheo.transforms.relaxation_spectrum`."""
+"""Tests for relaxation-spectrum inversion."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from hermes_rheo.synthetic import SyntheticRheometry
+from hermes_rheo.lve_models import MaxwellModel, MultiModeMaxwellModel, Protocols
 from hermes_rheo.transforms.relaxation_spectrum import (
     RelaxationSpectrum,
     RelaxationSpectrumResult,
@@ -20,9 +20,9 @@ def _sorted_recovered(res):
 
 
 def test_relaxation_spectrum_time_recovers_multi_mode_maxwell():
-    model = SyntheticRheometry.multi_mode_maxwell(g=G_TRUE, tau=TAU_TRUE)
+    model = MultiModeMaxwellModel(g=G_TRUE, tau=TAU_TRUE)
     t = np.geomspace(1e-3, 1e2, 200)
-    meas = model.to_measurement(experiment="stress_relaxation", x=t)
+    meas = Protocols.stress_relaxation(model, t)
 
     tr = RelaxationSpectrum(
         domain="time", relaxation_name="relaxation modulus", ns=100, plateau=False
@@ -40,14 +40,18 @@ def test_relaxation_spectrum_time_recovers_multi_mode_maxwell():
     # And the moduli within a factor of ~3.
     np.testing.assert_allclose(g_rec[:2], G_TRUE, rtol=2.0)
 
-    # Two new composite datasets are prepended.
     assert len(out.datasets) >= 2
+    spectrum, modes = out.datasets[:2]
+    assert list(spectrum.data_array_names) == ["relaxation time", "H", "h"]
+    assert list(spectrum.data_array_units) == ["s", "", "Pa"]
+    assert list(modes.data_array_names) == ["discrete relaxation time", "g", "dtau"]
+    assert list(modes.data_array_units) == ["s", "Pa", "s"]
 
 
 def test_relaxation_spectrum_frequency_recovers_multi_mode_maxwell():
-    model = SyntheticRheometry.multi_mode_maxwell(g=G_TRUE, tau=TAU_TRUE)
+    model = MultiModeMaxwellModel(g=G_TRUE, tau=TAU_TRUE)
     omega = np.geomspace(1e-2, 1e3, 80)
-    meas = model.to_measurement(experiment="frequency_sweep", x=omega)
+    meas = Protocols.saos(model, omega)
 
     tr = RelaxationSpectrum(domain="frequency", ns=100, plateau=False)
     out = tr(meas)
@@ -70,8 +74,8 @@ def test_relaxation_spectrum_frequency_recovers_multi_mode_maxwell():
 
 
 def test_relaxation_spectrum_result_exposes_canonical_attributes():
-    model = SyntheticRheometry.maxwell(G0=1e5, tau=1.0)
-    meas = model.to_measurement(experiment="stress_relaxation", x=np.geomspace(1e-3, 10.0, 120))
+    model = MaxwellModel(G=1e5, tau=1.0)
+    meas = Protocols.stress_relaxation(model, np.geomspace(1e-3, 10.0, 120))
     out = RelaxationSpectrum(domain="time", relaxation_name="relaxation modulus")(meas)
     result = out.details["relaxation_spectrum_result"]
     for name in ("s", "H", "tau", "g", "lam_C", "N_opt", "G_fit_cont"):

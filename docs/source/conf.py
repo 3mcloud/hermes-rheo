@@ -25,6 +25,7 @@ extensions = [
 
 autodoc_mock_imports = ["pyRheo", "cv2"]
 numpydoc_show_class_member = False
+napoleon_use_ivar = True
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]

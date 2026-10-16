@@ -63,5 +63,5 @@ Contents
 
    file_readers
    transforms
-   synthetic
+   lve_models
    visualization

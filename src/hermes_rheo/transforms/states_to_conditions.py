@@ -1,20 +1,62 @@
 import numpy as np
 from piblin.transform.abc.measurement_transform import MeasurementTransform
 
+STATE_METHODS = ("average", "first point", "last point")
+
+
+def summarize_state(measurement, state: str, method: str = "average") -> float:
+    """Summarize a measured state array of a measurement as one value.
+
+    The first dataset containing the data array *state* is used; the
+    dataset is not modified.
+
+    Parameters
+    ----------
+    measurement : piblin.data.Measurement
+        Measurement holding the datasets.
+    state : str
+        Name of the data array to summarize.
+    method : {"average", "first point", "last point"}, default "average"
+        Aggregation applied to the state's values.
+
+    Returns
+    -------
+    float
+        The mean, first or last value of the array.
+
+    Raises
+    ------
+    ValueError
+        If *state* is not a string, *method* is invalid, or *state* is not
+        found in any dataset of *measurement*.
+    """
+    if not isinstance(state, str):
+        raise ValueError("state_name must be a string")
+    if method not in STATE_METHODS:
+        raise ValueError("Invalid method. Choose 'average', 'first point', or 'last point'")
+
+    for dataset in measurement.datasets:
+        names = list(dataset.data_array_names)
+        if state in names:
+            values = np.asarray(dataset.data_arrays[names.index(state)])
+            if method == "average":
+                return np.average(values)
+            return values[0] if method == "first point" else values[-1]
+
+    raise ValueError(f"State name not found in datasets: {state!r}")
+
 
 class StatesToConditions(MeasurementTransform):
-    """Compute a summary value of a per-measurement state and store it as a condition.
+    """Store a summary of a measured state as a measurement condition.
 
-    Iterates over ``target.datasets`` and, for the first dataset whose
-    ``data_array_names`` contain *state*, computes the mean / first / last
-    point of that state's values while keeping the currently-active
-    independent coordinate in place, then attaches the value to
-    ``target.conditions[state]``.
+    The first dataset containing the array *state* is used. The summary
+    (mean, first or last point) is added to ``target.conditions[state]``.
+    The dataset's independent variable is left unchanged.
 
     Parameters
     ----------
     state : str, default "temperature"
-        Name of the data array to summarise.
+        Name of the data array to summarize.
     method : {"average", "first point", "last point"}, default "average"
         Aggregation applied to the state's values.
 
@@ -30,7 +72,7 @@ class StatesToConditions(MeasurementTransform):
         self.method = method
 
     def _apply(self, target, **kwargs) -> object:
-        """Compute the aggregated state value and add it as a condition on *target*.
+        """Add the summarized state value as a condition on *target*.
 
         Raises
         ------
@@ -38,38 +80,5 @@ class StatesToConditions(MeasurementTransform):
             If ``state`` is not a string, is not found in any of the target's
             datasets, or ``method`` is not one of the accepted values.
         """
-        state_name = self.state
-
-        if not isinstance(state_name, str):
-            raise ValueError("state_name must be a string")
-
-        value = None
-        for dataset in target.datasets:
-            if state_name in dataset._data_array_names:
-                # Preserve the dataset's currently-active independent
-                # variable — previous code hardcoded ``'temperature'`` here
-                # which broke on any dataset that lacked a temperature
-                # column.
-                current_independent = dataset.independent_variable_name
-                dataset.switch_coordinates(
-                    independent_name=current_independent,
-                    dependent_name=state_name,
-                )
-                if self.method == "average":
-                    value = np.average(dataset.y_values)
-                elif self.method == "first point":
-                    value = dataset.y_values[0]
-                elif self.method == "last point":
-                    value = dataset.y_values[-1]
-                else:
-                    raise ValueError(
-                        "Invalid method. Choose 'average', 'first point', or 'last point'"
-                    )
-                break
-
-        if value is None:
-            raise ValueError(f"State name not found in datasets: {state_name!r}")
-
-        target.add_condition(f"{state_name}", value)
-
+        target.add_condition(self.state, summarize_state(target, self.state, self.method))
         return target
