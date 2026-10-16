@@ -1,277 +1,379 @@
-from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
-import piblin.data.datasets.abc.split_datasets.one_dimensional_dataset as one_dimensional_dataset
-from piblin.data import Measurement, MeasurementSet
-import numpy as np
-import copy
+"""Mutation number of a time-evolving material from successive oscillatory spectra.
+
+The mutation number, ``Mu = T / lambda_Mu``, compares the duration ``T`` of an
+observation (a single oscillatory wave or an optimally windowed chirp) with
+the mutation time ``lambda_Mu = (d ln g / dt)^-1`` of a viscoelastic quantity
+``g`` (usually the complex modulus ``|G*|``). When ``|Mu|`` is small the
+sample is quasi-static during the measurement and Fourier-based spectra are
+valid; the usual criterion is ``|Mu| <= ~0.15``.
+
+The transform returns one measurement per angular frequency. Each holds a
+piblin composite dataset with the columns "time", "mutation number" and
+"angular frequency" (and "temperature" for correlated OWCh steps), so the
+result can be plotted with :meth:`MutationNumberMeasurementSet.visualize` or
+mapped over temperature and frequency with
+:class:`~hermes_rheo.transforms.kymograph.Kymograph`.
+
+References
+----------
+.. [1] Mours, M. and Winter, H. H. (1994). Time-resolved rheometry.
+   Rheologica Acta 33(5), 385-397. (Winter's definition of the mutation number.)
+.. [2] Jamali, S. and McKinley, G. H. (2022). The Mnemosyne number and the
+   rheology of remembrance. Journal of Rheology 66, 1027-1039.
+   doi:10.1122/8.0000432.
+"""
+
+from __future__ import annotations
+
+import re
 from collections import defaultdict
-from matplotlib import pyplot as plt
+from typing import Any
+
+import numpy as np
+from piblin.data import Measurement, MeasurementSet, OneDimensionalCompositeDataset
+from piblin.transform.abc.measurement_set_transform import MeasurementSetTransform
+
+MUTATION_NUMBER = "mutation number"
 
 
 class MutationNumberMeasurementSet(MeasurementSet):
-    """
-    Custom MeasurementSet class for handling mutation number data and providing custom visualization.
+    """MeasurementSet of mutation-number time series, one measurement per frequency."""
 
-    Methods:
-    --------
-    visualize(self, show_all_frequencies=False, y_lim=None, **kwargs):
-        Visualizes the mutation number data, either showing all frequencies or averaging over time with standard
-        deviation.
-    """
+    def visualize(self, show_all_frequencies: bool = False, y_lim=None, **kwargs):
+        """Plot the mutation number against time.
 
-    def visualize(self, show_all_frequencies=False, y_lim=None, **kwargs):
-        """
-        Visualizes the mutation number data.
+        Thin wrapper around
+        :func:`hermes_rheo.visualization.mutation.plot_mutation_number`;
+        see that function for the keyword arguments (``color_by``,
+        ``cmap``, ``threshold``, ...).
 
-        Parameters:
-        -----------
-        show_all_frequencies : bool
-            If True, plot Mutation number vs. Time for all frequencies. If False, only plot the average Mutation
-            vs. Time with standard deviation.
-        y_lim : tuple, optional
-            A tuple specifying the y-axis limits (y_min, y_max). Default is None, which automatically sets the limits.
-
-        Returns:
-        --------
+        Returns
+        -------
         fig : matplotlib.figure.Figure
-            The figure object containing the plot(s).
-        ax : matplotlib.axes._subplots.AxesSubplot or tuple
-            The axes object(s) of the plot.
+        ax : matplotlib.axes.Axes or tuple of matplotlib.axes.Axes
+            ``(ax_all, ax_mean)`` if `show_all_frequencies`, else ``ax_mean``.
         """
-        mutation_number_by_frequency = defaultdict(lambda: defaultdict(list))
+        from hermes_rheo.visualization.mutation import plot_mutation_number
 
-        # Extract data from the dataset structure
-        for measurement in self.measurements:
-            freq = measurement.conditions['Angular Frequency']
-            for data in measurement.datasets:
-                time_values = data.x_values
-                mutation_number_values = data.y_values
-                for time, mutation_number in zip(time_values, mutation_number_values):
-                    mutation_number_by_frequency[freq][time].append(mutation_number)
+        return plot_mutation_number(
+            self, show_all_frequencies=show_all_frequencies, ylim=y_lim, **kwargs
+        )
 
-        # Calculate average and standard deviation
-        average_times = sorted({time for times in mutation_number_by_frequency.values() for time in times})
-        average_mutation_numbers = []
-        mutation_number_stds = []
-        for time in average_times:
-            all_values_at_time = []
-            for freq in mutation_number_by_frequency:
-                if time in mutation_number_by_frequency[freq]:
-                    values = mutation_number_by_frequency[freq][time]
-                    all_values_at_time.extend(values)
-            if all_values_at_time:
-                average_mutation_numbers.append(np.mean(all_values_at_time))
-                mutation_number_stds.append(np.std(all_values_at_time))
 
-        average_times = np.array(average_times)
-        average_mutation_numbers = np.array(average_mutation_numbers)
-        mutation_number_stds = np.array(mutation_number_stds)
-
-        # Generate colors for different time steps
-        unique_times = sorted(set(average_times))
-        colors = plt.cm.viridis(np.linspace(0, 1, len(unique_times)))
-
-        if show_all_frequencies:
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-
-            # Plot Mu vs. Time for all frequencies on the left plot
-            for color, time in zip(colors, unique_times):
-                for freq in mutation_number_by_frequency:
-                    if time in mutation_number_by_frequency[freq]:
-                        mutation_numbers = mutation_number_by_frequency[freq][time]
-                        ax1.scatter([time] * len(mutation_numbers), mutation_numbers, color=color, s=40)
-
-            ax1.set_xlabel('Time (s)', fontsize=20)
-            ax1.set_ylabel('Mutation number', fontsize=20)
-            ax1.tick_params(axis='x', labelsize=18)
-            ax1.tick_params(axis='y', labelsize=18)
-            if y_lim:
-                ax1.set_ylim(y_lim)
-        else:
-            fig, ax2 = plt.subplots(figsize=(10, 6))
-
-        # Plot Average Mu vs. Time with error bars on the right plot
-        for i, (time, mean, std) in enumerate(zip(average_times, average_mutation_numbers, mutation_number_stds)):
-            color = colors[i % len(colors)]
-            ax2.errorbar(time, mean, yerr=std, fmt='o', color=color, ecolor='black', markersize=8, elinewidth=3,
-                         capsize=4)
-
-        ax2.set_xlabel('Time (s)', fontsize=20)
-        ax2.set_ylabel('Mutation number (average)', fontsize=20)
-        ax2.tick_params(axis='x', labelsize=18)
-        ax2.tick_params(axis='y', labelsize=18)
-        if y_lim:
-            ax2.set_ylim(y_lim)
-
-        plt.tight_layout()
-
-        return fig, (ax1, ax2) if show_all_frequencies else (fig, ax2)
+def _column(dataset: Any, name: str) -> tuple[np.ndarray, str] | None:
+    """Return ``(values, unit)`` of the data array *name*, or None if absent."""
+    names = list(dataset.data_array_names)
+    if name not in names:
+        return None
+    i = names.index(name)
+    return np.asarray(dataset.data_arrays[i], dtype=float), str(dataset.data_array_units[i] or "")
 
 
 class MutationNumber(MeasurementSetTransform):
     """
-    A transform class to calculate and visualize the mutation number from measurement sets.
+    Compute the mutation number of a time-evolving material from a measurement set.
 
-    Args:
+    The mutation number is the ratio of the observation time to the
+    mutation time of the modulus, ``Mu = T * d ln|G*| / dt``, evaluated at
+    each frequency from successive spectra. Two input layouts are supported:
+    "Arbitrary Wave" steps and "Correlated" optimal-waveform (OWCh) steps,
+    e.g. a TORCh temperature ramp.
+
+    Parameters
+    ----------
+    state : str, default "time"
+        Name of the state variable stored as a condition (Arbitrary Wave only).
+    state_sampling : {"average", "first point", "last point"}, default "first point"
+        How `state` is reduced to one value per measurement.
+    dependent_variable : str, default "complex modulus"
+        Dataset variable whose logarithmic derivative is evaluated.
+    measurements : list of int, optional
+        Indices of the measurements to use. All are used if None.
+    owch_length : float, default 10.0
+        Observation time ``T`` of each correlated window, in seconds
+        (Correlated steps only).
+    absolute : bool, default False
+        Return ``|Mu|`` instead of the signed mutation number. The sign
+        only tells whether ``g`` grows (e.g. curing) or decays (e.g.
+        heating); the quasi-static criterion applies to ``|Mu|``.
+    dt_threshold : float, optional
+        Skip pairs of consecutive spectra more than `dt_threshold` seconds
+        apart (e.g. across an isothermal dwell between two ramps).
+
+    Returns
+    -------
+    MutationNumberMeasurementSet
+        One measurement per angular frequency (condition "Angular
+        Frequency", rad/s). Its composite dataset holds "time" (s),
+        "mutation number" (dimensionless) and "angular frequency" (rad/s),
+        plus "temperature" for correlated steps; ``details`` holds
+        ``mutation_number_mean``, ``mutation_number_max``, ``n_points`` and
+        the parameters above.
+
+    Notes
     -----
-    state : str
-        The state variable to be used (default is 'time').
-    state_sampling : str
-        The method to determine the state value ('average', 'first point', 'last point').
-    dependent_variable : str
-        The dependent variable to be used for mutation number calculation (default is 'complex modulus').
+    The derivative is a finite difference between consecutive spectra,
+    ``Mu_i = T ln(g_i / g_(i-1)) / (t_i - t_(i-1))``, reported at time
+    ``t_i`` (and, for correlated steps, the mean temperature of window
+    ``i``). The logarithmic derivative makes ``Mu`` independent of the
+    modulus scale.
 
-    Methods:
-    --------
-    _state_to_condition(self, target):
-        Computes the specified state's value using the defined method and adds it as a condition in the dataset.
-
-    _apply(self, target, **kwargs):
-        Applies the mutation number calculation to the dataset and returns a MutationNumberMeasurementSet object.
+    References
+    ----------
+    .. [1] Mours, M. and Winter, H. H. (1994). Time-resolved rheometry.
+       Rheologica Acta 33(5), 385-397.
+    .. [2] Jamali, S. and McKinley, G. H. (2022). The Mnemosyne number and the
+       rheology of remembrance. Journal of Rheology 66, 1027-1039.
     """
 
-    def __init__(self, state='time', state_sampling='first point', dependent_variable='complex modulus', *args, **kwargs):
-        """
-        Initializes the MutationNumber transform.
-
-        Parameters:
-        -----------
-        state : str
-            The state variable to be used (default is 'time').
-        state_mode : str
-            The method to determine the state value ('average', 'first point', 'last point').
-        dependent_variable : str
-            The dependent variable to be used for mutation number calculation (default is 'complex modulus').
-        """
+    def __init__(
+        self,
+        state: str = "time",
+        state_sampling: str = "first point",
+        dependent_variable: str = "complex modulus",
+        measurements=None,
+        owch_length: float = 10.0,
+        absolute: bool = False,
+        dt_threshold: float | None = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.state = state
         self.state_sampling = state_sampling
         self.dependent_variable = dependent_variable
+        self.measurements = measurements
+        self.owch_length = float(owch_length)
+        self.absolute = bool(absolute)
+        self.dt_threshold = None if dt_threshold is None else float(dt_threshold)
 
-    def _state_to_condition(self, target):
-        """
-        Applies the transformation to compute the specified state's value and adds it as a condition. This is used when
-        a physical property is collected transiently and needs to be converted to a condition at a specific time.
-        For example, the average temperature at which each measurement was taken. The state_sampling value allows to choose
-        between 'average', 'first point', or 'last point' of the state variable to be used as the condition.
+    @staticmethod
+    def _get_step_name(measurement) -> str:
+        """Return the TRIOS step name of a measurement, or "" if absent."""
+        if "Step name" in getattr(measurement, "details", {}):
+            return str(measurement.details["Step name"])
 
-        Parameters:
-        -----------
-        target : MeasurementSet
-            The target dataset to which the transformation is applied.
+        for key in ("StepName", "step name", "Step", "Name"):
+            if key in getattr(measurement, "details", {}):
+                return str(measurement.details[key])
 
-        Raises:
-        -------
-        ValueError: If the state name is not found in the dataset or if the state sampling method is invalid.
-        """
+        for key in ("Step name", "StepName", "step name", "Step", "Name", "method"):
+            if key in getattr(measurement, "conditions", {}):
+                return str(measurement.conditions[key])
+
+        return ""
+
+    @staticmethod
+    def _parse_temperature_from_step_name(step_name: str):
+        """Parse a temperature in °C from e.g. ``'Correlated -50.06 °C - 2'``; None if absent."""
+        m = re.search(r"(-?\d+\.?\d*)\s*°C", step_name)
+        if m:
+            try:
+                return float(m.group(1))
+            except ValueError:
+                return None
+        return None
+
+    def _state_to_condition(self, target: MeasurementSet):
+        """Reduce the transient `state` dataset of each measurement to a scalar condition."""
         for measurement in target.measurements:
             state_found = False
             for dataset in measurement.datasets:
                 if self.state in dataset._data_array_names:
-                    dataset.switch_coordinates(independent_name='temperature', dependent_name=self.state)
-                    if self.state_sampling == 'average':
+                    current_independent = dataset.independent_variable_name
+                    dataset.switch_coordinates(
+                        independent_name=current_independent,
+                        dependent_name=self.state,
+                    )
+                    if self.state_sampling == "average":
                         value = np.average(dataset.y_values)
-                    elif self.state_sampling == 'first point':
+                    elif self.state_sampling == "first point":
                         value = dataset.y_values[0]
-                    elif self.state_sampling == 'last point':
+                    elif self.state_sampling == "last point":
                         value = dataset.y_values[-1]
                     else:
-                        raise ValueError("Invalid method. Choose 'average', 'first point', or 'last point'")
-                    measurement.add_condition(f'{self.state}', value)
+                        raise ValueError(
+                            "Invalid method. Choose 'average', 'first point', or 'last point'"
+                        )
+                    measurement.add_condition(f"{self.state}", value)
                     state_found = True
                     break
             if not state_found:
-                raise ValueError(f"State name {self.state} not found in datasets for one of the measurements")
+                raise ValueError(
+                    f"State name {self.state} not found in datasets for one of the measurements"
+                )
 
-    def _apply(self, target, **kwargs):
-        """
-        Applies the mutation number calculation to the target dataset and returns a MutationNumberMeasurementSet.
+    def _selected(self, target: MeasurementSet) -> list:
+        """Measurements chosen by `measurements`, or all of them."""
+        if self.measurements is None:
+            return list(target.measurements)
+        return [target.measurements[i] for i in self.measurements]
 
-        Parameters:
-        -----------
-        target : MeasurementSet
-            The target dataset containing the measurements to be processed.
+    def _mutation_number(self, ln_ratio, dt, observation_time):
+        """``T * dln(g) / dt`` (or its magnitude); NaN where ``g`` is unchanged or `dt` is too long."""
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mu = observation_time * np.asarray(ln_ratio, float) / dt
+        mu = np.where(np.asarray(ln_ratio) == 0, np.nan, mu)
+        if self.dt_threshold is not None:
+            mu = np.where(np.asarray(dt) > self.dt_threshold, np.nan, mu)
+        return np.abs(mu) if self.absolute else mu
 
-        Returns:
-        --------
-        MutationNumberMeasurementSet : The dataset containing mutation numbers for different frequencies.
+    def _make_details(self, values, layout: str) -> dict:
+        """Parameters and summary statistics stored with each output measurement."""
+        values = np.asarray(values, dtype=float)
+        return {
+            "mutation_number_mean": float(np.mean(values)),
+            "mutation_number_max": float(np.max(values)),
+            "n_points": int(values.size),
+            "layout": layout,
+            "state": self.state,
+            "state_sampling": self.state_sampling,
+            "dependent_variable": self.dependent_variable,
+            "owch_length": self.owch_length,
+            "absolute": self.absolute,
+            "dt_threshold": self.dt_threshold,
+        }
 
-        Raises:
-        -------
-        ValueError: If state conditions or mutation data are missing or invalid.
-        """
+    def _series_measurement(
+        self,
+        omega: float,
+        columns: dict[str, tuple[np.ndarray, str]],
+        layout: str,
+    ) -> Measurement | None:
+        """One output measurement from ``{name: (values, unit)}``; None if all Mu are NaN."""
+        valid = np.isfinite(columns[MUTATION_NUMBER][0])
+        if not valid.any():
+            return None
+        dataset = OneDimensionalCompositeDataset(
+            data_arrays=[values[valid] for values, _ in columns.values()],
+            data_array_names=list(columns),
+            data_array_units=[unit for _, unit in columns.values()],
+            default_independent_name="time",
+            default_dependent_name=MUTATION_NUMBER,
+            source=f"mutation number ({layout})",
+        )
+        return Measurement(
+            datasets=[dataset],
+            conditions={"Angular Frequency": float(omega)},
+            details=self._make_details(columns[MUTATION_NUMBER][0][valid], layout),
+        )
+
+    def _apply(self, target: MeasurementSet, **kwargs) -> MutationNumberMeasurementSet:
+        """Compute mutation numbers for the Arbitrary Wave or Correlated layout."""
+        # The aggregate target.conditions["method"] is empty on multi-step
+        # files, so scan per-measurement step names and method conditions.
+        step_names_lower: list[str] = []
+        for m in getattr(target, "measurements", []) or []:
+            step_names_lower.append(self._get_step_name(m).lower())
+            method_cond = str(getattr(m, "conditions", {}).get("method", "")).lower()
+            if method_cond:
+                step_names_lower.append(method_cond)
+
+        has_arbitrary_wave = any("arbitrary wave" in s for s in step_names_lower)
+        if "Arbitrary Wave" in str(target.conditions.get("method", "")):
+            has_arbitrary_wave = True
+
+        measurements_out = (
+            self._arbitrary_wave(target) if has_arbitrary_wave else self._correlated(target)
+        )
+        if not measurements_out:
+            raise ValueError("No valid mutation-number data could be computed.")
+        return MutationNumberMeasurementSet(measurements=measurements_out)
+
+    def _arbitrary_wave(self, target: MeasurementSet) -> list[Measurement]:
+        """Mutation number between consecutive single-wave spectra."""
         self._state_to_condition(target)
-        moduli = []
-        frequencies = []
-        wave_start_times = []
-        waiting_times = []
-        wave_durations = []
+        spectra = []
+        for measurement in self._selected(target):
+            spectrum = measurement.datasets[0]
+            spectrum.switch_coordinates("angular frequency", self.dependent_variable)
+            waveform = measurement.datasets[1]
+            waveform.switch_coordinates("step time", "time")
+            waiting_time = float(measurement.details["waiting_time"])
+            spectra.append(
+                {
+                    "start": float(measurement.conditions["time"]),
+                    "waiting": waiting_time,
+                    "T": float(np.max(waveform.x_values)) - waiting_time,
+                    "omega": np.asarray(spectrum.x_values, float),
+                    "g": np.asarray(spectrum.y_values, float),
+                }
+            )
+        omega_unit = _column(target.measurements[0].datasets[0], "angular frequency")[1]
 
-        # Extract data and prepare for mutation number calculation
-        for i, measurement in enumerate(target.measurements):
-            dataset_frequency = measurement.datasets[0]
-            dataset_frequency.switch_coordinates(independent_name='angular frequency',
-                                                 dependent_name=self.dependent_variable)
-            frequency = copy.deepcopy(dataset_frequency.x_values)
-            modulus = copy.deepcopy(dataset_frequency.y_values)
+        series: dict[float, dict[str, list]] = defaultdict(lambda: {"time": [], "mu": []})
+        for previous, current in zip(spectra, spectra[1:]):
+            if current["start"] == previous["start"]:
+                continue
+            dt = (current["start"] + current["waiting"]) - (previous["start"] + previous["waiting"])
+            mu = self._mutation_number(np.log(current["g"] / previous["g"]), dt, current["T"])
+            for omega, value in zip(current["omega"], mu):
+                series[float(omega)]["time"].append(current["start"])
+                series[float(omega)]["mu"].append(value)
 
-            wave_start_time = measurement.conditions['time']
-            waiting_time = measurement.details['waiting_time']
+        measurements_out = []
+        for omega, values in series.items():
+            time = np.asarray(values["time"], float)
+            measurement = self._series_measurement(
+                omega,
+                {
+                    "time": (time, "s"),
+                    MUTATION_NUMBER: (np.asarray(values["mu"], float), ""),
+                    "angular frequency": (np.full_like(time, omega), omega_unit),
+                },
+                "arbitrary wave",
+            )
+            if measurement is not None:
+                measurements_out.append(measurement)
+        return measurements_out
 
+    def _correlated(self, target: MeasurementSet) -> list[Measurement]:
+        """Mutation number between consecutive correlated OWCh windows (e.g. TORCh)."""
+        windows = [m for m in self._selected(target) if "Correlated" in self._get_step_name(m)]
+        if len(windows) < 2:
+            raise ValueError(
+                "Need at least two 'Correlated' measurements (identified by their "
+                "'Step name') to compute the mutation number."
+            )
 
-            dataset_time = measurement.datasets[1]
-            dataset_time.switch_coordinates('step time', 'time')
-            step_time = copy.deepcopy(dataset_time.x_values)
+        start_times, moduli, temperatures = [], [], []
+        temperature_unit = "°C"
+        for measurement in windows:
+            dataset = measurement.datasets[0]
+            time, time_unit = _column(dataset, "time")
+            start_times.append(time[0])
+            moduli.append(_column(dataset, self.dependent_variable)[0])
+            temperature = _column(dataset, "temperature")
+            if temperature is not None and temperature[0].size:
+                temperatures.append(float(np.mean(temperature[0])))
+                temperature_unit = temperature[1]
+            else:
+                parsed = self._parse_temperature_from_step_name(self._get_step_name(measurement))
+                temperatures.append(np.nan if parsed is None else parsed)
+        omega, omega_unit = _column(windows[0].datasets[0], "angular frequency")
 
-            wave_duration = max(step_time)
+        start_times = np.asarray(start_times)
+        moduli = np.asarray(moduli)
+        mu = self._mutation_number(
+            np.diff(np.log(moduli), axis=0),
+            np.diff(start_times)[:, None],
+            self.owch_length,
+        )
+        time = start_times[1:]
+        temperature = np.asarray(temperatures)[1:]
 
-            moduli.append(modulus)
-            frequencies.append(frequency)
-            wave_start_times.append(wave_start_time)
-            waiting_times.append(waiting_time)
-            wave_durations.append(wave_duration)
-
-        moduli_by_frequency = defaultdict(lambda: defaultdict(list))
-        for i, freq_list in enumerate(frequencies):
-            for j, freq in enumerate(freq_list):
-                moduli_by_frequency[freq][wave_start_times[i]].append(moduli[i][j])
-
-        mutation_number_by_frequency = defaultdict(lambda: defaultdict(list))
-        T_values = [wave_duration - waiting_time for wave_duration, waiting_time in zip(wave_durations, waiting_times)]
-        measurements = []
-        for i, freq_list in enumerate(frequencies):
-            if i > 0:
-                # Use wave_start_times to calculate time difference (delta_t)
-                time_diff = wave_start_times[i] + waiting_times[i] - (wave_start_times[i - 1] + waiting_times[i -1])
-                T = T_values[i]
-                for j, freq in enumerate(freq_list):
-                    if wave_start_times[i] != wave_start_times[i - 1]:
-                        ln_modulus_curr = np.log(moduli[i][j])
-                        ln_modulus_prev = np.log(moduli[i - 1][j])
-                        derivative_ln_modulus = (ln_modulus_curr - ln_modulus_prev) / time_diff  # Updated time difference
-                        if derivative_ln_modulus != 0:
-                            mutation_number = T / (1 / derivative_ln_modulus)
-                            mutation_number_by_frequency[freq][wave_start_times[i]].append(mutation_number)
-
-        # Create Measurement objects with mutation number data
-        for freq, time_dict in mutation_number_by_frequency.items():
-            all_times = []
-            all_mutation_numbers = []
-            for time, mutation_numbers in time_dict.items():
-                all_times.extend([time] * len(mutation_numbers))
-                all_mutation_numbers.extend(mutation_numbers)
-
-            # Create the mutation number dataset
-            mutation_number_dataset = one_dimensional_dataset.OneDimensionalDataset(
-                dependent_variable_data=np.array(all_mutation_numbers),
-                dependent_variable_names=['mutation number'],
-                dependent_variable_units=['a.u.'],
-                independent_variable_data=[np.array(all_times)],
-                independent_variable_names=['time'],
-                independent_variable_units=['s'],
-                source='datasets in time and frequency domain')
-
-            # Create a Measurement object
-            measurements.append(
-                Measurement(datasets=[mutation_number_dataset], conditions={'Angular Frequency': freq}, details={}))
-
-        return MutationNumberMeasurementSet(measurements=measurements)
+        measurements_out = []
+        for j, omega_j in enumerate(omega):
+            measurement = self._series_measurement(
+                omega_j,
+                {
+                    "time": (time, time_unit),
+                    MUTATION_NUMBER: (mu[:, j], ""),
+                    "temperature": (temperature, temperature_unit),
+                    "angular frequency": (np.full_like(time, omega_j), omega_unit),
+                },
+                "correlated",
+            )
+            if measurement is not None:
+                measurements_out.append(measurement)
+        return measurements_out

@@ -1,28 +1,43 @@
 Background
 ==========
 
-The rapid evolution of data science has opened new possibilities for advanced analysis in measurement science,
-particularly within the field of rheology. Despite these advancements, a gap remains between generalized data processing
-techniques and the specific requirements of rheological data analysis. This often leaves researchers searching for specialized
-tools tailored to their unique data challenges.
+``hermes-rheo`` builds on `piblin <https://github.com/3mcloud/piblin>`_,
+which provides the generic data model (``Measurement``,
+``MeasurementSet``, ``ExperimentSet``, ``OneDimensionalCompositeDataset``)
+together with the ``FileReader`` and transform base classes.
+``hermes-rheo`` adds instrument-specific file readers for TA Instruments
+TRIOS and Anton Paar RheoCompass exports, and rheology-specific transforms.
 
-To address this need, we introduce the `hermes` Python package. Building on the abstraction provided by the
-`piblin <https://github.com/3mcloud/piblin>`_ library, `hermes` offers a comprehensive suite of specialized transforms and
-analytical tools explicitly designed for rheological data. The package enhances research workflows by enabling precise reading,
-visualization, processing, and export of rheological datasets, all within a flexible framework.
+The package supports:
 
-Key features of `hermes` include the ability to analyze novel rheological methods such as the
-`Optimal Windowed Chirp (OWChirp) <https://journals.aps.org/prx/abstract/10.1103/PhysRevX.8.041042>`_ technique and the
-`automated, data-driven creation of rheological mastercurves <https://www.cambridge.org/core/journals/data-centric-engineering/article/datadriven-method-for-automated-data-superposition-with-applications-in-soft-matter-science/DA44C868EE1128DD79798653A1376594?utm_campaign=shareaholic&utm_medium=copy_link&utm_source=bookmark>`_. Additionally,
-`hermes` provides an ideal infrastructure for implementing and exploring new analytical rheological techniques.
-These capabilities position `hermes` as a powerful tool for advancing research in rheology, bridging the gap
-between data science and rheological measurement needs.
+- Reading TA Instruments TRIOS ``.txt`` exports
+  (see `TA Instruments <https://www.tainstruments.com/>`_) and
+  Anton Paar RheoCompass ``.csv`` exports
+  (see `Anton Paar <https://www.anton-paar.com/us-en/>`_).
+- Analysing chirp-based oscillatory tests via the
+  `Optimal Windowed Chirp (OWChirp) <https://journals.aps.org/prx/abstract/10.1103/PhysRevX.8.041042>`_
+  technique (Geri *et al.* 2018), including the strain-controlled
+  variant on TA ARES-G2 rheometers described in Perego (2025,
+  `Rheologica Acta <https://doi.org/10.1007/s00397-025-01511-0>`_).
+- Data-driven time–temperature superposition via the
+  `automated master-curve algorithm <https://www.cambridge.org/core/journals/data-centric-engineering/article/datadriven-method-for-automated-data-superposition-with-applications-in-soft-matter-science/DA44C868EE1128DD79798653A1376594>`_
+  of Lennon *et al.* (2023).
+- Time–cure superposition, temperature-ramp analysis, mutation number,
+  recovery rheology, and 2-D kymograph construction from TORCh
+  sequences (Vadillo, Perego *et al.* 2026).
 
 
 Citing
 ------
 
-Publication of this work is forthcoming. For now, if you use this software, please cite it using:
+If you use this software, please cite the JOSS paper:
+
+    Perego *et al.* (2025), *hermes-rheo: A Python package for
+    rheological data analysis*, Journal of Open Source Software,
+    `10.21105/joss.08753 <https://joss.theoj.org/papers/10.21105/joss.08753>`_.
+
+The Zenodo release DOI is also available:
+
     .. image:: https://zenodo.org/badge/851879885.svg
        :target: https://doi.org/10.5281/zenodo.14182224
        :alt: DOI
@@ -30,7 +45,7 @@ Publication of this work is forthcoming. For now, if you use this software, plea
 Installation
 ------------
 
-- `hermes` is in the Python Package Index! You can now quickly install it using pip.
+``hermes-rheo`` is available on PyPI:
 
 .. code-block:: console
 

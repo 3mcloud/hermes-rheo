@@ -1,14 +1,12 @@
 import os
-from distutils import dir_util
+import shutil
+
 import pytest
+
 
 @pytest.fixture()
 def datadir(tmpdir, request):
-    # locate the directory containing test files
-    filename = request.module.__file__
-    test_dir = os.path.join(os.path.dirname(filename), 'test_data')  # Ensure it points to 'test_data' directory
-
+    test_dir = os.path.join(os.path.dirname(request.module.__file__), "test_data")
     if os.path.isdir(test_dir):
-        dir_util.copy_tree(test_dir, str(tmpdir))  # Copy the entire folder to the tmpdir
-
+        shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
     return tmpdir

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools==75.8.0", "setuptools-git-versioning >= 2"]
+requires = ["setuptools==83.0.0", "setuptools-git-versioning>=2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools-git-versioning]
@@ -8,48 +8,100 @@ enabled = true
 [project]
 name = "hermes-rheo"
 authors = [
-    {name = "Alessandro Perego", email = "aperego@mmm.com"},
-    {name = "Matthew JL Mills", email = "mmills2@mmm.com"},
+    { name = "Alessandro Perego", email = "aperego@mmm.com" },
+    { name = "Matthew J. L. Mills", email = "mmills2@mmm.com" },
+    { name = "Damien C. Vadillo", email = "dvadillo@mmm.com" },
+    { name = "Jiachun Shi", email = "jshi11@mmm.com"},
 ]
-description = "piblin transforms tailored for advanced rheological analysis"
+description = "Python library for comprehensive rheological analysis, built using the piblin data abstraction"
 readme = "README.md"
 dynamic = ["version"]
-requires-python = ">=3.10, <3.12"
-
+requires-python = ">=3.10, <3.14"
+license = { text = "MIT" }
+keywords = ["rheology", "viscoelasticity", "piblin", "OWChirp", "master curve"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Chemistry",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Information Analysis",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "License :: OSI Approved :: MIT License"
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
 ]
-
 dependencies = [
-    "piblin",
+    "piblin>=0.0.3",
+    "numpy>=2",
+    "scipy",
+    "matplotlib",
+    "pandas",
     "openpyxl",
     "mastercurves",
-
 ]
 
 [project.optional-dependencies]
-tests = [
-    "pytest",
+notebooks = [
+    "scienceplots",
+    "opencv-python",
 ]
-
 docs = [
     "sphinx",
-    "sphinx_rtd_theme"
+    "sphinx-rtd-theme",
 ]
+all = ["hermes-rheo[notebooks,docs]"]
 
-all = [
-    "hermes-rheo[tests, docs]"
+[project.urls]
+Documentation = "https://3mcloud.github.io/hermes-rheo/"
+Source = "https://github.com/3mcloud/hermes-rheo"
+Issues = "https://github.com/3mcloud/hermes-rheo/issues"
+Changelog = "https://github.com/3mcloud/hermes-rheo/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+    "ruff>=0.6",
 ]
-
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"hermes_rheo._vendor" = ["README.md"]
+"hermes_rheo._vendor.pyrespect_time" = ["LICENSE"]
+"hermes_rheo._vendor.pyrespect_freq" = ["LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = [
+    "ignore::DeprecationWarning:mastercurves.*",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["papers", "docs/build", "docs/_build", "tutorial_notebooks", "src/hermes_rheo/_vendor"]
+
+[tool.ruff.format]
+exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B"]
+ignore = [
+    "B905",  # zip() without strict=; ported numerics rely on implicit truncation
+    "E741",  # single-letter names (I, l) follow the notation of the source papers
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**" = ["B011"]
+"tutorial_notebooks/**" = ["E402", "F401", "F811", "B018"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["hermes_rheo"]

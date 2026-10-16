@@ -3,17 +3,18 @@
 
 cff-version: 1.2.0
 title: hermes-rheo
+version: 2.0.0
 message: >-
-  If you use this software, please cite it using the  
+  If you use this software, please cite it using the
   metadata from this file.
 type: software
 authors:
-  - given-names: 'Alessandro '
+  - given-names: Alessandro
     family-names: Perego
     email: aperego@mmm.com
     affiliation: 3M
     orcid: 'https://orcid.org/0000-0002-0570-3210'
-  - given-names: Mathew J. L.
+  - given-names: Matthew J. L.
     family-names: Mills
     email: mmills2@mmm.com
     affiliation: 3M
@@ -33,11 +34,25 @@ abstract: >
   hermes Python package. Building on the abstraction
   provided by the piblin library, hermes delivers a suite of
   specialized transforms and analytical tools designed
-  explicitly for rheological data. This package enhances
-  workflows by enabling precise reading, visualization,
-  processing, and export of rheological datasets.
+  explicitly for rheological data, including readers for
+  TA Instruments and Anton Paar exports, time-temperature
+  superposition, OWChirp analysis, model fitting and
+  relaxation spectra.
 keywords:
   - rheology
   - data science
   - python
+  - soft matter physics
 license: MIT
+preferred-citation:
+  type: article
+  title: 'hermes-rheo: An Open-Source Python package for rheological data analysis'
+  authors:
+    - given-names: Alessandro
+      family-names: Perego
+      affiliation: 3M
+      orcid: 'https://orcid.org/0000-0002-0570-3210'
+  journal: Journal of Open Source Software
+  year: 2025
+  doi: 10.21105/joss.08753
+  url: 'https://joss.theoj.org/papers/10.21105/joss.08753'
