@@ -112,21 +112,6 @@ The [_hermes-rheo_](https://github.com/3mcloud/hermes-rheo/) project is under co
 The software repository contain a [`tutorial_notebooks`](https://github.com/3mcloud/hermes-rheo/tree/main/tutorial_notebooks) folder 
 with a comprehensive set of Jupyter notebooks demonstrating the diverse capabilities of *hermes-rheo*. 
 
-# AI-assisted analysis
-
-To support AI-assisted rheological analysis, the repository provides reusable
-resources in [`ai_assistants/`](https://github.com/3mcloud/hermes-rheo/tree/main/ai_assistants).
-These include a skill describing the package's data model, public API, and
-common analysis workflows, as well as example project-level and personal
-instruction templates. The materials are written to be adaptable across AI
-tools that support skills or persistent instructions, rather than being tied
-to a single assistant or computing environment. They encourage assistants to
-prefer existing *hermes-rheo* functionality over reimplementing analysis
-methods, verify APIs rather than assume them, and make clear when custom code
-is needed. These resources are intended to help users explore the package
-through AI-assisted workflows; scientific interpretation and validation of
-results remain the user's responsibility.
-
 
 # Available File Readers
 
@@ -142,3 +127,4 @@ For other data formats or instruments, users can develop custom readers while le
 The authors gratefully acknowledge the collaboration with Gareth H. McKinley and Mohua Das from the Department of Mechanical Engineering at the Massachusetts Institute of Technology. Their insightful discussions significantly contributed to the development of the Optimally Windowed Chirp analysis within the hermes-rheo software.
 
 # References
+
