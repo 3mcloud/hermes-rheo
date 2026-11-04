@@ -7,9 +7,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- `databricks_genie_code/`: a hermes-rheo skill (`SKILL.md`) and example
-  user and workspace instruction files for the Databricks Genie Code
-  assistant, with setup instructions.
+- `ai_assistants/`: a hermes-rheo skill (`SKILL.md`, Agent Skills format)
+  and example project and personal instruction files for AI coding
+  assistants (GitHub Copilot, Claude, Cursor, Codex, Databricks Genie Code,
+  ...), with per-tool setup instructions.
 
 ## [2.0.0]
 

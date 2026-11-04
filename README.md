@@ -94,12 +94,12 @@ The notebooks are also in [`tutorial_notebooks/`](tutorial_notebooks/):
 
 ## Using hermes-rheo with an AI assistant
 
-[`databricks_genie_code/`](databricks_genie_code/) contains a ready-made
-skill (`SKILL.md`) and example user and workspace instruction files for the
-Databricks Genie Code assistant. With them, the assistant uses hermes-rheo
-instead of writing its own parsing, FFT, shifting or fitting code. The skill
-follows the open Agent Skills format, so it also works with GitHub Copilot
-or Claude Code. See its [README](databricks_genie_code/README.md) for setup.
+[`ai_assistants/`](ai_assistants/) contains a ready-made hermes-rheo skill
+(`SKILL.md`, open Agent Skills format) and example project and personal
+instruction files for AI coding assistants (GitHub Copilot, Claude, Cursor,
+Codex, Databricks Genie Code, ...). With them, the assistant uses hermes-rheo
+instead of writing its own parsing, FFT, shifting or fitting code. See its
+[README](ai_assistants/README.md) for where to put each file.
 
 ## File readers
 
