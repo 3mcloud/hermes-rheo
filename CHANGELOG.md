@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `ai_assistants/`: a hermes-rheo skill (`SKILL.md`, Agent Skills format)
+  and example project and personal instruction files for AI coding
+  assistants (GitHub Copilot, Claude, Cursor, Codex, Databricks Genie Code,
+  ...), with per-tool setup instructions.
+
 ## [2.0.0]
 
 ### Changed

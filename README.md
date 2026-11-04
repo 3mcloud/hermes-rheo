@@ -92,6 +92,15 @@ The notebooks are also in [`tutorial_notebooks/`](tutorial_notebooks/):
 | 12 | Frequency to time relaxation modulus |
 | 13 | Relaxation spectrum (pyReSpect) |
 
+## Using hermes-rheo with an AI assistant
+
+[`ai_assistants/`](ai_assistants/) contains a ready-made hermes-rheo skill
+(`SKILL.md`, open Agent Skills format) and example project and personal
+instruction files for AI coding assistants (GitHub Copilot, Claude, Cursor,
+Codex, Databricks Genie Code, ...). With them, the assistant uses hermes-rheo
+instead of writing its own parsing, FFT, shifting or fitting code. See its
+[README](ai_assistants/README.md) for where to put each file.
+
 ## File readers
 
 | Instrument / software | Reader |
