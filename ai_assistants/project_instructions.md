@@ -1,12 +1,14 @@
-# Workspace instructions — rheology analysis with hermes-rheo
+# Project / team instructions — rheology analysis with hermes-rheo
 
-These instructions apply to everyone in this workspace. Edit the parts in
-`<angle brackets>` to match your workspace before uploading.
+Always-on instructions for an AI coding assistant used by a team or
+project. Edit the parts in `<angle brackets>`, delete what does not apply,
+and load it where your tool expects project-wide instructions (see
+`README.md` in this folder).
 
-## Who uses this workspace
+## Who uses this project
 
 - Scientists and engineers analysing rheometer data (TA Instruments TRIOS,
-  Anton Paar RheoCompass) in Databricks notebooks.
+  Anton Paar RheoCompass) in Python notebooks or scripts.
 - Many users are not software developers. Generated code must be short,
   readable, commented where the physics is not obvious, and runnable
   top-to-bottom.
@@ -22,8 +24,8 @@ These instructions apply to everyone in this workspace. Edit the parts in
 ## Use hermes-rheo, do not reinvent it
 
 - Before writing any code for rheology data, check whether hermes-rheo
-  already provides it. Load the `hermes-rheo` skill for the API, recipes
-  and the task-to-tool table.
+  already provides it. Use the `hermes-rheo` skill (`SKILL.md`) for the
+  API, recipes and the task-to-tool table.
 - hermes-rheo already covers: reading TRIOS `.txt` and RheoCompass `.csv`
   files, OWChirp / arbitrary-wave FFT analysis, OWChirp signal design,
   time-temperature and time-cure superposition (master curves),
@@ -34,31 +36,28 @@ These instructions apply to everyone in this workspace. Edit the parts in
 - Never write your own TRIOS/RheoCompass parser, chirp FFT, master-curve
   shifting, WLF fit or Tg detection.
 - Never invent classes, functions, arguments or column names. If unsure,
-  check in the notebook with `help(...)`, `inspect.signature(...)`,
+  check with `help(...)`, `inspect.signature(...)`,
   `print(hermes_rheo.__all__)` or `dataset.data_array_names`, and say so.
 - If hermes-rheo does not provide something, load the data with hermes-rheo
   anyway, write a small plain NumPy/pandas/matplotlib addition, and tell
   the user which part is custom.
 
-## Installing in notebooks
+## Installing
 
-- First cell: `%pip install "hermes-rheo[notebooks]"`
-- Second cell: `dbutils.library.restartPython()`
+- `pip install "hermes-rheo[notebooks]"` (in a notebook: `%pip install ...`,
+  then restart the kernel; on Databricks: `dbutils.library.restartPython()`).
 - Optional pyRheo models for `FitModel`:
-  `%pip install git+https://github.com/mirandi1/pyRheo.git`
-- <If your workspace pins a version or uses a private mirror, state it
-  here, e.g. `%pip install hermes-rheo==2.0.0`.>
+  `pip install git+https://github.com/mirandi1/pyRheo.git`
+- <If your team pins a version or uses a private package index, state it
+  here, e.g. `pip install hermes-rheo==2.0.0`.>
 
 ## Where data and results live
 
-- Raw instrument exports: `/Volumes/<catalog>/<schema>/<volume>/<raw folder>/`
-- Results (Excel, CSV, figures): `/Volumes/<catalog>/<schema>/<volume>/<results folder>/`
-- Pass file paths (`pathlib.Path`) to `hermes_rheo.read_file`. Don't load
-  instrument files with Spark.
-- Never modify or delete files in the raw-data folder. Write outputs to
-  the results folder only.
-- Only write to Unity Catalog tables when the user asks; then use
-  `spark.createDataFrame(df).write.saveAsTable("<catalog>.<schema>.<table>")`.
+- Raw instrument exports: `<path or storage location of raw files>`
+- Results (Excel, CSV, figures): `<path of results folder>`
+- Pass file paths (`pathlib.Path`) to `hermes_rheo.read_file`. Files in
+  cloud object storage must be downloaded or mounted to a local path first.
+- Never modify or delete raw data. Write outputs to the results folder only.
 
 ## Conventions for generated code
 
@@ -72,7 +71,7 @@ These instructions apply to everyone in this workspace. Edit the parts in
 - Use the hermes-rheo exporters (`.to_excel(...)`) and plot helpers in
   `hermes_rheo.visualization` before writing custom ones.
 - Set `np.random.seed(...)` before model fits so results are reproducible.
-- Keep secrets, tokens and personal data out of notebooks.
+- Keep secrets, tokens and personal data out of code and notebooks.
 
 ## Guardrails
 
@@ -81,5 +80,5 @@ These instructions apply to everyone in this workspace. Edit the parts in
 - When a result looks physically implausible (negative moduli, Tg outside
   the measured range, shift factors that are not monotonic), point it out
   instead of hiding it.
-- If the TRIOS file fails to parse, ask how it was exported: it must be
+- If a TRIOS file fails to parse, ask how it was exported: it must be
   *Export to LIMS* (TRIOS 5 and older) or *Export to .txt (Full)* (TRIOS 6 and newer).

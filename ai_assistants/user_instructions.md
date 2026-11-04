@@ -1,14 +1,16 @@
 # My instructions
 
-Example user instructions for a hermes-rheo user. Keep what fits you,
-delete the rest, and fill in the `<angle brackets>`.
+Example personal instructions for a hermes-rheo user, for any AI coding
+assistant. Keep what fits you, delete the rest, and fill in the
+`<angle brackets>`.
 
 ## About me and my work
 
 - I am a <rheologist / materials scientist / formulation chemist> working
   on <polymers, adhesives, gels, ...>.
 - I analyse rheometer data from <TA Instruments DHR / ARES-G2, Anton Paar
-  MCR> with the **hermes-rheo** Python library in Databricks notebooks.
+  MCR> with the **hermes-rheo** Python library in <Jupyter / VS Code /
+  Databricks / Colab> notebooks.
 - I am <comfortable with / new to> Python. Explain code
   <briefly / step by step>.
 
@@ -16,12 +18,12 @@ delete the rest, and fill in the `<angle brackets>`.
 
 - Always use hermes-rheo for reading rheometer files and for the analysis
   (master curves, OWChirp, Tg, model fits, spectra, kymographs, ...).
-  Load the `hermes-rheo` skill when I work with rheology data.
+  Use the `hermes-rheo` skill when I work with rheology data.
 - Don't reinvent functions hermes-rheo already provides, and never guess
   API names. If you are not sure something exists, check it with
-  `help(...)` in my notebook first.
-- Give me complete cells I can run top to bottom. Put imports and paths in
-  the first cell.
+  `help(...)` first.
+- Give me complete cells or scripts I can run top to bottom. Put imports
+  and paths at the top.
 - Ask me before you assume something that changes the result: reference
   temperature, which steps or temperatures to use, units, model choice.
 - When you finish an analysis, give a short plain-language summary of the
@@ -29,8 +31,8 @@ delete the rest, and fill in the `<angle brackets>`.
 
 ## My data
 
-- Raw files: `/Volumes/<catalog>/<schema>/<volume>/<my folder>/`
-- Save results to: `/Volumes/<catalog>/<schema>/<volume>/<my folder>/results/`
+- Raw files: `<folder with my instrument exports>`
+- Save results to: `<my results folder>`
 - My usual reference temperature for master curves is <25> °C.
 
 ## Plots and exports

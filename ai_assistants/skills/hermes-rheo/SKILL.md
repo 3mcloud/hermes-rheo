@@ -1,6 +1,6 @@
 ---
 name: hermes-rheo
-description: Use hermes-rheo (import name `hermes_rheo`) to analyse rheology data in Databricks or Jupyter notebooks — read TA TRIOS .txt / Anton Paar RheoCompass .csv exports, and do OWChirp (optimally windowed chirp) analysis, time-temperature or time-cure superposition master curves, WLF/Arrhenius shift factors, model fitting (Maxwell, fractional, multi-mode), G(t) from G'/G'', relaxation spectra, glass transition (Tg) from temperature ramps, mutation number, kymographs, recovery rheology, van Gurp-Palmen / Cole-Cole plots, and Excel export. Use whenever a user works with rheometer data, viscoelastic moduli, or asks for rheology plots/exports, BEFORE writing any custom parsing, FFT, fitting or shifting code.
+description: Use hermes-rheo (import name `hermes_rheo`) to analyse rheology data in Python notebooks or scripts (Jupyter, VS Code, Colab, Databricks, ...) — read TA TRIOS .txt / Anton Paar RheoCompass .csv exports, and do OWChirp (optimally windowed chirp) analysis, time-temperature or time-cure superposition master curves, WLF/Arrhenius shift factors, model fitting (Maxwell, fractional, multi-mode), G(t) from G'/G'', relaxation spectra, glass transition (Tg) from temperature ramps, mutation number, kymographs, recovery rheology, van Gurp-Palmen / Cole-Cole plots, and Excel export. Use whenever a user works with rheometer data, viscoelastic moduli, or asks for rheology plots/exports, BEFORE writing any custom parsing, FFT, fitting or shifting code.
 ---
 
 # hermes-rheo — analysis skill for notebook users
@@ -44,74 +44,69 @@ these building blocks**, not to re-implement them.
 6. **Prefer the result objects' own exporters** (`.to_excel(...)`) and the
    plot helpers in `hermes_rheo.visualization` before hand-rolling.
 7. Keep the user's raw data untouched: write outputs to a separate folder
-   (e.g. a `results/` folder in the same Unity Catalog volume).
+   (e.g. `results/` next to the data).
 
 ## 2. Install and check
 
-### Databricks notebook
+hermes-rheo is on PyPI and is pure Python (NumPy/SciPy/pandas/matplotlib),
+so it runs anywhere Python 3.10–3.13 runs: a laptop, JupyterLab, VS Code,
+Google Colab, Databricks, cloud VMs or HPC clusters.
 
-Install in the **first cell**, then restart Python in its own cell:
-
-```python
-%pip install "hermes-rheo[notebooks]"
+```bash
+pip install hermes-rheo                 # or: uv pip install hermes-rheo
+pip install "hermes-rheo[notebooks]"    # + SciencePlots style and video export
 ```
 
-```python
-dbutils.library.restartPython()
-```
+In a notebook cell use `%pip install "hermes-rheo[notebooks]"` (installs
+into the running kernel), then restart the kernel if the package was
+already imported.
 
 ```python
 import hermes_rheo
 print(hermes_rheo.__version__)
 ```
 
-- Works on serverless and classic compute. For classic clusters, the
-  library can also be added once as a cluster library (PyPI:
-  `hermes-rheo`), so notebooks don't need `%pip`.
-- If the workspace has no internet access, ask the user how PyPI packages
-  are provided (private mirror, wheel in a volume) — don't guess.
-
-### Local / Jupyter
-
-```bash
-pip install hermes-rheo                 # or: uv pip install hermes-rheo
-pip install "hermes-rheo[notebooks]"    # SciencePlots style + video export
-```
+If the machine has no internet access, ask the user how Python packages
+are provided (private mirror, wheel file) — don't guess.
 
 ### Optional pyRheo models
 
 `FitModel` with `model_name="Maxwell"`, `"FractionalZener"`, … needs
 [pyRheo](https://github.com/mirandi1/pyRheo) (GPL-3.0, not on PyPI):
 
-```python
-%pip install git+https://github.com/mirandi1/pyRheo.git
+```bash
+pip install git+https://github.com/mirandi1/pyRheo.git
 ```
 
 Without it only the built-in multi-mode Maxwell
 (`FitModel(model="custom", model_name="MultiModeMaxwell")`) works.
 
-### Where the data lives on Databricks
+### Files, paths and environments
 
-hermes-rheo reads ordinary files with Python file I/O, so give it a local
-path, **not** a Spark table:
+hermes-rheo reads ordinary files with Python file I/O: pass a file path
+(`str` or `pathlib.Path`). Ask the user where their data is instead of
+inventing a path. Write results to a separate folder next to the data.
 
-| Location | Path to pass to `read_file` |
-|---|---|
-| Unity Catalog volume (recommended) | `/Volumes/<catalog>/<schema>/<volume>/rheology/run1.txt` |
-| Workspace files next to the notebook | relative path, e.g. `data/run1.txt` |
-| Workspace files elsewhere | `/Workspace/Users/<user>/project/data/run1.txt` |
-| DBFS (legacy) | `/dbfs/...` (FUSE path, not `dbfs:/...`) |
+Notes for specific environments (use only the one that applies):
 
-- Write results (Excel, CSV, PNG) back to a volume, e.g.
-  `/Volumes/<catalog>/<schema>/<volume>/results/`.
-- `pd.ExcelWriter` / `.to_excel` need `openpyxl` (already a hermes
-  dependency). Writing to `/Volumes/...` works directly.
-- Show figures with `plt.show()` (or just let the cell end); `display(fig)`
-  also works. Show tables with `display(df)`.
-- hermes works on NumPy/pandas in the driver memory. Don't convert to
-  Spark unless the user asks to save a table; then use
+- **Local / Jupyter / VS Code:** relative paths such as `data/run1.txt`
+  are resolved from the notebook's working directory.
+- **Google Colab:** upload the files or mount Drive
+  (`from google.colab import drive; drive.mount("/content/drive")`), then
+  use `/content/drive/MyDrive/...` paths.
+- **Databricks:** after `%pip install ...` run
+  `dbutils.library.restartPython()` in its own cell. Use Unity Catalog
+  volume paths (`/Volumes/<catalog>/<schema>/<volume>/...`) or workspace
+  files; legacy DBFS needs the FUSE form `/dbfs/...`, not `dbfs:/...`.
+  hermes works on NumPy/pandas in driver memory — don't load instrument
+  files with Spark. Only if the user wants a table:
   `spark.createDataFrame(df).write.saveAsTable("catalog.schema.table")`.
-- Loop over many files with `Path(volume_dir).glob("*.txt")`.
+- **Cloud object storage (S3, Azure Blob, GCS):** download the file to a
+  local/temporary path first (or use a mounted path); `read_file` does not
+  take `s3://` URLs.
+- **Headless runs (scripts, jobs, HPC):** set `matplotlib.use("Agg")` and
+  save figures with `fig.savefig(...)` instead of showing them.
+- Loop over many files with `sorted(Path(folder).glob("*.txt"))`.
 
 ## 3. Mental model: how the data is organised
 
@@ -236,7 +231,7 @@ from hermes_rheo.visualization import use_science_style, get_unit, axis_label
 
 use_science_style()                 # optional, nicer with the [notebooks] extra
 warnings.filterwarnings("ignore")   # optimiser convergence notices from master curves / fits
-DATA = Path("/Volumes/<catalog>/<schema>/<volume>/rheology")   # ask the user; locally e.g. Path("data")
+DATA = Path("data")                 # ask the user where their files are
 RESULTS = DATA.parent / "results"; RESULTS.mkdir(parents=True, exist_ok=True)
 ```
 
