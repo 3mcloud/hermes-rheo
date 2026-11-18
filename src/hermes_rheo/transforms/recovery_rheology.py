@@ -563,9 +563,6 @@ class RecoveryRheology(MeasurementSetTransform):
         used for strain rates (1-4).
     k_step : int, default 1
         Sample spacing of the derivative stencil.
-    strain_shift_state : bool, default False
-        Shift the strain columns of the half-period by the mean of its first
-        and mirrored last rows, so the loop closes about zero.
     omega : float, optional
         Angular frequency :math:`\omega` [rad/s]. If None, it is estimated
         from the FFT peak of the oscillation data; supply it when known.
@@ -592,7 +589,6 @@ class RecoveryRheology(MeasurementSetTransform):
         n_use: int | None = None,
         diff_state: int = 4,
         k_step: int = 1,
-        strain_shift_state: bool = False,
         omega: float | None = None,
         stress_zero_tol: float = 1e-10,
         *args,
@@ -604,7 +600,6 @@ class RecoveryRheology(MeasurementSetTransform):
         self.n_use = n_use
         self.diff_state = diff_state
         self.k_step = k_step
-        self.strain_shift_state = strain_shift_state
         self.omega = omega
         self.stress_zero_tol = stress_zero_tol
         self.result: RecoveryRheologyResult | None = None
@@ -635,7 +630,6 @@ class RecoveryRheology(MeasurementSetTransform):
                     "n_osc": self.n_osc,
                     "diff_state": self.diff_state,
                     "k_step": self.k_step,
-                    "strain_shift_state": self.strain_shift_state,
                 }
             )
             for key in ("n_halfp_auto", "n_halfp_est", "n_use_auto", "join_score", "dt_auto"):
@@ -1254,16 +1248,6 @@ class RecoveryRheology(MeasurementSetTransform):
 
         n_use0 = n_use - 1
 
-        if self.strain_shift_state:
-            if (n_use0 + n_halfp) >= n_meas:
-                raise ValueError(
-                    f"strain_shift_state requires row {n_use0 + n_halfp + 1}, "
-                    f"but rec_anal_mat has only {n_meas} rows."
-                )
-            gamma_shift = (-rec_anal_mat[n_use0 + n_halfp, 1:4] - rec_anal_mat[n_use0, 1:4]) / 2.0
-        else:
-            gamma_shift = np.array([0.0, 0.0, 0.0])
-
         idx = np.arange(n_use0, n_use0 + n_halfp)
 
         rec_anal_use = np.vstack(
@@ -1271,7 +1255,7 @@ class RecoveryRheology(MeasurementSetTransform):
                 np.column_stack(
                     [
                         rec_anal_mat[idx, 0],
-                        rec_anal_mat[idx, 1:4] + gamma_shift,
+                        rec_anal_mat[idx, 1:4],
                         np.zeros((n_halfp, 3)),
                         meas_opts[idx, n_use0],
                     ]
@@ -1279,7 +1263,7 @@ class RecoveryRheology(MeasurementSetTransform):
                 np.column_stack(
                     [
                         rec_anal_mat[idx, 0] + dt * n_halfp,
-                        -rec_anal_mat[idx, 1:4] - gamma_shift,
+                        -rec_anal_mat[idx, 1:4],
                         np.zeros((n_halfp, 3)),
                         -meas_opts[idx, n_use0],
                     ]
