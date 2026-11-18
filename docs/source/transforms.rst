@@ -143,8 +143,12 @@ log G'), or both (``tg_method``), following [#ref-RH100]_.
 
 Recovery Rheology
 -----------------
-Oscillatory (OCR) and step-strain (creep-recovery) rheology analyses
-following Lee, Weigandt, Kelley and Rogers (2019) [#ref-Lee2019]_.
+Oscillatory recovery (OCR) and step-function recovery analyses following
+Lee, Weigandt, Kelley and Rogers (2019) [#ref-Lee2019]_. The OCR
+decomposition follows Donley *et al.* (2020) [#ref-Donley2020]_; the
+step-function analysis applies to any strain- or stress-controlled stepwise
+deformation (step strain, creep, start-up shear) followed by zero-stress
+recovery, following Singh *et al.* (2021) [#ref-Singh2021]_.
 
 .. automodule:: hermes_rheo.transforms.recovery_rheology
    :members: RecoveryRheology, RecoveryRheologyMeasurementSet, RecoveryRheologyResult
@@ -282,6 +286,18 @@ References
    Viscoelastic Materials*, Phys. Rev. Lett. **122**, 248003 (2019).
    DOI: `10.1103/PhysRevLett.122.248003
    <https://doi.org/10.1103/PhysRevLett.122.248003>`_.
+
+.. [#ref-Donley2020] Donley, G. J., Singh, P. K., Shetty, A. and Rogers,
+   S. A., *Elucidating the G'' overshoot in soft materials with a yield
+   transition via a time-resolved experimental strain decomposition*, Proc.
+   Natl. Acad. Sci. U.S.A. **117**\ (36), 21945--21952 (2020).
+   DOI: `10.1073/pnas.2003869117 <https://doi.org/10.1073/pnas.2003869117>`_.
+
+.. [#ref-Singh2021] Singh, P. K., Lee, J. C.-W., Patankar, K. A. and Rogers,
+   S. A., *Revisiting the basis of transient rheological material functions:
+   Insights from recoverable strain measurements*, Journal of Rheology
+   **65**\ (2), 129--144 (2021).
+   DOI: `10.1122/8.0000154 <https://doi.org/10.1122/8.0000154>`_.
 
 .. [#ref-MoursWinter1994] Mours, M. and Winter, H. H., *Time-resolved
    rheometry*, Rheologica Acta **33**(5), 385--397 (1994).

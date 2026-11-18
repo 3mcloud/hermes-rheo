@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `RecoveryRheology(method="step")`: total, unrecoverable and recoverable
+  strain rates with respect to experimental time, appended to the step
+  results (`recov_anal_data` columns 6-8, the "step results" dataset and the
+  Excel export). `plot_step_results(quantity="rate")` plots them.
+
+### Fixed
+- `RecoveryRheologyResult.plot_transient` measures the recovered strain from
+  the end of the deformation, γ_rec(t_r) = γ_tot(t_exp) − γ(t_r), instead
+  of from the first recovery point, so the instantaneous recoil is included
+  and the recovery time starts at the end of the deformation.
+
+### Removed
+- `RecoveryRheology`: the `strain_shift_state` parameter. The half-period
+  loop is always built from the unshifted pair-averaged strains.
+
 ## [2.0.0]
 
 ### Changed
