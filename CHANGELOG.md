@@ -12,6 +12,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   results (`recov_anal_data` columns 6-8, the "step results" dataset and the
   Excel export). `plot_step_results(quantity="rate")` plots them.
 
+### Fixed
+- `RecoveryRheologyResult.plot_transient` measures the recovered strain from
+  the end of the deformation, γ_rec(t_r) = γ_tot(t_exp) − γ(t_r), instead
+  of from the first recovery point, so the instantaneous recoil is included
+  and the recovery time starts at the end of the deformation.
+
 ### Removed
 - `RecoveryRheology`: the `strain_shift_state` parameter. The half-period
   loop is always built from the unshifted pair-averaged strains.

@@ -78,3 +78,19 @@ def test_step_strain_rates_are_time_derivatives():
     rates = _step_strain_rates(data)
     assert np.allclose(rates, [3.0, 0.5, 2.5])
     assert np.all(np.isnan(_step_strain_rates(data[:1])))
+
+
+def test_transient_recovered_strain_is_measured_from_end_of_deformation():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    out = RecoveryRheology(method="step")(_load("mcr702e_rheocompass_startup_shear_recovery.csv"))
+    curve = out.result.metadata["transient_curves"][0]
+    fig, ax = out.result.plot_transient(logx=False)
+    t_r, gamma_rec = ax.lines[0].get_data()
+    matplotlib.pyplot.close(fig)
+    # The instantaneous recoil before the first recovery sample is included.
+    assert t_r[0] == 0.0 and gamma_rec[0] == 0.0
+    assert np.isclose(t_r[1], curve["rec_time"][0] - curve["creep_time"][-1])
+    assert np.isclose(gamma_rec[1], abs(curve["creep_strain"][-1] - curve["rec_strain"][0]))
+    assert gamma_rec[1] > 1.0

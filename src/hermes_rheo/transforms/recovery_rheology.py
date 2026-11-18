@@ -477,8 +477,10 @@ class RecoveryRheologyResult:
         time for each stepwise deformation,
         :math:`\gamma_{rec}(t_r) = \gamma_{tot}(t_{exp}) - \gamma(t_r)`, where
         :math:`t_{exp}` is the end of the deformation and :math:`t_r` the
-        recovery time. It starts at 0 and approaches the final recoverable
-        strain. Curves are coloured by deformation duration.
+        recovery time measured from it. It starts at 0 and approaches the
+        recoverable strain of the step, so the instantaneous recoil before
+        the first recovery point is included. Curves are coloured by
+        deformation duration.
 
         Parameters
         ----------
@@ -539,9 +541,15 @@ class RecoveryRheologyResult:
             if rec_t.size == 0:
                 continue
 
-            rec_t_shifted = rec_t - rec_t[0]
-
-            gamma_rec_transient = np.abs(rec_g[0] - rec_g)
+            if c["creep_time"].size:
+                t_exp, gamma_exp = c["creep_time"][-1], c["creep_strain"][-1]
+            else:
+                t_exp, gamma_exp = rec_t[0], rec_g[0]
+            rec_t_shifted = rec_t - t_exp
+            gamma_rec_transient = c["sign"] * (gamma_exp - rec_g)
+            if not logx:
+                rec_t_shifted = np.r_[0.0, rec_t_shifted]
+                gamma_rec_transient = np.r_[0.0, gamma_rec_transient]
 
             ct = c["creep_time"][-1] - c["creep_time"][0] if c["creep_time"].size > 1 else 0
             color = cmap((ct - t_min) / (t_max - t_min))
