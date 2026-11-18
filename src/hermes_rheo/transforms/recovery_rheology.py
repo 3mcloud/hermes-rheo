@@ -136,6 +136,26 @@ def _average_by_duration(
     return out
 
 
+def _step_strain_rates(step_data: np.ndarray) -> np.ndarray:
+    """Total, unrecoverable and recoverable strain rates versus experimental time.
+
+    The strains of the pair-averaged step results (columns 1, 4 and 5 of the
+    output of `_average_by_duration`) are differentiated with respect to the
+    experimental time (column 0) with second-order finite differences.
+
+    Returns
+    -------
+    numpy.ndarray
+        Columns ``[total rate, unrecoverable rate, recoverable rate]`` [1/s],
+        one row per step duration; NaN if fewer than two durations are
+        available.
+    """
+    t = step_data[:, 0]
+    if t.size < 2:
+        return np.full((t.size, 3), np.nan)
+    return np.column_stack([np.gradient(step_data[:, col], t) for col in (1, 4, 5)])
+
+
 def _find_step_columns(names_lower: list[str]) -> tuple[int | None, int | None, int | None]:
     """Return indices of the time, strain and stress columns (None if absent)."""
 
@@ -165,8 +185,10 @@ class RecoveryRheologyResult:
     recov_anal_data : numpy.ndarray
         Pair-averaged data. Oscillatory: columns ``[t, gamma_tot, gamma_unrec,
         gamma_rec, sigma]`` (s, -, -, -, Pa). Step: columns ``[t,
-        gamma_tot, sigma_tot, t_rec, gamma_unrec, gamma_rec]`` (s, -, Pa, s,
-        -, -).
+        gamma_tot, sigma_tot, t_rec, gamma_unrec, gamma_rec, rate_tot,
+        rate_unrec, rate_rec]`` (s, -, Pa, s, -, -, 1/s, 1/s, 1/s), where the
+        rates are derivatives of the strains with respect to the experimental
+        time ``t``.
     pair_indices : numpy.ndarray
         Index of each forward/reverse pair (oscillatory) or step pair (step).
     mod_fft : numpy.ndarray or None
@@ -307,6 +329,9 @@ class RecoveryRheologyResult:
                     "rec_time",
                     "unrec_strain",
                     "rec_strain",
+                    "total_rate",
+                    "unrec_rate",
+                    "rec_rate",
                 ],
             )
 
@@ -384,7 +409,7 @@ class RecoveryRheologyResult:
 
         return figs, axes
 
-    def plot_step_results(self, figsize=(8, 5)):
+    def plot_step_results(self, figsize=(8, 5), quantity="strain"):
         """
         Plot total, unrecoverable and recoverable strain versus experimental time.
 
@@ -392,6 +417,8 @@ class RecoveryRheologyResult:
         ----------
         figsize : tuple of float, default (8, 5)
             Figure size.
+        quantity : {"strain", "rate"}, default "strain"
+            Plot the strains or their rates with respect to experimental time.
 
         Returns
         -------
@@ -400,17 +427,23 @@ class RecoveryRheologyResult:
         """
         if self.method != "step":
             raise ValueError("plot_step_results is only for method='step'.")
+        if quantity not in ("strain", "rate"):
+            raise ValueError(f"quantity must be 'strain' or 'rate', got {quantity!r}.")
         data = self.recov_anal_data
         t = data[:, 0]
+        if quantity == "strain":
+            cols, name, unit = (4, 5, 1), "strain", "[-]"
+        else:
+            cols, name, unit = (7, 8, 6), "strain rate", "[1/s]"
 
         fig, ax = plt.subplots(figsize=figsize)
-        ax.plot(t, data[:, 4], "o-", color="C0", label="Unrecoverable strain")
-        ax.plot(t, data[:, 5], "s-", color="C1", label="Recoverable strain")
-        ax.plot(t, data[:, 1], "^--", color="C2", alpha=0.5, label="Total strain")
+        ax.plot(t, data[:, cols[0]], "o-", color="C0", label=f"Unrecoverable {name}")
+        ax.plot(t, data[:, cols[1]], "s-", color="C1", label=f"Recoverable {name}")
+        ax.plot(t, data[:, cols[2]], "^--", color="C2", alpha=0.5, label=f"Total {name}")
         ax.set_xlabel("Experiment Time [s]")
-        ax.set_ylabel("Strain [-]")
+        ax.set_ylabel(f"{name.capitalize()} {unit}")
         ax.legend(frameon=False)
-        ax.set_title("Step-function recovery: strain vs experimental time")
+        ax.set_title(f"Step-function recovery: {name} vs experimental time")
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         return fig, ax
@@ -534,9 +567,9 @@ class RecoveryRheology(MeasurementSetTransform):
       (time [s], total, unrecoverable and recoverable strain [-], stress
       [Pa]) and one with the closed decomposition loop (time, the three
       strains, the three strain rates [1/s] and stress).
-    * Step: one measurement with the pair-averaged strain and stress
-      versus time, plus one measurement per deformation step holding the
-      deformation and recovery strain curves.
+    * Step: one measurement with the pair-averaged strains, strain rates
+      and stress versus experimental time, plus one measurement per
+      deformation step holding the deformation and recovery strain curves.
 
     Parameters and scalar results (``omega``, ``storage_modulus_fft``,
     ``loss_modulus_fft``, ``energy_*`` and ``raw_*`` moduli, ``amplitude_*``
@@ -711,7 +744,7 @@ class RecoveryRheology(MeasurementSetTransform):
         else:
             data = rr.recov_anal_data
             step_dataset = one_d_composite_dataset.OneDimensionalCompositeDataset(
-                data_arrays=[data[:, i] for i in range(6)],
+                data_arrays=[data[:, i] for i in range(9)],
                 data_array_names=[
                     "time",
                     "total strain",
@@ -719,8 +752,11 @@ class RecoveryRheology(MeasurementSetTransform):
                     "recovery time",
                     "unrecoverable strain",
                     "recoverable strain",
+                    "total strain rate",
+                    "unrecoverable strain rate",
+                    "recoverable strain rate",
                 ],
-                data_array_units=["s", "–", "Pa", "s", "–", "–"],
+                data_array_units=["s", "–", "Pa", "s", "–", "–", "1/s", "1/s", "1/s"],
                 default_independent_name="time",
                 default_dependent_name="recoverable strain",
                 source="Recovery rheology step results",
@@ -1370,6 +1406,7 @@ class RecoveryRheology(MeasurementSetTransform):
         arr_neg = np.array(rows_neg) if rows_neg else np.empty((0, 7))
 
         pair_avg = _average_by_duration(arr_pos, arr_neg)
+        pair_avg = np.column_stack([pair_avg, _step_strain_rates(pair_avg)])
 
         return RecoveryRheologyResult(
             method="step",

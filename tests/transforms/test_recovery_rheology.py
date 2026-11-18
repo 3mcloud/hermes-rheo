@@ -50,8 +50,10 @@ def test_step_returns_piblin_measurements(protocol):
     assert all(m.details["method"] == "step" for m in out.measurements)
     # 7 step durations, each run in both directions; the start-up shear file
     # has one point flagged invalid, which must not drop its step.
-    assert out.result.recov_anal_data.shape[0] == 7
+    assert out.result.recov_anal_data.shape == (7, 9)
     assert np.all(np.isfinite(out.result.recov_anal_data))
+    step = next(m for m in out.measurements if m.conditions["component"] == "step results")
+    assert "unrecoverable strain rate" in step.datasets[0].data_array_names
 
 
 def test_step_blocks_are_paired_by_duration():
@@ -65,3 +67,14 @@ def test_step_blocks_are_paired_by_duration():
     assert np.allclose(out[:, 1], [2.0, 2.0, 4.0])
     assert np.allclose(out[:, 4], [0.3, 0.4, 1.0])
     assert np.allclose(out[:, 5], out[:, 1] - out[:, 4])
+
+
+def test_step_strain_rates_are_time_derivatives():
+    from hermes_rheo.transforms.recovery_rheology import _step_strain_rates
+
+    # [time, total strain, stress, recovery time, unrecoverable strain, recoverable strain]
+    t = np.array([1.0, 2.0, 4.0, 8.0])
+    data = np.column_stack([t, 3 * t, np.ones(4), np.ones(4), 0.5 * t, 2.5 * t])
+    rates = _step_strain_rates(data)
+    assert np.allclose(rates, [3.0, 0.5, 2.5])
+    assert np.all(np.isnan(_step_strain_rates(data[:1])))

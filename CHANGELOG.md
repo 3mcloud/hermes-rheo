@@ -6,6 +6,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `RecoveryRheology(method="step")`: total, unrecoverable and recoverable
+  strain rates with respect to experimental time, appended to the step
+  results (`recov_anal_data` columns 6-8, the "step results" dataset and the
+  Excel export). `plot_step_results(quantity="rate")` plots them.
+
 ### Removed
 - `RecoveryRheology`: the `strain_shift_state` parameter. The half-period
   loop is always built from the unshifted pair-averaged strains.
